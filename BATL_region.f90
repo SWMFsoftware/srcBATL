@@ -13,9 +13,9 @@ module BATL_region
   use BATL_size, ONLY: nDim, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
        nI, nJ, nK, nIJK, MinI, MinJ, MinK, MaxI, MaxJ, MaxK, MaxIJK,&
        nINode, nJNode, nKNode
-
   use ModUtilities, ONLY: CON_stop
-
+  use omp_lib
+  
   implicit none
 
   SAVE
@@ -37,7 +37,7 @@ module BATL_region
   integer, public :: nArea = 0
 
   ! Number of geometrical criteria from #GRIDLEVEL/RESOLUTION commands
-  integer, public :: nCritGrid    = 0
+  integer, public :: nCritGrid = 0
 
   ! we have read in new data from PARAM.in
   logical, public :: IsNewGeoParam =.false.
@@ -64,30 +64,37 @@ module BATL_region
 
   ! the area being processed (for easier access)
   type(AreaType), pointer, public:: Area
+  !$omp threadprivate( Area )
 
   ! These are set by #GRIDLEVEL/RESOLTION ... initial command
   ! Values are corrected and used in init_region
   ! The number of levels is public so that BATSRUS can do the
   ! initial refinement loop.
-  integer, public :: nInitialAmrLevel  = 0
-
+  integer, public :: nInitialAmrLevel = 0
+  
   ! Local variables
   real            :: InitialResolution = -1.0
-
+  
   ! Name of shape being processed
   character(lNameArea) :: NameShape
-
+  !$omp threadprivate( NameShape )
+  
   ! index for the parallel and one or two perpendicular directions
   integer:: iPar
   integer, allocatable:: iPerp_I(:)
   real,    allocatable:: SlopePerp_D(:)
-
+  !$omp threadprivate( iPar, iPerp_I, SlopePerp_D )
+  
   ! Allocatable storage
   logical, allocatable:: IsInsideOld_I(:)
   real,    allocatable:: ValueOld_I(:), Xyz_DI(:,:), Coord_DI(:,:)
   real,    allocatable:: Norm_DI(:,:)
   real,    allocatable:: Corner_DI(:,:), CornerNorm_DI(:,:)
-
+  !$omp threadprivate( IsInsideOld_I )
+  !$omp threadprivate( ValueOld_I, Xyz_DI, Coord_DI )
+  !$omp threadprivate( Norm_DI )
+  !$omp threadprivate( Corner_DI, CornerNorm_DI )
+  
 contains
   !============================================================================
   subroutine init_region
@@ -295,8 +302,8 @@ contains
     ! Set the indexes parallel and perpendicular to the symmetry axis
     ! of various shapes
 
-    integer:: l
-    character:: CharLast
+    integer :: l
+    character :: CharLast
 
     !--------------------------------------------------------------------------
     iPar = 0 ! default is that there is no symmetry axis
@@ -648,15 +655,13 @@ contains
 
     logical:: DoBlock, DoMask, DoValue, DoBlockOnly
 
-    logical             :: IsInsideOld
+    logical:: IsInsideOld
 
     logical:: DoSetCorner, DoSetCoord, DoSetXyz
 
-    ! logical:: DoTest
-    logical, parameter:: DoTest = .false.
+    logical:: DoTest = .false.
     character(len=*), parameter:: NameSub = 'block_inside_regions'
     !--------------------------------------------------------------------------
-    ! DoTest = iBlock == 136
 
     DoBlock  = present(IsInside)
     DoMask   = present(IsInside_I)
@@ -745,7 +750,7 @@ contains
           call points_inside_region(nPoint, Coord_DI, Area, &
                IsInside, IsInside_I, Value_I)
        else
-          ! The generic case uses Cartesian point  coordinates
+          ! The generic case uses Cartesian point coordinates
           if(DoTest)write(*,*) NameSub,' DoSetXyz=', DoSetXyz
           if(DoSetXyz) call set_xyz
           call points_inside_region(nPoint, Xyz_DI, Area, &
