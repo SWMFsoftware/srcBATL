@@ -77,6 +77,7 @@ module BATL_grid
   logical :: DoInitializeGrid = .true.
 
 contains
+  !============================================================================
   subroutine init_grid(CoordMinIn_D, CoordMaxIn_D, UseRadiusIn, UseDegreeIn)
 
     use ModNumConst, ONLY: cTwoPi, cDegToRad
@@ -92,7 +93,7 @@ contains
 
     logical:: UseRadius, UseDegree
     real   :: Unit
-    !-------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     if(.not. DoInitializeGrid) RETURN
 
@@ -199,8 +200,10 @@ contains
     if(IsRoundCube) IsPeriodic_D = .false.
 
   end subroutine init_grid
+  !============================================================================
   subroutine clean_grid
 
+    !--------------------------------------------------------------------------
     if(DoInitializeGrid) RETURN
 
     DoInitializeGrid = .true.
@@ -219,6 +222,7 @@ contains
     DomainSize_D = -1.0
 
   end subroutine clean_grid
+  !============================================================================
 
   subroutine create_grid_block(iBlock, iNodeIn, DoFixFace, DoFaceOnly)
 
@@ -253,7 +257,7 @@ contains
     real, parameter:: cThird = 1.0/3.0
 
     character(len=*), parameter:: NameSub = 'create_grid_block'
-    !-------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     if(present(iNodeIn))then
        iNode = iNodeIn
     else
@@ -611,7 +615,10 @@ contains
     end if
 
   contains
+    !==========================================================================
     subroutine calc_analytic_face
+
+      ! Calculate analytic (curved) face areas
 
       real, allocatable:: SinThetaFace_I(:), &
            SinPhi_I(:), CosPhi_I(:), SinPhiFace_I(:), CosPhiFace_I(:)
@@ -621,9 +628,7 @@ contains
       integer:: i, j, k
 
       character(len=*), parameter:: NameSub = 'calc_analytic_face'
-      !----------------------------------------------------------------------
-
-      ! Calculate analytic (curved) face areas
+      !------------------------------------------------------------------------
       if(IsCylindrical)then
 
          allocate( &
@@ -774,6 +779,7 @@ contains
       end if
 
     end subroutine calc_analytic_face
+    !==========================================================================
     real function volume4(i1,j1,k1, i2,j2,k2, i3,j3,k3, i4,j4,k4)
 
       integer, intent(in):: i1,j1,k1, i2,j2,k2, i3,j3,k3, i4,j4,k4
@@ -784,7 +790,7 @@ contains
       real, parameter:: cSixth = 1.0/6.0
 
       real, dimension(3):: a_D, b_D, c_D, d_D
-      !----------------------------------------------------------------------
+      !------------------------------------------------------------------------
       a_D = Xyz_DN(:,i1,j1,k1)
       b_D = Xyz_DN(:,i2,j2,k2) - a_D
       c_D = Xyz_DN(:,i3,j3,k3) - a_D
@@ -794,19 +800,23 @@ contains
       volume4 = cSixth*sum( b_D*cross_product(c_D, d_D) )
 
     end function volume4
+    !==========================================================================
 
     subroutine correct_geometry_high_order
       ! Jiang, Yan, Chi-Wang Shu, and Mengping Zhang. "Free-stream preserving o
       ! finite difference schemes on curvilinear meshes." Brown University,
       ! Scientific Computing Group, Report 10 (2013): 2013.
 
+      !------------------------------------------------------------------------
       call calc_metrics(iBlock)
       call coef_cart_to_noncart(iBlock)
       call calc_face_normal(iBlock)
 
     end subroutine correct_geometry_high_order
+    !==========================================================================
 
   end subroutine create_grid_block
+  !============================================================================
 
   subroutine average_grid_node(iBlock, nVar, Var_VN)
 
@@ -823,7 +833,7 @@ contains
     integer :: i, j, k
     integer :: i1, i2, j1, j2, k1, k2, Di, Dj, Dk
     integer :: iDir, jDir, kDir, nDir
-    !----------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     ! Loop over neighbor directions and set index ranges
     do kDir = -1,1
        select case(kDir)
@@ -913,13 +923,14 @@ contains
     end do
 
   end subroutine average_grid_node
+  !============================================================================
 
   subroutine fix_grid_res_change
 
     ! Fix 3D curvilinear grid at resolution changes so that faces match
 
     integer:: iBlock, iDir, jDir, kDir
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     LOOPBLOCK: do iBlock = 1, nBlock
        if(Unused_B(iBlock))CYCLE
 
@@ -938,13 +949,14 @@ contains
     end do LOOPBLOCK
 
   end subroutine fix_grid_res_change
+  !============================================================================
 
   subroutine create_grid
 
     ! create the grid: coordinates, face normals, cell volumes etc.
 
     integer:: iBlock
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     if(nDim == 3 .and. IsNodeBasedGrid .and. .not. IsCartesianGrid)then
        do iBlock = 1, nBlock
           if(Unused_B(iBlock))CYCLE
@@ -958,6 +970,7 @@ contains
     end if
 
   end subroutine create_grid
+  !============================================================================
 
   subroutine show_grid_block(iBlock)
 
@@ -968,7 +981,7 @@ contains
     integer:: iDim
 
     character(len=*), parameter:: NameSub = 'show_grid_block'
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     if(Unused_B(iBlock))then
        write(*,*) NameSub//' WARNING unused block ',iBlock,' on proc',iProc
        RETURN
@@ -997,6 +1010,7 @@ contains
     write(*,*)'Xyz(nI,nJ,nK)=', Xyz_DGB(:,nI,nJ,nK,iBlock)
 
   end subroutine show_grid_block
+  !============================================================================
 
   subroutine show_grid_cell(NameCell, i, j, k, iBlock)
 
@@ -1009,7 +1023,8 @@ contains
 
     integer:: iDim, iSide, Di, Dj, Dk, i1, j1, k1, i2, k2, j2
     integer:: DiLevel, iNodeNei, iNodeNei_I(4)
-    !------------------------------------------------------------------------
+
+    !--------------------------------------------------------------------------
     write(*,*)
     write(*,*) NameCell,', Used_GB=', Used_GB(i,j,k,iBlock)
     if(.not.all(Used_GB(i-1:i+1,j,k,iBlock))) &
@@ -1067,13 +1082,14 @@ contains
     write(*,*)
 
   end subroutine show_grid_cell
+  !============================================================================
 
   subroutine show_grid_proc
 
     ! Show all blocks sequentially on the calling processor
 
     integer:: iBlock
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
@@ -1081,6 +1097,7 @@ contains
     end do
 
   end subroutine show_grid_proc
+  !============================================================================
 
   subroutine show_grid
 
@@ -1090,8 +1107,8 @@ contains
     ! must be called from all processors of the MPI communicator iComm!
 
     integer:: iPe
-    !------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
     call barrier_mpi
     do iPe = 0, nProc - 1
        if(iPe == iProc) call show_grid_proc
@@ -1099,6 +1116,7 @@ contains
     end do
 
   end subroutine show_grid
+  !============================================================================
 
   subroutine find_grid_block(XyzIn_D, &
        iProcOut, iBlockOut, iCellOut_D, DistOut_D, iNodeOut, &
@@ -1123,14 +1141,14 @@ contains
     real,    intent(out), optional:: CoordMinBlockOut_D(MaxDim)! block corner
     real,    intent(out), optional:: CoordMaxBlockOut_D(MaxDim)! block corner
     real,    intent(out), optional:: CellSizeOut_D(MaxDim) ! cell size in block
-    logical, intent(in),  optional:: UseGhostCell ! Use ghost cells or not
+    logical, intent(in),  optional:: UseGhostCell ! use ghost cells or not
 
     real:: CoordTree_D(MaxDim), Coord_D(MaxDim)
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
     integer:: iNode
 
     character(len=*), parameter:: NameSub = 'find_grid_block'
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     ! Convert to generalized coordinates if necessary
     if(IsCartesianGrid)then
        Coord_D = XyzIn_D
@@ -1183,6 +1201,7 @@ contains
     end if
 
   end subroutine find_grid_block
+  !============================================================================
   real function integrate_grid(Var_GB, UseGlobal)
 
     use ModMpi, ONLY: MPI_allreduce, MPI_REAL, MPI_SUM, MPI_IN_PLACE
@@ -1217,6 +1236,7 @@ contains
     integrate_grid = Integral
 
   end function integrate_grid
+  !============================================================================
   real function minval_grid(Var_GB, iLoc_I)
 
     use ModMpi, ONLY: MPI_allreduce, MPI_REAL, MPI_MIN, MPI_IN_PLACE
@@ -1235,7 +1255,7 @@ contains
     real    :: VarMin
     integer :: i, j, k, iBlock, iError
 
-    character(len=*), parameter:: NameSub = 'integrate_grid'
+    character(len=*), parameter:: NameSub = 'minval_grid'
     !--------------------------------------------------------------------------
     VarMin = Huge(1.0)
 
@@ -1268,6 +1288,7 @@ contains
     end if
 
   end function minval_grid
+  !============================================================================
   real function maxval_grid(Var_GB, UseAbs, iLoc_I)
 
     use ModMpi, ONLY: MPI_allreduce, MPI_REAL, MPI_MAX, MPI_IN_PLACE
@@ -1288,7 +1309,7 @@ contains
     real    :: VarMax
     integer :: i, j, k, iBlock, iError
 
-    character(len=*), parameter:: NameSub = 'integrate_grid'
+    character(len=*), parameter:: NameSub = 'maxval_grid'
     !--------------------------------------------------------------------------
     VarMax = -Huge(1.0)
 
@@ -1331,6 +1352,7 @@ contains
     end if
 
   end function maxval_grid
+  !============================================================================
 
   subroutine interpolate_grid(Xyz_D, nCell, iCell_II, Weight_I)
 
@@ -1352,8 +1374,8 @@ contains
     integer:: i, j, k, iLo, jLo, kLo, iHi, jHi, kHi
 
     logical, parameter:: DoTest = .false.
-    character(len=*), parameter:: NameSub='BATL_grid::interpolate_grid'
-    !------------------------------------------------------------------------
+    character(len=*), parameter:: NameSub = 'interpolate_grid'
+    !--------------------------------------------------------------------------
     ! Convert to generalized coordinates if necessary
     if(IsCartesianGrid)then
        Coord_D = Xyz_D
@@ -1580,6 +1602,7 @@ contains
          ': too many cells to interpolate from')
 
   end subroutine interpolate_grid
+  !============================================================================
 
   subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_II, Weight_I, &
        IsSecondOrder)
@@ -1599,7 +1622,7 @@ contains
     logical, optional, intent(out):: IsSecondOrder
 
     real   :: Coord_D(MaxDim)
-    !-----------------------------------
+    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
@@ -1620,6 +1643,7 @@ contains
          nCell, iCell_II, Weight_I, IsSecondOrder)
 
   end subroutine interpolate_grid_amr
+  !============================================================================
 
   !\
   ! Parallel version similar to interpolate_grid_amr
@@ -1642,7 +1666,7 @@ contains
 
     logical, optional, intent(out):: IsSecondOrder
     integer:: iBlockOut, iProcOut
-    !-----------------------------------
+    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
@@ -1662,6 +1686,7 @@ contains
     call interpolate_grid_amr_gc_ib(XyzIn_D, iBlockOut, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
   end subroutine interpolate_grid_amr_gc_nob
+  !============================================================================
   subroutine interpolate_grid_amr_gc_ib(XyzIn_D, iBlock, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
 
@@ -1673,7 +1698,7 @@ contains
     ! Weight_I returns the interpolation weights calculated
     !                                 using AMR interpolateion procedure
     ! Interpolation is performed using cells (including ghost) of single block
-    !--------------------------------------------------------------------------
+
     ! NOTE: it is assumed that iBlock is appropriate for interpolation
     ! that utilizes only 1 layer of ghost cells, i.e. the call
     !     call check_interpolate_amr_gc(XyzIn_D, iBlock, iPeOut, iBlockOut)
@@ -1689,7 +1714,7 @@ contains
     integer:: DiLevelNei_III(-1:1,-1:1,-1:1)
     integer:: iDim ! loop variable
     real   :: Coord_D(MaxDim), DCoord_D(MaxDim), CoordBlock_D(MaxDim)
-    !-----------------------------------
+    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
@@ -1769,6 +1794,7 @@ contains
     ! return block number as well
     iCell_II(0,:) = iBlock
   end subroutine interpolate_grid_amr_gc_ib
+  !============================================================================
 
   subroutine check_interpolate_amr_gc(Xyz_D, iBlockIn, iPeOut, iBlockOut)
     !\
@@ -1860,7 +1886,7 @@ contains
     integer:: iGridRef
     integer:: iDimAmr = 1
 
-    character(len=*),parameter:: NameSub ='BATL_grid::check_interpolate_amr_gc'
+    character(len=*), parameter:: NameSub = 'check_interpolate_amr_gc'
     !--------------------------------------------------------------------------
     ! Convert to generalized coordinates if necessary
     if(IsCartesianGrid)then
@@ -2154,6 +2180,7 @@ contains
     iPeOut = iTree_IA(Proc_, iNode_I(iGridRef))
     iBlockOut = iTree_IA(Block_, iNode_I(iGridRef))
   end subroutine check_interpolate_amr_gc
+  !============================================================================
   subroutine calc_face_normal(iBlock)
     ! Interpolate dx3/dx1 to the face, where x3=hat(Xi,Eta,Zeta), x1=x,y,z.
     integer, intent(in):: iBlock
@@ -2161,8 +2188,8 @@ contains
     integer:: iDimCart
     integer:: nIFace, nJFace, nKFace
     real   :: Area
-    !----------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
     nIFace = nI + 1; nJFace = nJ + 1; nKFace = nK + 1
     do kFace = 1, nK; do jFace = 1, nJ; do iFace = 1, nIFace
        Area = CellFace_DFB(1,iFace,jFace,kFace,iBlock)
@@ -2225,6 +2252,7 @@ contains
     endif
 
   end subroutine calc_face_normal
+  !============================================================================
   subroutine coef_cart_to_noncart(iBlock)
     ! Eq (26).
     ! Calc dx3/dx1 at cell center, where x3=hat(Xi,Eta,Zeta), x1=x,y,z.
@@ -2232,7 +2260,7 @@ contains
     integer, intent(in):: iBlock
     integer:: iDimCart, iDimNonCart, iSub1, iSub2, iCart1, iCart2, i, j, k
     real:: CartValue1_I(1:7), CartValue2_I(1:7)
-    !----------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     if(.not. allocated(CellCoef_DDGB)) then
        allocate(CellCoef_DDGB(&
@@ -2338,6 +2366,7 @@ contains
     endif
 
   end subroutine coef_cart_to_noncart
+  !============================================================================
 
   subroutine calc_metrics(iBlock)
     ! Eq (10).
@@ -2348,7 +2377,7 @@ contains
     integer, intent(in):: iBlock
     integer:: i, j, k, iDimCart, iDimNonCart
     real:: CellValue_I(7)
-    !----------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     if(.not.allocated(CellMetrice_DDG)) then
        allocate(CellMetrice_DDG(nDim,nDim,MinI:MaxI,MinJ:MaxJ,MinK:MaxK))
        CellMetrice_DDG = 0.0
@@ -2392,6 +2421,7 @@ contains
        enddo ! iDimCart
     endif
   end subroutine calc_metrics
+  !============================================================================
 
   subroutine test_grid
 
@@ -2442,12 +2472,12 @@ contains
     integer, parameter:: nCaseCheck     = 2**nRootCheck
     integer:: iCase, iNodeCheck, iBlockCheck, iProcCheck, iSeed=1
 
-    logical:: DoTestMe
-    character(len=*), parameter :: NameSub = 'test_grid'
-    !-----------------------------------------------------------------------
-    DoTestMe = iProc == 0
+    logical:: DoTest
+    character(len=*), parameter:: NameSub = 'test_grid'
+    !--------------------------------------------------------------------------
+    DoTest = iProc == 0
 
-    if(DoTestMe)then
+    if(DoTest)then
        write(*,*)'Starting ',NameSub
        write(*,*)'Testing init_grid'
        write(*,*)'nDimAmr, nIJK_D=', nDimAmr, nIJK_D
@@ -2461,14 +2491,14 @@ contains
     call find_tree_node((/0.5,0.5,0.5/),iNodeCenter)
     call refine_tree_node(iNodeCenter)
     call distribute_tree(.true.)
-    if(DoTestMe) call show_tree('After distribute_tree')
+    if(DoTest) call show_tree('After distribute_tree')
 
-    if(DoTestMe) write(*,*)'Testing create_grid'
+    if(DoTest) write(*,*)'Testing create_grid'
     call create_grid
 
     if(iProc==0)call show_grid_proc
 
-    if(DoTestMe) write(*,*)'Testing find_grid_block'
+    if(DoTest) write(*,*)'Testing find_grid_block'
     Xyz_D = 0.0
     Xyz_D(1:nDim) = DomainMin_D(1:nDim)
     call find_grid_block(Xyz_D, iProcOut, iBlockOut, &
@@ -2524,7 +2554,7 @@ contains
             iProcOut, iBlockOut, iCell_D
     end if
 
-    if(DoTestMe) write(*,*)'Testing interpolate_grid'
+    if(DoTest) write(*,*)'Testing interpolate_grid'
 
     Xyz_D = 0.0
     if(.not.allocated(Point_VIII)) &
@@ -2604,7 +2634,7 @@ contains
        end do; end do; end do
     end if
 
-    if(DoTestMe) write(*,*)'Testing interpolate_grid_amr'
+    if(DoTest) write(*,*)'Testing interpolate_grid_amr'
     Xyz_D = 0.0
     if(.not.allocated(Point_VIII)) &
          allocate(Point_VIII(0:nVarPoint,nPointI,nPointJ,nPointK))
@@ -2690,7 +2720,7 @@ contains
     end if
 
     if(nDim==nDimAmr)then
-       if(DoTestMe) write(*,*)'Testing interpolate_grid_amr_gc'
+       if(DoTest) write(*,*)'Testing interpolate_grid_amr_gc'
        Xyz_D = 0.0
        if(.not.allocated(Point_VIII)) &
             allocate(Point_VIII(0:nVarPoint,nPointI,nPointJ,nPointK))
@@ -2786,7 +2816,7 @@ contains
     end if
 
     if(nDim == 2)then
-       if(DoTestMe) write(*,*)'Testing create_grid in RZ geometry'
+       if(DoTest) write(*,*)'Testing create_grid in RZ geometry'
 
        ! Store Cartesian values for checking
        allocate(CellVolumeCart_B(MaxBlock), CellFaceCart_DB(MaxDim,MaxBlock))
@@ -2833,7 +2863,7 @@ contains
     end if
 
     if(nDim >= 2)then
-       if(DoTestMe) write(*,*)'Testing create_grid in cylindrical geometry'
+       if(DoTest) write(*,*)'Testing create_grid in cylindrical geometry'
 
        ! Clean  grid
        call clean_grid
@@ -2901,7 +2931,7 @@ contains
     end if
 
     if(nDim == 3)then
-       if(DoTestMe) write(*,*)'Testing create_grid in spherical geometry'
+       if(DoTest) write(*,*)'Testing create_grid in spherical geometry'
 
        ! Clean  grid
        call clean_grid
@@ -2919,7 +2949,7 @@ contains
 
        if(iProc==0)call show_grid_proc
 
-       if(DoTestMe) write(*,*)'Testing create_grid in rlonlat geometry'
+       if(DoTest) write(*,*)'Testing create_grid in rlonlat geometry'
 
        ! Clean  grid
        call clean_grid
@@ -2937,7 +2967,7 @@ contains
 
        if(iProc==0)call show_grid_proc
 
-       if(DoTestMe) write(*,*)'Testing create_grid in roundcube geometry'
+       if(DoTest) write(*,*)'Testing create_grid in roundcube geometry'
 
        ! Clean  grid
        call clean_grid
@@ -2975,12 +3005,12 @@ contains
        end if
     end if
 
-    if(DoTestMe) write(*,*)'Testing clean_grid'
+    if(DoTest) write(*,*)'Testing clean_grid'
     call clean_grid
     call clean_tree
 
     if(nDim==nDimAmr .and. nDim > 1)then
-       if(DoTestMe) write(*,*)'Testing check_interpolate_amr_gc'
+       if(DoTest) write(*,*)'Testing check_interpolate_amr_gc'
 
        DomainMin_D = (/0.0, 0.0, 0.0/)
        DomainMax_D = (/1.0, 1.0, 1.0/)
@@ -2988,7 +3018,7 @@ contains
 
        ! go over all geometry cases
        do iCase = 1, nCaseCheck
-          if(DoTestMe)&
+          if(DoTest)&
                write(*,'(a,i3)') '  Testing case ' , iCase
           ! Set Cartesian grid geometry before initializing tree and grid
           call init_geometry( IsPeriodicIn_D = spread((/.false./), 1, nDim) )
@@ -3031,6 +3061,9 @@ contains
           call clean_tree
        end do
     end if
+
   end subroutine test_grid
+  !============================================================================
 
 end module BATL_grid
+!==============================================================================
