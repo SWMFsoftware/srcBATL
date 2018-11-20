@@ -33,7 +33,11 @@ module BATL_lib
   integer, public, allocatable:: iVectorVar_I(:)
 
   logical, public:: IsBatlInitialized = .false.
-  
+
+  !--------------------
+  ! Variables inherited
+  !--------------------
+
   ! Inherited from BATL_size
   public:: MaxDim, nDim, Dim1_, Dim2_, Dim3_, iDim_, jDim_, kDim_
   public:: nDimAmr, iDimAmr_D
@@ -42,6 +46,28 @@ module BATL_lib
   public:: MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
   public:: j0_, j2_, nJp1_, nJm1_, k0_, k2_, nKp1_, nKm1_, i0_, nIp1_
   public:: nINode, nJNode, nKNode
+
+  ! Inherited from BATL_amr_criteria
+  public:: AmrCrit_IB, nAmrCrit, DoCritAmr, DoAutoAmr, DoStrictAmr
+
+  ! Inherited from BATL_test
+  public:: lVerbose, StringTest
+  public:: UseTestCell, UseTestXyz
+  public:: iProcTest, iBlockTest, iTest, jTest, kTest
+  public:: XyzTestCell_D, xTest, yTest, zTest
+  public:: UseTest2Cell, UseTest2Xyz
+  public:: iProcTest2, iBlockTest2, iTest2, jTest2, kTest2
+  public:: XyzTestCell2_D, xTest2, yTest2, zTest2
+  public:: iVarTest, NameVarTest, iDimTest
+
+  ! Inherited from BATL_region
+  public:: nInitialAmrLevel
+
+  ! Inherited from BATL_particles
+  public:: Particle_I
+
+  ! Inherited from BATL_amr
+  public:: BetaProlong
 
   ! Inherited from BATL_mpi
   public:: init_mpi, clean_mpi, barrier_mpi
@@ -60,10 +86,6 @@ module BATL_lib
   public:: IsNewDecomposition, IsNewTree
   public:: iAmrChange_B
   public:: AmrRemoved_, AmrUnchanged_, AmrMoved_, AmrRefined_, AmrCoarsened_
-  public:: write_tree_file, read_tree_file
-  public:: get_tree_position
-  public:: min_tree_level
-  public:: set_tree_periodic
 
   ! Inherited from BATL_geometry
   public:: TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry
@@ -90,18 +112,17 @@ module BATL_lib
   public:: create_grid, show_grid_cell
   public:: integrate_grid, minval_grid, maxval_grid
 
-  ! Inherited from BATL_amr
-  public:: BetaProlong
+  !--------------------
+  ! Functions inherited
+  !--------------------
 
   ! Inherited from BATL_amr_criteria
   public:: set_amr_criteria, clean_amr_criteria, read_amr_criteria
-  public:: AmrCrit_IB, nAmrCrit, DoCritAmr, DoAutoAmr, DoStrictAmr
   public:: calc_error_amr_criteria, set_amr_geometry
   public:: masked_amr_criteria,init_amr_criteria
 
   ! Inherited from BATL_region
   public:: read_region_param, get_region_indexes, block_inside_regions
-  public:: nInitialAmrLevel
 
   ! Inherited from BATL_pass_cell
   public:: message_pass_cell
@@ -118,20 +139,17 @@ module BATL_lib
   public:: correct_face_value, calc_center_first_derivate, calc_face_value
 
   ! Inherited from BATL_particles
-  public:: Particle_I
   public:: check_particle_location
   public:: put_particles, trace_particles
   public:: message_pass_particles, remove_undefined_particles, mark_undefined
 
+  ! Inherited from BATL_tree
+  public:: write_tree_file, read_tree_file
+  public:: get_tree_position
+  public:: min_tree_level
+  public:: set_tree_periodic
+
   ! Inherited from BATL_test
-  public:: lVerbose, StringTest
-  public:: UseTestCell, UseTestXyz
-  public:: iProcTest, iBlockTest, iTest, jTest, kTest
-  public:: XyzTestCell_D, xTest, yTest, zTest
-  public:: UseTest2Cell, UseTest2Xyz
-  public:: iProcTest2, iBlockTest2, iTest2, jTest2, kTest2
-  public:: XyzTestCell2_D, xTest2, yTest2, zTest2
-  public:: iVarTest, NameVarTest, iDimTest
   public:: read_test_param, find_test_cell
   public:: test_start, test_stop, test_cell
 
