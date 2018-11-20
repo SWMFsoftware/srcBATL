@@ -649,59 +649,60 @@ contains
          endif
 
          ! 4 corners
-         do kDir1=kDirBegin,kDirEnd,DkDir; do jDir1=jDirBegin,jDirEnd,DjDir; &
-              do iDir1=iDirBegin,iDirEnd,DiDir
-            if(DiLevelNei_III(iDir1,jDir1,kDir1) == 0) then
-               nRefinedEdge = 0
-
-               ! Check first edge block.
-               if(iDir0 /= 0) then
-                  iDir2 = iDir1
-                  jDir2 = jDir1
-                  kDir2 = 0
-               endif
-               if(jDir0 /= 0) then
-                  jDir2 = jDir1
-                  kDir2 = kDir1
-                  iDir2 = 0
-               endif
-               if(kDir0 /= 0) then
-                  kDir2 = kDir1
-                  iDir2 = iDir1
-                  jDir2 = 0
-               endif
-               if(DiLevelNei_III(iDir2,jDir2,kDir2) == 0) &
-                    nRefinedEdge = nRefinedEdge + 1
-
-               ! Check second edge block.
-               if(iDir0 /= 0) then
-                  iDir2 = iDir1
-                  jDir2 = 0
-                  kDir2 = kDir1
-               endif
-               if(jDir0 /= 0) then
-                  jDir2 = jDir1
-                  kDir2 = 0
-                  iDir2 = iDir1
-               endif
-               if(kDir0 /= 0) then
-                  kDir2 = kDir1
-                  iDir2 = 0
-                  jDir2 = jDir1
-               endif
-               if(DiLevelNei_III(iDir2,jDir2,kDir2) == 0) &
-                    nRefinedEdge = nRefinedEdge + 1
-
-               if(nRefinedEdge == 0) then
-                  IsOnlyCornerFine = .true.
-                  if(present(iDirCorner)) iDirCorner = iDir1
-                  if(present(jDirCorner)) jDirCorner = jDir1
-                  if(present(kDirCorner)) kDirCorner = kDir1
-               endif
+         do kDir1=kDirBegin,kDirEnd,DkDir
+            do jDir1=jDirBegin,jDirEnd,DjDir
+               do iDir1=iDirBegin,iDirEnd,DiDir
+                  if(DiLevelNei_III(iDir1,jDir1,kDir1) == 0) then
+                     nRefinedEdge = 0
+                     
+                     ! Check first edge block.
+                     if(iDir0 /= 0) then
+                        iDir2 = iDir1
+                        jDir2 = jDir1
+                        kDir2 = 0
+                     endif
+                     if(jDir0 /= 0) then
+                        jDir2 = jDir1
+                        kDir2 = kDir1
+                        iDir2 = 0
+                     endif
+                     if(kDir0 /= 0) then
+                        kDir2 = kDir1
+                        iDir2 = iDir1
+                        jDir2 = 0
+                     endif
+                     if(DiLevelNei_III(iDir2,jDir2,kDir2) == 0) &
+                          nRefinedEdge = nRefinedEdge + 1
+                     
+                     ! Check second edge block.
+                     if(iDir0 /= 0) then
+                        iDir2 = iDir1
+                        jDir2 = 0
+                        kDir2 = kDir1
+                     endif
+                     if(jDir0 /= 0) then
+                        jDir2 = jDir1
+                        kDir2 = 0
+                        iDir2 = iDir1
+                     endif
+                     if(kDir0 /= 0) then
+                        kDir2 = kDir1
+                        iDir2 = 0
+                        jDir2 = jDir1
+                     endif
+                     if(DiLevelNei_III(iDir2,jDir2,kDir2) == 0) &
+                          nRefinedEdge = nRefinedEdge + 1
+                     
+                     if(nRefinedEdge == 0) then
+                        IsOnlyCornerFine = .true.
+                        if(present(iDirCorner)) iDirCorner = iDir1
+                        if(present(jDirCorner)) jDirCorner = jDir1
+                        if(present(kDirCorner)) kDirCorner = kDir1
+                     endif
+                  endif
+               enddo; enddo; enddo
             endif
-         enddo; enddo; enddo
-      endif
-      is_only_corner_fine = IsOnlyCornerFine
+            is_only_corner_fine = IsOnlyCornerFine
     end function is_only_corner_fine
     !==========================================================================
 
