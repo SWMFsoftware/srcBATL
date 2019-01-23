@@ -54,6 +54,7 @@ module BATL_region
      real                  :: Size_D(nDim)
      real                  :: Radius1
      real                  :: Taper
+     real                  :: Weight
      logical               :: DoRotate
      real, allocatable     :: Rotate_DD(:,:)
      logical               :: IsSimple
@@ -230,6 +231,7 @@ contains
     write(*,*) "Region Size_D    :: ", Area1%Size_D
     write(*,*) "Region Radius1   :: ", Area1%Radius1
     write(*,*) "Region Taper     :: ", Area1%Taper
+    write(*,*) "Region Weight     :: ", Area1%Weight
     write(*,*) "Region DoRotate  :: ", Area1%DoRotate
     if(Area1%DoRotate) write(*,*) &
          "Region Rotate_DD :: ",       Area1%Rotate_DD
@@ -347,6 +349,7 @@ contains
     real    :: yRotateArea   = 0.0
     real    :: zRotateArea   = 0.0
     logical :: DoTaperArea   = .false.
+    logical :: DoReadWeight   = .false. 
     logical :: DoStretch     = .false.
 
     character(lNameRegion):: NameRegion
@@ -429,6 +432,7 @@ contains
     Area%Size_D   = 1.0
     Area%Radius1  = 0.0
     Area%Taper    = 0.0
+    Area%Weight   = -1.0
     Area%DoRotate = .false.
 
     ! Check for the word rotated in the name
@@ -444,8 +448,13 @@ contains
     ! check for the word tapered in the name
     i = index(StringShape,'tapered')
     DoTaperArea = i > 0
-
     if(i > 0) StringShape = StringShape(:i-1)//StringShape(i+7:)
+
+    ! check for word 'weight' in the name
+    i = index(StringShape,'weight')
+    DoReadWeight = i > 0
+    if(i > 0) StringShape = StringShape(:i-1)//StringShape(i+6:)
+
 
     ! Extract character '0' from the name
     i = index(StringShape,'0')
@@ -563,6 +572,13 @@ contains
     ! Read the tapering width if required
     if(DoTaperArea) call read_var('Taper', Area % Taper)
 
+    ! Read the parameter if required
+    if(DoReadWeight) then
+       call read_var('Weight', Area % Weight)
+       if(Area%Weight < 0 ) call CON_stop(NameSub// &
+            ' ERROR: the weight must be non-negative')
+    endif
+
     ! Read rotation angles and create rotation matrix
     if(Area%DoRotate)then
        if(.not.allocated(Area%Rotate_DD))allocate(Area%Rotate_DD(nDim,nDim))
@@ -589,7 +605,7 @@ contains
   !============================================================================
 
   subroutine block_inside_regions(iRegion_I, iBlock, nValue, StringLocation, &
-       IsInside, IsInside_I, Value_I)
+       IsInside, IsInside_I, Value_I, WeightDefaultIn)
 
     use BATL_geometry, ONLY: IsCartesianGrid
     use ModUtilities,  ONLY: lower_case
@@ -597,7 +613,7 @@ contains
     ! Interface for the external user routine
     interface
        subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
-            IsInside, IsInside_I, Value_I)
+            IsInside, IsInside_I, Value_I, WeightDefaultIn)
 
          implicit none
 
@@ -609,6 +625,7 @@ contains
          logical, optional, intent(out) :: IsInside
          logical, optional, intent(out) :: IsInside_I(nValue)
          real,    optional, intent(out) :: Value_I(nValue)
+         real,    optional, intent(in)  :: WeightDefaultIn
 
        end subroutine user_specify_region
     end interface
@@ -629,8 +646,8 @@ contains
     ! and outside all of the -regions.
     ! If IsInside is also present, it is set to IsInside = any(IsInside_I).
     !
-    ! If Value_I is present, then it is set to 1 inside any of the +region(s)
-    ! and outside all of the -regions(s). In the tapering region the
+    ! If Value_I is present, then it is set to Weight inside any of the 
+    ! +region(s) and outside all of the -regions(s). In the tapering region the
     ! value gradually decreases to 0 and the rest is set to 0 value.
     ! This is done for each point of the block defined by StringLocation.
     ! If IsInside is also present, it is set to IsInside = any(Value_I > 0).
@@ -648,8 +665,11 @@ contains
     logical,      optional, intent(out):: IsInside
     logical,      optional, intent(out):: IsInside_I(nValue)
     real,         optional, intent(out):: Value_I(nValue)
+    real,         optional, intent(in)  :: WeightDefaultIn
 
-    integer:: iRegion, nRegion, iArea, iSign
+    real:: WeightDefault, Weight
+
+    integer:: iRegion, nRegion, iArea, iSign, iPoint
     integer:: nPoint
     character:: NameLocation
 
@@ -668,14 +688,17 @@ contains
     DoValue  = present(Value_I)
     DoBlockOnly = DoBlock .and. .not.(DoMask .or. DoValue)
 
+    WeightDefault = 1.0
+    if(present(WeightDefaultIn)) WeightDefault = WeightDefaultIn
+
     if(.not.(DoBlock .or. DoMask .or. DoValue)) call CON_stop(NameSub// &
          ': no output argument is present')
-
+    
     nRegion = size(iRegion_I)
     if(nRegion < 1) call CON_stop(NameSub//': empty region index array')
 
     if(DoTest)write(*,*) NameSub, &
-         ' nRegion, iBlock, nValue, DoBlock, DoMask, DoValue=', &
+         ' nRegion, iBlock, nValue, DoBlock, DoMask, DoValue =', &
          nRegion, iBlock, nValue, DoBlock, DoMask, DoValue
 
     ! Default number of points is the same as the number of returned values
@@ -726,6 +749,9 @@ contains
        Area => Area_I(iArea)
        NameShape = Area%NameShape
 
+       Weight = Area%Weight
+       if(Weight<0) Weight = WeightDefault
+
        if(DoTest)write(*,*) NameSub,' iArea,iSign,NameShape=', &
             iArea, iSign, NameShape
 
@@ -772,16 +798,17 @@ contains
              if(DoMask)  IsInside_I = .not. IsInside_I
              if(DoValue) Value_I    = 1 - Value_I
           end if
+          Value_I = Weight*Value_I
        else
           ! Combine last region info with previous
           if(iSign < 0)then
              if(DoBlock) IsInside   = IsInsideOld   .and. .not. IsInside
              if(DoMask)  IsInside_I = IsInsideOld_I .and. .not. IsInside_I
-             if(DoValue) Value_I    = min(ValueOld_I, 1 - Value_I)
+             if(DoValue) Value_I    = min(ValueOld_I, (1 - Value_I)*Weight)
           else
              if(DoBlock) IsInside   = IsInsideOld   .or. IsInside
              if(DoMask)  IsInside_I = IsInsideOld_I .or. IsInside_I
-             if(DoValue) Value_I    = max(ValueOld_I, Value_I)
+             if(DoValue) Value_I    = max(ValueOld_I, Value_I*Weight)
           end if
        end if
 
