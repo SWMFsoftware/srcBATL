@@ -798,7 +798,7 @@ contains
              if(DoMask)  IsInside_I = .not. IsInside_I
              if(DoValue) Value_I    = 1 - Value_I
           end if
-          Value_I = Weight*Value_I
+          if(DoValue) Value_I = Weight*Value_I
        else
           ! Combine last region info with previous
           if(iSign < 0)then
