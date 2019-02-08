@@ -44,7 +44,7 @@ contains
     ! FaceValue is at cell face. CellValue_I are cell centered.
     ! Return 6th order approximation
 
-    real, intent(in):: CellValue_I(4), FaceValue
+    real, intent(in):: CellValue_I(:), FaceValue
     real:: Der2, Der4
     real, parameter:: c1over6 = 1./6, c1over180 = 1./180
     !--------------------------------------------------------------------------
@@ -88,7 +88,7 @@ contains
 
   real function calc_face_value(CellValue_I, DoLimitIn, IsPositiveIn)
     ! Calculate f_{i+1/2} with f(k), where k = i-2,i-1 ... i+3
-    real, intent(in):: CellValue_I(6)
+    real, intent(in):: CellValue_I(:) ! size of 6
     logical, optional, intent(in):: DoLimitIn, IsPositiveIn
     logical:: DoLimit
     real, parameter:: c3over256 = 3./256, c25over256 = 25./256, &
@@ -118,7 +118,7 @@ contains
     ! See (2.18) in 'Accurate Monotonicity-Preserving Schemes with
     ! Runge-Kutta Time Stepping' by A. Suresh & H. T. Huynh (1997)
 
-    real, intent(in):: FaceOrig, CellValue_I(4), Distance_I(4)
+    real, intent(in):: FaceOrig, CellValue_I(:), Distance_I(:) ! size 4
 
     ! The return value should less/larger than MaxValueIn/MinValueIn if
     ! they present. Both of them should present at the same time.
@@ -181,7 +181,7 @@ contains
   real function two_points_interpolation(Cell_I, Distance_I)
     ! Cell_I(i) is at xi, calculate the value at x=0.
     ! Distance_I(i) = xi - x0
-    real, intent(in):: Cell_I(2), Distance_I(2)
+    real, intent(in):: Cell_I(:), Distance_I(:)
     real:: c1, c2
 
     !--------------------------------------------------------------------------
@@ -224,7 +224,7 @@ contains
     integer, parameter:: k6_ = min(nK, 6), j6_ = min(nJ,6)
 
     real, intent(in) :: CoarseCell              ! value of coarse neighbor cell
-    real, intent(in) :: FineCell_III(8,j6_,k6_) ! value of local fine cells
+    real, intent(in) :: FineCell_III(:,:,:) ! value of local fine cells, size (8,j6_,k6_)
     real, intent(out):: Ghost_I(3)              ! coarse ghost cells for neighbor
     logical, optional, intent(in) :: DoSymInterpIn, IsPositiveIn
 
@@ -359,12 +359,12 @@ contains
 
     use BATL_size, ONLY: nK
 
-    real, intent(in):: CoarseCell_III(0:5,0:5,3), FineCell_I(3)
+    real, intent(in):: CoarseCell_III(0:,0:,:), FineCell_I(:)
     real, intent(out):: Ghost_I(3)
     logical, optional, intent(in):: Use4thOrderIn, IsPositiveIn, &
-         IsAccurateIn_II(0:5,0:5)
+         IsAccurateIn_II(0:,0:)
 
-    integer, parameter:: Indexpp_=1, Indexp_=2, Index0_=3, Indexm_=4, Indexmm_=5
+    integer, parameter:: Indexpp_=1,Indexp_=2,Index0_=3,Indexm_=4,Indexmm_=5
     real:: CoarseCell_I(3), CoarseCell_II(0:5,3)
     integer:: i
     logical:: DoLimit = .true., Use4thOrder = .true., IsPositive
@@ -432,7 +432,7 @@ contains
   !============================================================================
   subroutine interpolate_ghost_for_fine_blk(CoarseCell_I, FineCell_I,Ghost_I,&
        Dolimit,IsPositive)
-    real, intent(in):: CoarseCell_I(3), FineCell_I(3)
+    real, intent(in):: CoarseCell_I(:), FineCell_I(:)
     real, intent(out):: Ghost_I(3)
     logical, intent(in):: Dolimit,IsPositive
     real, parameter:: c11=-4./231, c12=4./7,c13=5./7, c14=-1./3, c15=5./77
@@ -490,9 +490,9 @@ contains
 
   end subroutine interpolate_ghost_for_fine_blk
   !============================================================================
-  real function interpolate_in_coarse_blk_1d(Cell_I, DoLimitIn, Use4thOrderIn, &
+  real function interpolate_in_coarse_blk_1d(Cell_I, DoLimitIn, Use4thOrderIn,&
        IsPositiveIn, InterTypeIn)
-    real, intent(in):: Cell_I(0:5)
+    real, intent(in):: Cell_I(0:)
     logical, optional, intent(in):: DoLimitIn, Use4thOrderIn, IsPositiveIn
     integer, optional, intent(in):: InterTypeIn
     logical:: DoLimit, Use4thOrder, IsPositive
@@ -565,7 +565,7 @@ contains
   !============================================================================
   real function interpolate_in_coarse_blk_1d_amr(&
        Cell_I, DoLimitIn, IsPositiveIn)
-    real, intent(in):: Cell_I(5)
+    real, intent(in):: Cell_I(:)
     logical, optional, intent(in):: DoLimitIn, IsPositiveIn
     logical:: DoLimit, IsPositive
     real   :: cpp, cp, c0, cm, cmm
