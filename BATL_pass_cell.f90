@@ -63,14 +63,14 @@ module BATL_pass_cell
   integer, parameter:: Min_=1, Max_=2
   
   ! Variables related to recv and send buffers
-  integer, allocatable, save:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
+  integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
 
   integer :: iBufferS, iBufferR
   integer :: MaxBufferS = -1, MaxBufferR = -1
-  real, allocatable, save:: BufferR_I(:), BufferS_I(:)
+  real, allocatable:: BufferR_I(:), BufferS_I(:)
 
   integer:: iRequestR, iRequestS, iError
-  integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:), &
+  integer, allocatable:: iRequestR_I(:), iRequestS_I(:), &
        iStatus_II(:,:)
 
   logical:: DoSixthCorrect = .false.
