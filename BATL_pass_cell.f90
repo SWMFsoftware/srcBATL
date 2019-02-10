@@ -73,8 +73,6 @@ module BATL_pass_cell
   integer, allocatable:: iRequestR_I(:), iRequestS_I(:), &
        iStatus_II(:,:)
 
-  logical:: DoSixthCorrect = .false.
-
   ! High order resolution change 
   logical, allocatable:: IsAccurateFace_GB(:,:,:,:)
   
@@ -195,6 +193,8 @@ contains
     
     ! Slopes for 2nd order prolongation
     real, allocatable:: Slope_VG(:,:,:,:)
+
+    logical:: DoSixthCorrect
     
     ! For high order resolution change, a few face ghost cells need to be
     ! calculated remotely after the corase block have got accurate
@@ -371,7 +371,7 @@ contains
           ! No need to count data for send/recv in serial runs
           if(nProc == 1 .and. DoCountOnly) CYCLE
 
-          call timing_start('local_pass')
+          call timing_start('remote_pass')
 
           ! Second order prolongation needs two stages:
           ! first stage fills in equal and coarser ghost cells
@@ -408,7 +408,6 @@ contains
           nSubStage = 1
           if(iSendStage == 3) nSubStage = 2
 
-
           DoRemote = .true.
           DoLocal  = nThread == 1
 
@@ -422,7 +421,7 @@ contains
                      nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
                      DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
                      DoResChangeOnly, UseHighResChange,&
-                     iLevelMin, iLevelMax,&
+                     iLevelMin, iLevelMax,DoSixthCorrect,&
                      iBlockSend,DoCountOnly,iSendStage,iSubStage,&
                      UseMin,UseMax,IsPositive_V,&
                      iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
@@ -430,7 +429,7 @@ contains
              end do ! iBlockSend
           end do ! iSubStage
 
-          call timing_stop('local_pass')
+          call timing_stop('remote_pass')
 
        end do ! iCountOnly
 
@@ -494,7 +493,7 @@ contains
        end do
        call timing_stop('send_pass')
 
-
+       call timing_start('local_pass')
        if(nThread > 1)then
 
           DoRemote = .false.
@@ -508,7 +507,7 @@ contains
                   nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
                   DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
                   DoResChangeOnly, UseHighResChange,&
-                  iLevelMin, iLevelMax,&
+                  iLevelMin, iLevelMax,DoSixthCorrect,&
                   iBlockSend,DoCountOnly,iSendStage,iSubStage,&
                   UseMin,UseMax,IsPositive_V,&
                   iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
@@ -516,7 +515,7 @@ contains
           end do ! iBlockSend
           !$omp end parallel do
        end if
-
+       call timing_stop('local_pass')
 
        call timing_start('wait_pass')
        ! wait for all requests to be completed
@@ -1947,7 +1946,7 @@ contains
        nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
        DoRestrictFace, TimeOld_B, Time_B, DoTest, NameOperator,&
        DoResChangeOnly, UseHighResChange,&
-       iLevelMin, iLevelMax,&
+       iLevelMin, iLevelMax,DoSixthCorrect,&
        iBlockSend,DoCountOnly,iSendStage,iSubStage,UseMin,UseMax,&
        IsPositive_V,&
        iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
@@ -1979,6 +1978,7 @@ contains
     character(len=*), intent(in):: NameOperator
     logical, intent(in):: DoResChangeOnly
     integer, intent(in),optional:: iLevelMin, iLevelMax
+    logical, intent(in):: DoSixthCorrect
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
     logical, intent(in):: UseHighResChange
@@ -3599,6 +3599,8 @@ contains
       real:: Weight1, Weight2
       character(len=*), parameter:: NameSub = 'calc_accurate_coarsened_block'
       !------------------------------------------------------------------------
+
+      Cell1_I = 0; Cell2_I = 0; Cell3_I = 0
 
       if(DoSixthCorrect) then
          Coef_I = (/0.05, -0.3, 0.75, 0.75, -0.3, 0.05/)
