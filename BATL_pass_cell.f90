@@ -421,7 +421,7 @@ contains
                 call message_pass_block(nVar, nG, State_VGB,&
                      nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
                      DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                     DoResChangeOnly, UseHighResChange, DefaultState_V,&
+                     DoResChangeOnly, UseHighResChange,&
                      iLevelMin, iLevelMax,&
                      iBlockSend,DoCountOnly,iSendStage,iSubStage,&
                      UseMin,UseMax,IsPositive_V,&
@@ -507,7 +507,7 @@ contains
              call message_pass_block(nVar, nG, State_VGB,&
                   nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
                   DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                  DoResChangeOnly, UseHighResChange, DefaultState_V,&
+                  DoResChangeOnly, UseHighResChange,&
                   iLevelMin, iLevelMax,&
                   iBlockSend,DoCountOnly,iSendStage,iSubStage,&
                   UseMin,UseMax,IsPositive_V,&
@@ -1946,7 +1946,7 @@ contains
   subroutine message_pass_block(nVar, nG, State_VGB,&
        nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
        DoRestrictFace, TimeOld_B, Time_B, DoTest, NameOperator,&
-       DoResChangeOnly, UseHighResChange, DefaultState_V,&
+       DoResChangeOnly, UseHighResChange,&
        iLevelMin, iLevelMax,&
        iBlockSend,DoCountOnly,iSendStage,iSubStage,UseMin,UseMax,&
        IsPositive_V,&
@@ -1982,7 +1982,6 @@ contains
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
     logical, intent(in):: UseHighResChange
-    real,    intent(in):: DefaultState_V(nVar)
     logical, intent(in):: DoTest
 
     integer, intent(in):: iBlockSend
