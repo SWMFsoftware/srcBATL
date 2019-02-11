@@ -13,6 +13,7 @@ module BATL_pass_cell
        prolongation_high_order_for_face_ghost, &
        correct_face_ghost_for_fine_block, &
        limit_interpolation, restriction_high_order_amr
+  use BATL_size, ONLY: MaxDim
   use ModUtilities, ONLY: CON_stop
   use ModMpi
   use omp_lib
@@ -56,11 +57,26 @@ module BATL_pass_cell
   end interface message_pass_cell
 
 
+  ! local variables corresponding to optional arguments
+  integer :: nWidth
+  integer :: nCoarseLayer
+  integer :: nProlongOrder
+  logical :: DoSendCorner
+  logical :: DoRestrictFace
+  logical :: DoResChangeOnly
+  logical :: UseHighResChange
+  character(len=3) :: NameOperator
+  
   ! Variables for coarsened block.
   real, allocatable:: State_VIIIB(:,:,:,:,:)
   logical, allocatable:: IsAccurate_B(:)
 
+  ! Fast lookup tables for index ranges per dimension
   integer, parameter:: Min_=1, Max_=2
+  integer:: iRestrictS_DII(MaxDim,-1:1,Min_:Max_)
+  integer:: iRestrictR_DII(MaxDim,0:3,Min_:Max_)
+  integer:: iProlongS_DII(MaxDim,0:3,Min_:Max_)
+  integer:: iProlongR_DII(MaxDim,0:3,Min_:Max_)
   
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
@@ -89,7 +105,7 @@ contains
        iLevelMin, iLevelMax)
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
-         MaxDim, nDim, jDim_, kDim_, &
+         nDim, jDim_, kDim_, &
          iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
          MinI, MinJ, MinK, MaxI, MaxJ, MaxK
     use BATL_mpi, ONLY: iComm, nProc, barrier_mpi, nThread
@@ -156,16 +172,8 @@ contains
     logical, parameter :: UseRSend = .false.
 
     ! local variables corresponding to optional arguments
-    integer :: nWidth
-    integer :: nCoarseLayer
-    integer :: nProlongOrder
-    logical :: DoSendCorner
-    logical :: DoRestrictFace
-    logical :: DoResChangeOnly
-    character(len=3) :: NameOperator
     logical:: UseMin, UseMax  ! logicals for min and max operators
     logical :: UseTime        ! true if time interpolation is to be done
-    logical :: UseHighResChange
 
     ! Various indexes
     integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
@@ -183,13 +191,8 @@ contains
     integer:: iBlock
 
     ! Fast lookup tables for index ranges per dimension
-!    integer, parameter:: Min_=1, Max_=2
     integer:: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
     integer:: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
-    integer:: iRestrictS_DII(MaxDim,-1:1,Min_:Max_)
-    integer:: iRestrictR_DII(MaxDim,0:3,Min_:Max_)
-    integer:: iProlongS_DII(MaxDim,0:3,Min_:Max_)
-    integer:: iProlongR_DII(MaxDim,0:3,Min_:Max_)
     
     ! Slopes for 2nd order prolongation
     real, allocatable:: Slope_VG(:,:,:,:)
@@ -359,7 +362,7 @@ contains
     endif
 
     if(nProc == 1) then
-       ! For nProc==1
+
        do iSendStage=1, nSendStage
           if(UseHighResChange) then
              State_VIIIB = 0
@@ -371,41 +374,35 @@ contains
 
           DoRemote = .false.
           DoLocal  = .true.
-          
+
           call timing_start('single_pass')
           
           ! Loop through all blocks that may send a message
           !$omp parallel do & 
-          !$omp& firstprivate(iEqualS_DII,iEqualR_DII,iRestrictS_DII) &
-          !$omp& firstprivate(iRestrictR_DII,iProlongS_DII,iProlongR_DII) &
+          !$omp& firstprivate(iEqualS_DII,iEqualR_DII) &
           !$omp& firstprivate(IsPositive_V)
           do iBlockSend = 1, nBlock
              call message_pass_block(nVar, nG, State_VGB,&
-                  nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
-                  DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                  DoResChangeOnly, UseHighResChange,&
-                  iLevelMin, iLevelMax,DoSixthCorrect,&
+                  TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
                   iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                  UseMin,UseMax,IsPositive_V,&
-                  iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
-                  iProlongS_DII,iProlongR_DII)
-          end do ! iBlockSend                      
+                  UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
+          end do ! iBlockSend
           !$omp end parallel do
- 
+          
           call timing_stop('single_pass')
           
           if(UseHighResChange .and. iSendStage == 2) then
-             !!$omp parallel do
+             !$omp parallel do
              do iBlock = 1, nBlock
                 if (Unused_B(iBlock)) CYCLE
                 call high_prolong_for_face_ghost(iBlock)
              enddo
-             !!$omp end parallel do
+             !$omp end parallel do
           endif
           
        end do
     else
-       ! nProc > 1
+       ! nProc > 1 case
        do iSendStage = 1, nSendStage
 
           if(UseHighResChange) then
@@ -461,14 +458,9 @@ contains
                 ! Loop through all blocks that may send a message
                 do iBlockSend = 1, nBlock
                    call message_pass_block(nVar, nG, State_VGB,&
-                        nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
-                        DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                        DoResChangeOnly, UseHighResChange,&
-                        iLevelMin, iLevelMax,DoSixthCorrect,&
+                        TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
                         iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                        UseMin,UseMax,IsPositive_V,&
-                        iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
-                        iProlongS_DII,iProlongR_DII)
+                        UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
                 end do ! iBlockSend
              end do ! iSubStage
              
@@ -527,19 +519,15 @@ contains
              DoRemote = .false.
              DoLocal  = .true.
              
-             ! Loop through all blocks that may send a message                  
-             !$omp parallel do &                                                
-             !$omp& firstprivate(iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,iProlongS_DII,iProlongR_DII,IsPositive_V)
+             ! Loop through all blocks that may send a message
+             !$omp parallel do & 
+             !$omp& firstprivate(iEqualS_DII,iEqualR_DII) &
+             !$omp& firstprivate(IsPositive_V)
              do iBlockSend = 1, nBlock
                 call message_pass_block(nVar, nG, State_VGB,&
-                     nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
-                     DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                     DoResChangeOnly, UseHighResChange,&
-                     iLevelMin, iLevelMax,DoSixthCorrect,&
+                     TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
                      iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                     UseMin,UseMax,IsPositive_V,&
-                     iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
-                     iProlongS_DII,iProlongR_DII)
+                     UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
              end do ! iBlockSend                      
              !$omp end parallel do
              call timing_stop('local_mp_pass')
@@ -1973,14 +1961,9 @@ contains
   !============================================================================
 
   subroutine message_pass_block(nVar, nG, State_VGB,&
-       nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
-       DoRestrictFace, TimeOld_B, Time_B, DoTest, NameOperator,&
-       DoResChangeOnly, UseHighResChange,&
-       iLevelMin, iLevelMax,DoSixthCorrect,&
+       TimeOld_B, Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
        iBlockSend,DoCountOnly,iSendStage,iSubStage,UseMin,UseMax,&
-       IsPositive_V,&
-       iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
-       iProlongS_DII,iProlongR_DII)
+       IsPositive_V,iEqualS_DII,iEqualR_DII)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -2000,32 +1983,19 @@ contains
     real, intent(inout):: State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
-    integer, intent(in):: nWidth
-    integer, intent(in):: nProlongOrder
-    integer, intent(in):: nCoarseLayer
-    logical, intent(in):: DoSendCorner
-    logical, intent(in):: DoRestrictFace
-    character(len=*), intent(in):: NameOperator
-    logical, intent(in):: DoResChangeOnly
     integer, intent(in),optional:: iLevelMin, iLevelMax
     logical, intent(in):: DoSixthCorrect
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
-    logical, intent(in):: UseHighResChange
-    logical, intent(in):: DoTest
 
     integer, intent(in):: iBlockSend
     logical, intent(in):: DoCountOnly
     integer, intent(in):: iSendStage
-    integer, intent(in),optional:: iSubStage
+    integer, intent(in):: iSubStage
     logical, intent(in):: UseMin, UseMax
     logical, intent(in):: IsPositive_V(nVar)
     integer, intent(inout):: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
     integer, intent(inout):: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
-    integer, intent(inout):: iRestrictS_DII(MaxDim,-1:1,Min_:Max_)
-    integer, intent(inout):: iRestrictR_DII(MaxDim,0:3,Min_:Max_)
-    integer, intent(inout):: iProlongS_DII(MaxDim,0:3,Min_:Max_)
-    integer, intent(inout):: iProlongR_DII(MaxDim,0:3,Min_:Max_)
 
     real, allocatable:: Slope_VG(:,:,:,:)
     
