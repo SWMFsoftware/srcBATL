@@ -169,7 +169,7 @@ contains
 
     ! Various indexes
     integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
-    ! for  high order resolution change.
+    ! for high order resolution change.
     integer :: iCountOnly     ! index for 2 stage scheme for count, sendrecv
     logical :: DoCountOnly    ! logical for count vs. sendrecv stages
 
@@ -357,151 +357,28 @@ contains
             IsAccurate_B(nBlock))
 
     endif
-    
-    do iSendStage = 1, nSendStage
 
-       if(UseHighResChange) then
-          State_VIIIB = 0
-          IsAccurate_B = .false.
-       endif
-
-       do iCountOnly = 1, 2
-          DoCountOnly = iCountOnly == 1
-
-          ! No need to count data for send/recv in serial runs
-          if(nProc == 1 .and. DoCountOnly) CYCLE
-
-          call timing_start('remote_pass')
-
-          ! Second order prolongation needs two stages:
-          ! first stage fills in equal and coarser ghost cells
-          ! second stage uses these to prolong and fill in finer ghost cells
-
-          if(nProc>1)then
-             if(DoCountOnly)then
-                ! initialize buffer size
-                nBufferR_P = 0
-                nBufferS_P = 0
-             else
-                ! Make buffers large enough
-                if(sum(nBufferR_P) > MaxBufferR) then
-                   if(allocated(BufferR_I)) deallocate(BufferR_I)
-                   MaxBufferR = sum(nBufferR_P)
-                   allocate(BufferR_I(MaxBufferR))
-                end if
-
-                if(sum(nBufferS_P) > MaxBufferS) then
-                   if(allocated(BufferS_I)) deallocate(BufferS_I)
-                   MaxBufferS = sum(nBufferS_P)
-                   allocate(BufferS_I(MaxBufferS))
-                end if
-
-                ! Initialize buffer indexes for storing data into BufferS_I
-                iBufferS = 0
-                do iProcRecv = 0, nProc-1
-                   iBufferS_P(iProcRecv) = iBufferS
-                   iBufferS = iBufferS + nBufferS_P(iProcRecv)
-                end do
-             end if
-          end if
-
-          nSubStage = 1
-          if(iSendStage == 3) nSubStage = 2
-
-          DoRemote = .true.
-          DoLocal  = nThread == 1
-
-          do iSubStage = 1, nSubStage
-             ! For the last stage of high order resolution change,
-             ! do_equal first, then do_prolong.
-             
-             ! Loop through all blocks that may send a message
-             do iBlockSend = 1, nBlock
-                call message_pass_block(nVar, nG, State_VGB,&
-                     nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
-                     DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
-                     DoResChangeOnly, UseHighResChange,&
-                     iLevelMin, iLevelMax,DoSixthCorrect,&
-                     iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                     UseMin,UseMax,IsPositive_V,&
-                     iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
-                     iProlongS_DII,iProlongR_DII)
-             end do ! iBlockSend
-          end do ! iSubStage
-
-          call timing_stop('remote_pass')
-
-       end do ! iCountOnly
-
-       ! Done for serial run
-       if(nProc == 1) then
-          if(UseHighResChange .and. iSendStage == 2) then
-             !!$omp parallel do
-             do iBlock = 1, nBlock
-                if (Unused_B(iBlock)) CYCLE
-                call high_prolong_for_face_ghost(iBlock)
-             enddo
-             !!$omp end parallel do
+    if(nProc == 1) then
+       ! For nProc==1
+       do iSendStage=1, nSendStage
+          if(UseHighResChange) then
+             State_VIIIB = 0
+             IsAccurate_B = .false.
           endif
-          ! Done for serial run
-          CYCLE
-       endif
 
-       call timing_start('recv_pass')
-
-       ! post requests
-       iRequestR = 0
-       iBufferR  = 1
-       do iProcSend = 0, nProc - 1
-          if(nBufferR_P(iProcSend) == 0) CYCLE
-          iRequestR = iRequestR + 1
-
-          call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
-               MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
-               iError)
-
-          iBufferR  = iBufferR  + nBufferR_P(iProcSend)
-       end do
-
-       call timing_stop('recv_pass')
-
-       if(UseRSend) then
-          call timing_start('barrier_pass')
-          call barrier_mpi
-          call timing_stop('barrier_pass')
-       end if
-
-       call timing_start('send_pass')
-
-       ! post sends
-       iRequestS = 0
-       iBufferS  = 1
-       do iProcRecv = 0, nProc-1
-          if(nBufferS_P(iProcRecv) == 0) CYCLE
-          iRequestS = iRequestS + 1
-
-          if(UseRSend)then
-             call MPI_rsend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                  MPI_REAL, iProcRecv, 10, iComm, iError)
-          else
-             call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                  MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
-                  iError)
-          end if
-
-          iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
-       end do
-       call timing_stop('send_pass')
-
-       call timing_start('local_pass')
-       if(nThread > 1)then
+          DoCountOnly = .false.
+          iSubStage = 1
 
           DoRemote = .false.
           DoLocal  = .true.
           
+          call timing_start('single_pass')
+          
           ! Loop through all blocks that may send a message
-          !$omp parallel do &
-          !$omp& firstprivate(iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,iProlongS_DII,iProlongR_DII,IsPositive_V)
+          !$omp parallel do & 
+          !$omp& firstprivate(iEqualS_DII,iEqualR_DII,iRestrictS_DII) &
+          !$omp& firstprivate(iRestrictR_DII,iProlongS_DII,iProlongR_DII) &
+          !$omp& firstprivate(IsPositive_V)
           do iBlockSend = 1, nBlock
              call message_pass_block(nVar, nG, State_VGB,&
                   nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
@@ -512,34 +389,187 @@ contains
                   UseMin,UseMax,IsPositive_V,&
                   iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
                   iProlongS_DII,iProlongR_DII)
-          end do ! iBlockSend
+          end do ! iBlockSend                      
           !$omp end parallel do
-       end if
-       call timing_stop('local_pass')
+ 
+          call timing_stop('single_pass')
+          
+          if(UseHighResChange .and. iSendStage == 2) then
+             !!$omp parallel do
+             do iBlock = 1, nBlock
+                if (Unused_B(iBlock)) CYCLE
+                call high_prolong_for_face_ghost(iBlock)
+             enddo
+             !!$omp end parallel do
+          endif
+          
+       end do
+    else
+       ! nProc > 1
+       do iSendStage = 1, nSendStage
 
-       call timing_start('wait_pass')
-       ! wait for all requests to be completed
-       if(iRequestR > 0) &
-            call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
-
-       ! wait for all sends to be completed
-       if(.not.UseRSend .and. iRequestS > 0) &
-            call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
-       call timing_stop('wait_pass')
-
-       call timing_start('buffer_to_state')
-       call buffer_to_state
-       call timing_stop('buffer_to_state')
-
-       if(UseHighResChange .and. iSendStage == 2) then
-          !!$omp parallel do
-          do iBlock = 1, nBlock
-             if (Unused_B(iBlock)) CYCLE
-             call high_prolong_for_face_ghost(iBlock)
-          enddo
-          !!$omp end parallel do
-       endif
-    end do ! iSendStage
+          if(UseHighResChange) then
+             State_VIIIB = 0
+             IsAccurate_B = .false.
+          endif
+          
+          do iCountOnly = 1, 2
+             DoCountOnly = iCountOnly == 1
+             
+             call timing_start('remote_pass')
+             
+             ! Second order prolongation needs two stages:
+             ! first stage fills in equal and coarser ghost cells
+             ! second stage uses these to prolong and fill in finer ghost cells
+             
+             if(DoCountOnly)then
+                ! Initialize buffer size
+                nBufferR_P = 0
+                nBufferS_P = 0
+             else
+                ! Make buffers large enough
+                if(sum(nBufferR_P) > MaxBufferR) then
+                   if(allocated(BufferR_I)) deallocate(BufferR_I)
+                   MaxBufferR = sum(nBufferR_P)
+                   allocate(BufferR_I(MaxBufferR))
+                end if
+                
+                if(sum(nBufferS_P) > MaxBufferS) then
+                   if(allocated(BufferS_I)) deallocate(BufferS_I)
+                   MaxBufferS = sum(nBufferS_P)
+                   allocate(BufferS_I(MaxBufferS))
+                end if
+                
+                ! Initialize buffer indexes for storing data into BufferS_I
+                iBufferS = 0
+                do iProcRecv = 0, nProc-1
+                   iBufferS_P(iProcRecv) = iBufferS
+                   iBufferS = iBufferS + nBufferS_P(iProcRecv)
+                end do
+             end if
+             
+             nSubStage = 1
+             if(iSendStage == 3) nSubStage = 2
+             
+             DoRemote = .true.
+             DoLocal  = nThread == 1
+             
+             do iSubStage = 1, nSubStage
+                ! For the last stage of high order resolution change,
+                ! do_equal first, then do_prolong.
+                
+                ! Loop through all blocks that may send a message
+                do iBlockSend = 1, nBlock
+                   call message_pass_block(nVar, nG, State_VGB,&
+                        nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
+                        DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
+                        DoResChangeOnly, UseHighResChange,&
+                        iLevelMin, iLevelMax,DoSixthCorrect,&
+                        iBlockSend,DoCountOnly,iSendStage,iSubStage,&
+                        UseMin,UseMax,IsPositive_V,&
+                        iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
+                        iProlongS_DII,iProlongR_DII)
+                end do ! iBlockSend
+             end do ! iSubStage
+             
+             call timing_stop('remote_pass')
+             
+          end do ! iCountOnly
+                    
+          call timing_start('recv_pass')
+          
+          ! post requests
+          iRequestR = 0
+          iBufferR  = 1
+          do iProcSend = 0, nProc - 1
+             if(nBufferR_P(iProcSend) == 0) CYCLE
+             iRequestR = iRequestR + 1
+             
+             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
+                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
+                  iError)
+             
+             iBufferR  = iBufferR  + nBufferR_P(iProcSend)
+          end do
+          
+          call timing_stop('recv_pass')
+          
+          if(UseRSend) then
+             call timing_start('barrier_pass')
+             call barrier_mpi
+             call timing_stop('barrier_pass')
+          end if
+          
+          call timing_start('send_pass')
+          
+          ! post sends
+          iRequestS = 0
+          iBufferS  = 1
+          do iProcRecv = 0, nProc-1
+             if(nBufferS_P(iProcRecv) == 0) CYCLE
+             iRequestS = iRequestS + 1
+             
+             if(UseRSend)then
+                call MPI_rsend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
+                     MPI_REAL, iProcRecv, 10, iComm, iError)
+             else
+                call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
+                     MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
+                     iError)
+             end if
+             
+             iBufferS = iBufferS + nBufferS_P(iProcRecv)
+          end do
+          call timing_stop('send_pass')
+          
+          if (nThread > 1) then
+             call timing_start('local_mp_pass')
+             DoRemote = .false.
+             DoLocal  = .true.
+             
+             ! Loop through all blocks that may send a message                  
+             !$omp parallel do &                                                
+             !$omp& firstprivate(iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,iProlongS_DII,iProlongR_DII,IsPositive_V)
+             do iBlockSend = 1, nBlock
+                call message_pass_block(nVar, nG, State_VGB,&
+                     nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
+                     DoRestrictFace, TimeOld_B,Time_B, DoTest, NameOperator,&
+                     DoResChangeOnly, UseHighResChange,&
+                     iLevelMin, iLevelMax,DoSixthCorrect,&
+                     iBlockSend,DoCountOnly,iSendStage,iSubStage,&
+                     UseMin,UseMax,IsPositive_V,&
+                     iEqualS_DII,iEqualR_DII,iRestrictS_DII,iRestrictR_DII,&
+                     iProlongS_DII,iProlongR_DII)
+             end do ! iBlockSend                      
+             !$omp end parallel do
+             call timing_stop('local_mp_pass')
+          endif
+             
+ 
+          call timing_start('wait_pass')
+          ! wait for all requests to be completed
+          if(iRequestR > 0) &
+               call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+          
+          ! wait for all sends to be completed
+          if(.not.UseRSend .and. iRequestS > 0) &
+               call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
+          call timing_stop('wait_pass')
+          
+          call timing_start('buffer_to_state')
+          call buffer_to_state
+          call timing_stop('buffer_to_state')
+          
+          if(UseHighResChange .and. iSendStage == 2) then
+             !$omp parallel do
+             do iBlock = 1, nBlock
+                if (Unused_B(iBlock)) CYCLE
+                call high_prolong_for_face_ghost(iBlock)
+             enddo
+             !$omp end parallel do
+          endif
+       end do ! iSendStage
+    end if
 
     if(allocated(State_VIIIB)) deallocate(State_VIIIB,IsAccurate_B)
     if(allocated(IsAccurateFace_GB)) deallocate(IsAccurateFace_GB)
@@ -1987,7 +2017,7 @@ contains
     integer, intent(in):: iBlockSend
     logical, intent(in):: DoCountOnly
     integer, intent(in):: iSendStage
-    integer, intent(in):: iSubStage
+    integer, intent(in),optional:: iSubStage
     logical, intent(in):: UseMin, UseMax
     logical, intent(in):: IsPositive_V(nVar)
     integer, intent(inout):: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
