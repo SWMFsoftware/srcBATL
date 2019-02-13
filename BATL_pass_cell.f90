@@ -82,7 +82,7 @@ module BATL_pass_cell
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
 
   integer :: iBufferS, iBufferR
-  integer :: MaxBufferS, MaxBufferR
+  integer :: MaxBufferS=-1, MaxBufferR=-1
   real, allocatable:: BufferR_I(:), BufferS_I(:)
 
   integer:: iRequestR, iRequestS, iError
@@ -399,7 +399,6 @@ contains
           
        end do
     else
-       MaxBufferR = -1; MaxBufferS = -1
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
 
