@@ -337,18 +337,18 @@ contains
           CellFace_DFB(2,:,:,:,iBlock) = CellFace_DB(2,iBlock)
           CellFace_DFB(3,:,:,:,iBlock) = CellFace_DB(3,iBlock)
 
-          FaceNormal_D = cart_to_rot((/CellFace_DB(1,iBlock), 0., 0./))
+          FaceNormal_D = cart_to_rot([CellFace_DB(1,iBlock), 0., 0.])
           do k = 1, nK+1; do j = 1, nJ+1; do i = 1, nI+1
              FaceNormal_DDFB(:,1,i,j,k,iBlock) = FaceNormal_D(1:nDim)
           end do; end do; end do
 
-          FaceNormal_D = cart_to_rot((/0.0, CellFace_DB(2,iBlock), 0./))
+          FaceNormal_D = cart_to_rot([0., CellFace_DB(2,iBlock), 0.])
           do k = 1, nK+1; do j = 1, nJ+1; do i = 1, nI+1
              FaceNormal_DDFB(:,2,i,j,k,iBlock) = FaceNormal_D(1:nDim)
           end do; end do; end do
 
           if(nDim==3)then
-             FaceNormal_D = cart_to_rot((/0.,0.,CellFace_DB(3,iBlock)/))
+             FaceNormal_D = cart_to_rot([0.,0.,CellFace_DB(3,iBlock)])
              do k = 1, nK+1; do j = 1, nJ+1; do i = 1, nI+1
                 FaceNormal_DDFB(:,3,i,j,k,iBlock) = FaceNormal_D
              end do; end do; end do
