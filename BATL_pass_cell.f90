@@ -82,7 +82,7 @@ module BATL_pass_cell
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
 
   integer :: iBufferS, iBufferR
-  integer :: MaxBufferS = -1, MaxBufferR = -1
+  integer :: MaxBufferS, MaxBufferR
   real, allocatable:: BufferR_I(:), BufferS_I(:)
 
   integer:: iRequestR, iRequestS, iError
@@ -174,6 +174,8 @@ contains
     ! local variables corresponding to optional arguments
     logical:: UseMin, UseMax  ! logicals for min and max operators
     logical :: UseTime        ! true if time interpolation is to be done
+!    integer :: iLevelMin,iLevelMax
+!    real :: TimeOld_B(MaxBlock), Time_B(MaxBlock)
 
     ! Various indexes
     integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
@@ -183,11 +185,8 @@ contains
 
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: iLevelSend, DiLevel
-
     logical:: IsPositive_V(nVar)
-
     integer:: nSendStage
-
     integer:: iBlock
 
     ! Fast lookup tables for index ranges per dimension
@@ -378,17 +377,15 @@ contains
           call timing_start('single_pass')
           
           ! Loop through all blocks that may send a message
-          !$omp parallel do & 
-          !$omp& firstprivate(iEqualS_DII,iEqualR_DII) &
-          !$omp& firstprivate(IsPositive_V)
+          !$omp parallel do firstprivate(iEqualS_DII,iEqualR_DII)
           do iBlockSend = 1, nBlock
-             call message_pass_block(nVar, nG, State_VGB,&
-                  TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
-                  iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                  UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
+             call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
+                  DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
+                  UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
+                  IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
           end do ! iBlockSend
-          !$omp end parallel do
-          
+          !$omp end parallel do 
+
           call timing_stop('single_pass')
           
           if(UseHighResChange .and. iSendStage == 2) then
@@ -402,6 +399,7 @@ contains
           
        end do
     else
+       MaxBufferR = -1; MaxBufferS = -1
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
 
@@ -413,7 +411,7 @@ contains
           do iCountOnly = 1, 2
              DoCountOnly = iCountOnly == 1
              
-             call timing_start('remote_pass')
+             call timing_start('part1_pass')
              
              ! Second order prolongation needs two stages:
              ! first stage fills in equal and coarser ghost cells
@@ -457,14 +455,14 @@ contains
                 
                 ! Loop through all blocks that may send a message
                 do iBlockSend = 1, nBlock
-                   call message_pass_block(nVar, nG, State_VGB,&
-                        TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
-                        iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                        UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
+                   call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
+                        DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
+                        UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
+                        IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
                 end do ! iBlockSend
              end do ! iSubStage
              
-             call timing_stop('remote_pass')
+             call timing_stop('part1_pass')
              
           end do ! iCountOnly
                     
@@ -520,20 +518,17 @@ contains
              DoLocal  = .true.
              
              ! Loop through all blocks that may send a message
-             !$omp parallel do & 
-             !$omp& firstprivate(iEqualS_DII,iEqualR_DII) &
-             !$omp& firstprivate(IsPositive_V)
+             !$omp parallel do firstprivate(iEqualS_DII,iEqualR_DII)
              do iBlockSend = 1, nBlock
-                call message_pass_block(nVar, nG, State_VGB,&
-                     TimeOld_B,Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
-                     iBlockSend,DoCountOnly,iSendStage,iSubStage,&
-                     UseMin,UseMax,IsPositive_V,iEqualS_DII,iEqualR_DII)
+                call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
+                     DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
+                     UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
+                     IsPositive_V,TimeOld_B, Time_B,iLevelMin,iLevelMax)
              end do ! iBlockSend                      
              !$omp end parallel do
              call timing_stop('local_mp_pass')
           endif
              
- 
           call timing_start('wait_pass')
           ! wait for all requests to be completed
           if(iRequestR > 0) &
@@ -718,7 +713,7 @@ contains
             if(present(Time_B))then
                ! Get time of neighbor and interpolate/extrapolate ghost cells
                iBufferR = iBufferR + 1
-               TimeSend  = BufferR_I(iBufferR)
+               TimeSend = BufferR_I(iBufferR)
                UseTime = abs(TimeSend - Time_B(iBlockRecv)) > 1e-30
             end if
 
@@ -1037,9 +1032,9 @@ contains
 
     integer, parameter:: MaxBlockTest = 200
     logical:: IsPeriodicTest_D(MaxDim)= .true.
-    integer:: nRootTest_D(MaxDim) = (/3,3,3/)
-    real   :: DomainMin_D(MaxDim) = (/ 1.0, 10.0, 100.0 /)
-    real   :: DomainMax_D(MaxDim) = (/ 4.0, 40.0, 400.0 /)
+    integer:: nRootTest_D(MaxDim) = [3,3,3]
+    real   :: DomainMin_D(MaxDim) = [ 1.0, 10.0, 100.0 ]
+    real   :: DomainMax_D(MaxDim) = [ 4.0, 40.0, 400.0 ]
 
     real   :: Tolerance = 1e-6
 
@@ -1063,7 +1058,7 @@ contains
 
     integer ::iOp
     integer, parameter :: nOp=2
-    character(len=4) :: NameOperator_I(nOp) = (/ "min", "max" /)
+    character(len=4) :: NameOperator_I(nOp) = [ "min", "max" ]
     character(len=4) :: NameOperator = "Min"
     real :: FineGridStep_D(MaxDim)
     integer :: iFG, jFG, kFG
@@ -1102,7 +1097,7 @@ contains
       call init_grid( DomainMin_D(1:nDim), DomainMax_D(1:nDim) )
       call set_tree_root( nRootTest_D(1:nDim))
 
-      call find_tree_node( (/0.5,0.5,0.5/), iNode)
+      call find_tree_node( [0.5,0.5,0.5], iNode)
       if(DoTest)write(*,*) NameSub,' middle node=',iNode
       call refine_tree_node(iNode)
       call distribute_tree(.true.)
@@ -1305,7 +1300,7 @@ contains
       ! rescale the domain to make indexing easyer
       !------------------------------------------------------------------------
       DomainSize_D = iRatio_D*nRootTest_D*nIJK_D
-      DomainMin_D = (/ 0.0, 0.0, 0.0 /)
+      DomainMin_D = [ 0.0, 0.0, 0.0 ]
       DomainMax_D = DomainSize_D
 
       call init_tree(MaxBlockTest)
@@ -1313,7 +1308,7 @@ contains
       call init_geometry( IsPeriodicIn_D = IsPeriodicTest_D(1:nDim) )
       call set_tree_root( nRootTest_D(1:nDim))
 
-      call find_tree_node( (/0.5,0.5,0.5/), iNode)
+      call find_tree_node( [0.5,0.5,0.5], iNode)
       call refine_tree_node(iNode)
       call distribute_tree(.true.)
       call create_grid
@@ -1327,7 +1322,7 @@ contains
             XyzCorn_DGB(:,i,j,k,iBlock) = &
                  Xyz_DGB(:,i,j,k,iBlock) - &
                  0.5*CellSize_DB(:,iBlock)*&
-                 (/ min(1,nI-1),min(1,nJ-1),min(1,nK-1) /)
+                 [ min(1,nI-1),min(1,nJ-1),min(1,nK-1) ]
          end do; end do; end do
       end do
 
@@ -1374,7 +1369,7 @@ contains
             do k = 1, nK; do j = 1, nJ; do i = 1, nI
                Scalar_GB(i,j,k,iBlock)= iNode_B(iBlock) + &
                     sum(CoordMin_DB(:,iBlock) + &
-                    ( (/i, j, k/) ) * CellSize_DB(:,iBlock))
+                    ( [i, j, k] ) * CellSize_DB(:,iBlock))
             end do; end do; end do
          end do
 
@@ -1401,7 +1396,7 @@ contains
 
          ! making sure that we have the center cell along the x=0 side
          ! so the boundary are not tested.
-         call find_tree_node( (/0.0,0.5,0.5/), iNode)
+         call find_tree_node( [0.0,0.5,0.5], iNode)
 
          do iBlock = 1, nBlock
             if(Unused_B(iBlock)) CYCLE
@@ -1471,14 +1466,14 @@ contains
             NameGeometry = 'cylindrical'
 
             ! 0 < r < 10, 0 < phi < 360deg, -5 < z < 5
-            DomainMin_D = (/ 0.0,  0.0, -5.0 /)
-            DomainMax_D = (/ 8.0, cTwoPi, +5.0 /)
-            IsPeriodicTest_D = (/ .false., .true., .true. /)
+            DomainMin_D = [ 0.0,  0.0, -5.0 ]
+            DomainMax_D = [ 8.0, cTwoPi, +5.0 ]
+            IsPeriodicTest_D = [ .false., .true., .true. ]
 
             ! There must be an even number of root blocks in the phi direction
             ! There are 3 root blocks in z so that we can refine the middle
             ! and avoid issues of periodicity in the testing
-            nRootTest_D = (/ 2, 4, 3 /)
+            nRootTest_D = [ 2, 4, 3 ]
 
             ! Test ghost cells at rMin
             iMin = MinI
@@ -1488,28 +1483,28 @@ contains
             NameGeometry = 'spherical'
 
             ! 1 < r < 9, 0 < theta < 180deg, 0 < phi < 360deg
-            DomainMin_D = (/ 1.0,  0.0, 0.0 /)
-            DomainMax_D = (/ 9.0,  cPi, cTwoPi /)
-            IsPeriodicTest_D = (/ .false., .false., .true. /)
+            DomainMin_D = [ 1.0,  0.0, 0.0 ]
+            DomainMax_D = [ 9.0,  cPi, cTwoPi ]
+            IsPeriodicTest_D = [ .false., .false., .true. ]
 
             ! There must be an even number of root blocks in the phi direction
             ! There are 3 root blocks in r so that we can refine the middle
             ! and avoid issues at inner and outer radial boundaries
-            nRootTest_D = (/ 3, 2, 4 /)
+            nRootTest_D = [ 3, 2, 4 ]
 
          case(3,6)
             if(nDim < 3)CYCLE
             NameGeometry = 'rlonlat'
 
             ! 1 < r < 9, 0 < phi < 360deg, -90 < lat < 90
-            DomainMin_D = (/ 1.0,    0.0, -cHalfPi /)
-            DomainMax_D = (/ 9.0, cTwoPi, cHalfPi /)
-            IsPeriodicTest_D = (/ .false., .true., .false. /)
+            DomainMin_D = [ 1.0,    0.0, -cHalfPi ]
+            DomainMax_D = [ 9.0, cTwoPi, cHalfPi ]
+            IsPeriodicTest_D = [ .false., .true., .false. ]
 
             ! There must be an even number of root blocks in the phi direction
             ! There are 3 root blocks in r so that we can refine the middle
             ! and avoid issues at inner and outer radial boundaries
-            nRootTest_D = (/ 3, 4, 2 /)
+            nRootTest_D = [ 3, 4, 2 ]
 
          end select
          DomainSize_D = DomainMax_D - DomainMin_D
@@ -1639,12 +1634,12 @@ contains
 
       NameGeometry = 'cartesian'
 
-      DomainMin_D = (/0.0, 0.0, 0.0/)
-      DomainMax_D = (/8.0, 8.0, 8.0/)
+      DomainMin_D = [0.0, 0.0, 0.0]
+      DomainMax_D = [8.0, 8.0, 8.0]
       DomainSize_D = DomainMax_D - DomainMin_D
 
-      IsPeriodicTest_D = (/.true., .true., .true./)
-      nRootTest_D = (/4,4,4/)
+      IsPeriodicTest_D = [.true., .true., .true.]
+      nRootTest_D = [4,4,4]
 
       nRefinement = 2
       do iRefinement = 1, nRefinement
@@ -1660,17 +1655,17 @@ contains
 
          if(nDim == 2) then
             if(iRefinement == 1) then
-               iNode_I = (/6,7,10,11,-1,-1,-1,-1/)
+               iNode_I = [6,7,10,11,-1,-1,-1,-1]
             else
-               iNode1_I = (/6,7,10,11,-1,-1,-1,-1/)
-               iNode_I  = (/20,23,26,29,-1,-1,-1,-1/)
+               iNode1_I = [6,7,10,11,-1,-1,-1,-1]
+               iNode_I  = [20,23,26,29,-1,-1,-1,-1]
             endif
          else ! 3D
             if(iRefinement == 1) then
-               iNode_I = (/22,23,26,27,38,39,42,43/)
+               iNode_I = [22,23,26,27,38,39,42,43]
             else
-               iNode1_I = (/22,23,26,27,38,39,42,43/)
-               iNode_I = (/72,79,86,93,100,107,114,121/)
+               iNode1_I = [22,23,26,27,38,39,42,43]
+               iNode_I = [72,79,86,93,100,107,114,121]
             endif
          endif
 
@@ -1793,14 +1788,14 @@ contains
             NameGeometry = 'cylindrical'
 
             ! 2 < r < 8, 0 < phi < 360deg, -5 < z < 5
-            DomainMin_D = (/ 2.0,  0.0, -5.0 /)
-            DomainMax_D = (/ 8.0, cTwoPi, +5.0 /)
-            IsPeriodicTest_D = (/ .false., .true., .true. /)
+            DomainMin_D = [ 2.0,  0.0, -5.0 ]
+            DomainMax_D = [ 8.0, cTwoPi, +5.0 ]
+            IsPeriodicTest_D = [ .false., .true., .true. ]
 
             ! There must be an even number of root blocks in the phi direction
             ! There are 3 root blocks in z so that we can refine the middle
             ! and avoid issues of periodicity in the testing
-            nRootTest_D = (/3,4,3/)
+            nRootTest_D = [3,4,3]
 
             ! Test ghost cells at rMin
             iMin = MinI
@@ -1808,11 +1803,11 @@ contains
          case(2)
             NameGeometry = 'rotatedcartesian'
 
-            DomainMin_D = (/0.0, 0.0, 0.0/)
-            DomainMax_D = (/6.0, 6.0, 6.0/)
+            DomainMin_D = [0.0, 0.0, 0.0]
+            DomainMax_D = [6.0, 6.0, 6.0]
 
-            IsPeriodicTest_D = (/.false., .false., .false./)
-            nRootTest_D = (/3,3,3/)
+            IsPeriodicTest_D = [.false., .false., .false.]
+            nRootTest_D = [3,3,3]
          end select
          DomainSize_D = DomainMax_D - DomainMin_D
 
@@ -1960,10 +1955,9 @@ contains
   end subroutine test_pass_cell
   !============================================================================
 
-  subroutine message_pass_block(nVar, nG, State_VGB,&
-       TimeOld_B, Time_B,iLevelMin, iLevelMax,DoSixthCorrect,&
-       iBlockSend,DoCountOnly,iSendStage,iSubStage,UseMin,UseMax,&
-       IsPositive_V,iEqualS_DII,iEqualR_DII)
+  subroutine message_pass_block(nVar, nG, State_VGB,iBlockSend,DoCountOnly,&
+       iSendStage,iSubStage,DoSixthCorrect,UseMin,UseMax,iEqualS_DII,&
+       iEqualR_DII,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -1983,10 +1977,7 @@ contains
     real, intent(inout):: State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
-    integer, intent(in),optional:: iLevelMin, iLevelMax
     logical, intent(in):: DoSixthCorrect
-    real,    intent(in),optional:: TimeOld_B(MaxBlock)
-    real,    intent(in),optional:: Time_B(MaxBlock)
 
     integer, intent(in):: iBlockSend
     logical, intent(in):: DoCountOnly
@@ -1996,6 +1987,9 @@ contains
     logical, intent(in):: IsPositive_V(nVar)
     integer, intent(inout):: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
     integer, intent(inout):: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
+    integer, intent(in),optional:: iLevelMin, iLevelMax
+    real,    intent(in),optional:: TimeOld_B(MaxBlock)
+    real,    intent(in),optional:: Time_B(MaxBlock)
 
     real, allocatable:: Slope_VG(:,:,:,:)
     
@@ -3317,7 +3311,7 @@ contains
                                  dR_D = Xyz_DGB(:,iR,jR,kR,iBlockRecv) - Xyz_D
                               else
                                  CoordR_D = CoordMinR_D + &
-                                      ((/iR,jR,kR/) - 0.5)*CellSizeR_D
+                                      ([iR,jR,kR] - 0.5)*CellSizeR_D
                                  call coord_to_xyz(CoordR_D, dR_D)
                                  dR_D = dR_D - Xyz_D
                               end if
@@ -3584,7 +3578,7 @@ contains
       real, allocatable:: Fine_VIII(:,:,:,:)
       real:: CoarseCell, Coarse_I(3),Cell_I(5)
       real:: Cell1_I(6), Cell2_I(6), Cell3_I(6)
-      real:: Distance_I(4) = (/-2,-1,1,2/)
+      real:: Distance_I(4) = [-2,-1,1,2]
       real:: Cell_III(6,6,6)
 
       ! Some points can be calculated in 2 or 3 symmetric ways, use their
@@ -3603,9 +3597,9 @@ contains
       Cell1_I = 0; Cell2_I = 0; Cell3_I = 0
 
       if(DoSixthCorrect) then
-         Coef_I = (/0.05, -0.3, 0.75, 0.75, -0.3, 0.05/)
+         Coef_I = [0.05, -0.3, 0.75, 0.75, -0.3, 0.05]
       else
-         Coef_I = (/0.1, -0.5, 1.0, 0.5, -0.1, 0.0/)
+         Coef_I = [0.1, -0.5, 1.0, 0.5, -0.1, 0.0]
       endif
 
       if(.not. allocated(Fine_VIII))&
@@ -4842,8 +4836,4 @@ contains
   end function is_only_corner_fine
   !==========================================================================
 
-
 end module BATL_pass_cell
-
-
-
