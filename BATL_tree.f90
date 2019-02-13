@@ -1292,7 +1292,7 @@ contains
     integer, intent(in):: iBlock
 
     integer :: iNode, iLevel, i, j, k, Di, Dj, Dk, jNode
-    real :: Scale_D(MaxDim), x, y, z, y0, z0
+    real :: Scale_D(MaxDim), x, y, z, y0, z0, x_D(3)
 
     integer:: DiLevelNeiOld_III(-1:1,-1:1,-1:1)
 
@@ -1408,7 +1408,9 @@ contains
                 end if
              end if
 
-             call find_tree_node( (/x, y, z/), jNode)
+             x_D = [x,y,z]
+
+             call find_tree_node( x_D, jNode)
 
              iNodeNei_IIIB(i,j,k,iBlock) = jNode
              DiLevelNei_IIIB(Di,Dj,Dk,iBlock) = &
