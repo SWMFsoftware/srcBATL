@@ -169,13 +169,9 @@ contains
 
     ! Local variables
 
-    logical, parameter :: UseRSend = .false.
-
     ! local variables corresponding to optional arguments
     logical:: UseMin, UseMax  ! logicals for min and max operators
     logical :: UseTime        ! true if time interpolation is to be done
-!    integer :: iLevelMin,iLevelMax
-!    real :: TimeOld_B(MaxBlock), Time_B(MaxBlock)
 
     ! Various indexes
     integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
@@ -464,32 +460,8 @@ contains
              call timing_stop('part1_pass')
              
           end do ! iCountOnly
-                    
-          call timing_start('recv_pass')
-          
-          ! post requests
-          iRequestR = 0
-          iBufferR  = 1
-          do iProcSend = 0, nProc - 1
-             if(nBufferR_P(iProcSend) == 0) CYCLE
-             iRequestR = iRequestR + 1
-             
-             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
-                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
-                  iError)
-             
-             iBufferR  = iBufferR  + nBufferR_P(iProcSend)
-          end do
-          
-          call timing_stop('recv_pass')
-          
-          if(UseRSend) then
-             call timing_start('barrier_pass')
-             call barrier_mpi
-             call timing_stop('barrier_pass')
-          end if
-          
-          call timing_start('send_pass')
+
+
           
           ! post sends
           iRequestS = 0
@@ -498,19 +470,28 @@ contains
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
              
-             if(UseRSend)then
-                call MPI_rsend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                     MPI_REAL, iProcRecv, 10, iComm, iError)
-             else
-                call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                     MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
-                     iError)
-             end if
+             call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
+                  MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
+                  iError)
              
              iBufferS = iBufferS + nBufferS_P(iProcRecv)
           end do
-          call timing_stop('send_pass')
+      
+          ! post requests
+          iRequestR = 0
+          iBufferR  = 1
+          do iProcSend = 0, nProc-1
+             if(nBufferR_P(iProcSend) == 0) CYCLE
+             iRequestR = iRequestR + 1
+             
+             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
+                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
+                  iError)
+             
+             iBufferR = iBufferR + nBufferR_P(iProcSend)
+          end do
           
+
           if (nThread > 1) then
              call timing_start('local_mp_pass')
              DoRemote = .false.
@@ -527,14 +508,15 @@ contains
              !$omp end parallel do
              call timing_stop('local_mp_pass')
           endif
-             
+          
+          
           call timing_start('wait_pass')
           ! wait for all requests to be completed
           if(iRequestR > 0) &
                call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
           
           ! wait for all sends to be completed
-          if(.not.UseRSend .and. iRequestS > 0) &
+          if(iRequestS > 0) &
                call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
           call timing_stop('wait_pass')
           
