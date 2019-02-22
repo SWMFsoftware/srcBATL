@@ -243,7 +243,7 @@ contains
     ! During AMR we may need extra nodes, because coarsening does not
     ! free up nodes immediately (Coarsen_ status instead of Unset_).
     ! So we have a factor 2 in front, which is the worst case scenario.
-    MaxNode  = 2*ceiling(nProc*MaxBlock*(1 + 1.0/(nChild - 1)))
+    MaxNode = 2*ceiling(nProc*MaxBlock*(1 + 1.0/(nChild - 1)))
 
     IsNewDecomposition = .true.
     IsNewTree = .true.
