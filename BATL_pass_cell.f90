@@ -58,6 +58,9 @@ module BATL_pass_cell
 
 
   ! local variables corresponding to optional arguments
+  logical :: UseMin, UseMax  ! logicals for min and max operators
+
+  ! local variables corresponding to optional arguments
   integer :: nWidth
   integer :: nCoarseLayer
   integer :: nProlongOrder
@@ -77,10 +80,12 @@ module BATL_pass_cell
   integer:: iRestrictR_DII(MaxDim,0:3,Min_:Max_)
   integer:: iProlongS_DII(MaxDim,0:3,Min_:Max_)
   integer:: iProlongR_DII(MaxDim,0:3,Min_:Max_)
+  integer:: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
+  integer:: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
+  !$omp threadprivate( iEqualS_DII, iEqualR_DII )
   
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
-
   integer :: iBufferS, iBufferR
   integer :: MaxBufferS=-1, MaxBufferR=-1
   real, allocatable:: BufferR_I(:), BufferS_I(:)
@@ -89,12 +94,18 @@ module BATL_pass_cell
   integer, allocatable:: iRequestR_I(:), iRequestS_I(:), &
        iStatus_II(:,:)
 
+  ! Slopes for 2nd order prolongation
+  real, allocatable:: Slope_VG(:,:,:,:)
+  !$omp threadprivate( Slope_VG )
+
   ! High order resolution change 
   logical, allocatable:: IsAccurateFace_GB(:,:,:,:)
+  logical :: DoCountOnly    ! logical for count vs. sendrecv stages
   
   ! For OpenMP: local ghost cells can be done multithreaded
   logical:: DoLocal, DoRemote
-  
+
+
 contains
   !============================================================================
 
@@ -169,35 +180,20 @@ contains
 
     ! Local variables
 
-    logical, parameter :: UseRSend = .false.
-
     ! local variables corresponding to optional arguments
-    logical:: UseMin, UseMax  ! logicals for min and max operators
     logical :: UseTime        ! true if time interpolation is to be done
-!    integer :: iLevelMin,iLevelMax
-!    real :: TimeOld_B(MaxBlock), Time_B(MaxBlock)
 
     ! Various indexes
     integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
     ! for high order resolution change.
     integer :: iCountOnly     ! index for 2 stage scheme for count, sendrecv
-    logical :: DoCountOnly    ! logical for count vs. sendrecv stages
 
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: iLevelSend, DiLevel
-    logical:: IsPositive_V(nVar)
-    integer:: nSendStage
-    integer:: iBlock
-
-    ! Fast lookup tables for index ranges per dimension
-    integer:: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
-    integer:: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
-    
-    ! Slopes for 2nd order prolongation
-    real, allocatable:: Slope_VG(:,:,:,:)
-
-    logical:: DoSixthCorrect
-    
+    logical :: IsPositive_V(nVar)
+    integer :: nSendStage
+    integer :: iBlock
+        
     ! For high order resolution change, a few face ghost cells need to be
     ! calculated remotely after the corase block have got accurate
     ! ghost cells. For this case with block cell size smaller than
@@ -347,11 +343,6 @@ contains
        !      also for not yet done face ghost cells.
        nSendStage = 3
 
-       ! For 6th order correction, which may be better because of symmetry,
-       ! 8 cells are needed in each direction. If it is not satisfied,
-       ! use 5th order correction.
-       DoSixthCorrect = nI>7 .and. nJ>7 .and. (nDim==2 .or. nK>7)
-
        ! Used for stage 2a.
        if(.not. allocated(State_VIIIB))&
             allocate(&
@@ -359,6 +350,18 @@ contains
             IsAccurate_B(nBlock))
 
     endif
+
+
+    if(.not.allocated(Slope_VG)) then
+       !$omp parallel
+       ! Allocate slope for prolongation. Size depends on nVar and nWidth
+       allocate(Slope_VG(nVar,1-nWidth:nI+nWidth,&
+            1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_))
+       ! Set to zero so we can add it for first order prolongation too
+       Slope_VG = 0.0
+       !$omp end parallel
+    end if
+
 
     if(nProc == 1) then
 
@@ -368,21 +371,19 @@ contains
              IsAccurate_B = .false.
           endif
 
-          DoCountOnly = .false.
           iSubStage = 1
-
+          DoCountOnly = .false.
           DoRemote = .false.
           DoLocal  = .true.
 
           call timing_start('single_pass')
           
           ! Loop through all blocks that may send a message
-          !$omp parallel do firstprivate(iEqualS_DII,iEqualR_DII)
+          !$omp parallel do
           do iBlockSend = 1, nBlock
-             call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
-                  DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
-                  UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
-                  IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
+             if(Unused_B(iBlockSend)) CYCLE
+             call message_pass_block(nVar,nG,State_VGB,iBlockSend,iSendStage,&
+                  iSubStage,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
           end do ! iBlockSend
           !$omp end parallel do 
 
@@ -409,7 +410,7 @@ contains
           
           do iCountOnly = 1, 2
              DoCountOnly = iCountOnly == 1
-             
+
              call timing_start('part1_pass')
              
              ! Second order prolongation needs two stages:
@@ -454,43 +455,17 @@ contains
                 
                 ! Loop through all blocks that may send a message
                 do iBlockSend = 1, nBlock
-                   call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
-                        DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
-                        UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
-                        IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
+                   if(Unused_B(iBlockSend)) CYCLE
+                   call message_pass_block(nVar,nG,State_VGB,iBlockSend, &
+                        iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B,&
+                        iLevelMin,iLevelMax)
                 end do ! iBlockSend
              end do ! iSubStage
              
              call timing_stop('part1_pass')
              
           end do ! iCountOnly
-                    
-          call timing_start('recv_pass')
-          
-          ! post requests
-          iRequestR = 0
-          iBufferR  = 1
-          do iProcSend = 0, nProc - 1
-             if(nBufferR_P(iProcSend) == 0) CYCLE
-             iRequestR = iRequestR + 1
-             
-             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
-                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
-                  iError)
-             
-             iBufferR  = iBufferR  + nBufferR_P(iProcSend)
-          end do
-          
-          call timing_stop('recv_pass')
-          
-          if(UseRSend) then
-             call timing_start('barrier_pass')
-             call barrier_mpi
-             call timing_stop('barrier_pass')
-          end if
-          
-          call timing_start('send_pass')
-          
+
           ! post sends
           iRequestS = 0
           iBufferS  = 1
@@ -498,43 +473,53 @@ contains
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
              
-             if(UseRSend)then
-                call MPI_rsend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                     MPI_REAL, iProcRecv, 10, iComm, iError)
-             else
-                call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
-                     MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
-                     iError)
-             end if
+             call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
+                  MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
+                  iError)
              
              iBufferS = iBufferS + nBufferS_P(iProcRecv)
           end do
-          call timing_stop('send_pass')
+      
+          ! post requests
+          iRequestR = 0
+          iBufferR  = 1
+          do iProcSend = 0, nProc-1
+             if(nBufferR_P(iProcSend) == 0) CYCLE
+             iRequestR = iRequestR + 1
+             
+             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
+                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
+                  iError)
+             
+             iBufferR = iBufferR + nBufferR_P(iProcSend)
+          end do
           
+
           if (nThread > 1) then
              call timing_start('local_mp_pass')
              DoRemote = .false.
              DoLocal  = .true.
              
              ! Loop through all blocks that may send a message
-             !$omp parallel do firstprivate(iEqualS_DII,iEqualR_DII)
+             !$omp parallel do
              do iBlockSend = 1, nBlock
-                call message_pass_block(nVar, nG, State_VGB,iBlockSend,&
-                     DoCountOnly,iSendStage,iSubStage,DoSixthCorrect,&
-                     UseMin,UseMax,iEqualS_DII,iEqualR_DII,&
-                     IsPositive_V,TimeOld_B, Time_B,iLevelMin,iLevelMax)
+                if(Unused_B(iBlockSend)) CYCLE
+                call message_pass_block(nVar,nG,State_VGB,iBlockSend, &
+                     iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B, &
+                     iLevelMin,iLevelMax)
              end do ! iBlockSend                      
              !$omp end parallel do
              call timing_stop('local_mp_pass')
           endif
-             
+          
+          
           call timing_start('wait_pass')
           ! wait for all requests to be completed
           if(iRequestR > 0) &
                call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
           
           ! wait for all sends to be completed
-          if(.not.UseRSend .and. iRequestS > 0) &
+          if(iRequestS > 0) &
                call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
           call timing_stop('wait_pass')
           
@@ -553,6 +538,9 @@ contains
        end do ! iSendStage
     end if
 
+    !$omp parallel
+    deallocate(Slope_VG)
+    !$omp end parallel
     if(allocated(State_VIIIB)) deallocate(State_VIIIB,IsAccurate_B)
     if(allocated(IsAccurateFace_GB)) deallocate(IsAccurateFace_GB)
 
@@ -749,6 +737,7 @@ contains
       integer:: nWidthProlongS_D(MaxDim), iDim
       !------------------------------------------------------------------------
 
+      !$omp parallel
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iEqualS_DII(:,-1,Min_) = 1
       iEqualS_DII(:,-1,Max_) = nWidth
@@ -764,6 +753,7 @@ contains
       iEqualR_DII(:, 0,Max_) = nIjk_D
       iEqualR_DII(:, 1,Min_) = 1 - nWidth
       iEqualR_DII(:, 1,Max_) = 0
+      !$omp end parallel
 
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iRestrictS_DII(:,-1,Min_) = 1
@@ -1549,14 +1539,6 @@ contains
          call distribute_tree(.true.)
          call create_grid
 
-         ! if(DoTest) call show_tree(NameSub,.true.)
-         ! do iBlock = 3, 3
-         !   do j = 0, 3; do i = 0, 3
-         !      write(*,*) '!!! iBlock, i, j, iNodeNei_IIIB(i,j,:,iBlock)=', &
-         !           iBlock, i, j, iNodeNei_IIIB(i,j,:,iBlock)
-         !   end do; end do
-         ! end do
-
          allocate(State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
 
          State_VGB = 0.0
@@ -1954,9 +1936,8 @@ contains
   end subroutine test_pass_cell
   !============================================================================
 
-  subroutine message_pass_block(nVar, nG, State_VGB,iBlockSend,DoCountOnly,&
-       iSendStage,iSubStage,DoSixthCorrect,UseMin,UseMax,iEqualS_DII,&
-       iEqualR_DII,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
+  subroutine message_pass_block(nVar,nG,State_VGB,iBlockSend,&
+       iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -1976,24 +1957,15 @@ contains
     real, intent(inout):: State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
-    logical, intent(in):: DoSixthCorrect
-
     integer, intent(in):: iBlockSend
-    logical, intent(in):: DoCountOnly
     integer, intent(in):: iSendStage
     integer, intent(in):: iSubStage
-    logical, intent(in):: UseMin, UseMax
     logical, intent(in):: IsPositive_V(nVar)
-    integer, intent(inout):: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
-    integer, intent(inout):: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
     integer, intent(in),optional:: iLevelMin, iLevelMax
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
 
-    real, allocatable:: Slope_VG(:,:,:,:)
-    
     integer :: iNodeSend
-    
     integer :: iDir,jDir,kDir
 
     ! Is the sending node next to the symmetry axis?
@@ -2009,15 +1981,14 @@ contains
     ! calculated remotely.  So, nSubStage == 2 for this case. Do_equal
     ! is called first and then use do_prolong.
     logical:: DoSendFace, DoRecvFace
-    !--------------------------------------------------------------------------
 
-    ! Allocate slope for prolongation. Size depends on nVar and nWidth
-    allocate(Slope_VG(nVar,1-nWidth:nI+nWidth,&
-         1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_))
-    ! Set to zero so we can add it for first order prolongation too
-    Slope_VG = 0.0
+    ! For 6th order correction, which may be better because of symmetry,
+    ! 8 cells are needed in each direction. If it is not satisfied,
+    ! use 5th order correction.
+    logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
+         (nK==1 .or. nK>7)
+    !--------------------------------------------------------------------------
     
-    if(Unused_B(iBlockSend)) RETURN
     iNodeSend = iNode_B(iBlockSend)
 
     ! Skip if the sending block level is not in the level range
@@ -2110,8 +2081,6 @@ contains
           end do ! iDir
        end do ! jDir
     end do ! kDir
-
-    !deallocate(Slope_VG)
     
   contains
     !==========================================================================
