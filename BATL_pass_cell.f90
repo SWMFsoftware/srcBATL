@@ -91,20 +91,27 @@ module BATL_pass_cell
   real, allocatable:: BufferR_I(:), BufferS_I(:)
 
   integer:: iRequestR, iRequestS, iError
-  integer, allocatable:: iRequestR_I(:), iRequestS_I(:), &
-       iStatus_II(:,:)
+  integer, allocatable:: iRequestR_I(:), iRequestS_I(:), iStatus_II(:,:)
 
   ! Slopes for 2nd order prolongation
   real, allocatable:: Slope_VG(:,:,:,:)
   !$omp threadprivate( Slope_VG )
 
+  ! Positivity of variables
+  logical, allocatable:: IsPositive_V(:)
+
   ! High order resolution change 
   logical, allocatable:: IsAccurateFace_GB(:,:,:,:)
-  logical :: DoCountOnly    ! logical for count vs. sendrecv stages
+
+  ! counting vs. sendrecv stages
+  logical:: DoCountOnly    
+  ! Stage indexes
+
+  ! indexes for multiple stages
+  integer:: iSendStage, iSubStage
   
   ! For OpenMP: local ghost cells can be done multithreaded
   logical:: DoLocal, DoRemote
-
 
 contains
   !============================================================================
@@ -183,14 +190,11 @@ contains
     ! local variables corresponding to optional arguments
     logical :: UseTime        ! true if time interpolation is to be done
 
-    ! Various indexes
-    integer :: iSendStage  ! index for 2 stage scheme for 2nd order prolong or
     ! for high order resolution change.
     integer :: iCountOnly     ! index for 2 stage scheme for count, sendrecv
 
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: iLevelSend, DiLevel
-    logical :: IsPositive_V(nVar)
     integer :: nSendStage
     integer :: iBlock
         
@@ -201,7 +205,7 @@ contains
     ! neighbour block before they are overwritten by 5th order values
     ! calculated remotely.  So, nSubStage == 2 for this case. Do_equal
     ! is called first and then use do_prolong.
-    integer:: iSubStage, nSubStage
+    integer:: nSubStage
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
@@ -233,9 +237,6 @@ contains
 
     UseHighResChange = .false.
     if(present(UseHighResChangeIn)) UseHighResChange = UseHighResChangeIn
-    IsPositive_V = .false.
-    if(UseHighResChange .and. present(DefaultState_V)) &
-         IsPositive_V = DefaultState_V > 0
 
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
@@ -312,11 +313,10 @@ contains
     call timing_stop('init_pass')
 
     nSendStage = nProlongOrder
-    if(.not. allocated(IsAccurateFace_GB)) &
-         allocate(IsAccurateFace_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK, nBlock))
+
     if(UseHighResChange) then
        ! WARNING!!!!!!!!!!!!!!!!!!!
-       ! HighResChange has a issue with boundary conditions so far. One
+       ! HighResChange has an issue with boundary conditions so far. One
        ! boundary block's corner/edge neighbors may be not defined (like
        ! reflect boundary) and the ghost cell values are not accurate (the
        ! values may be 777 after AMR). This problem only occures with
@@ -343,29 +343,26 @@ contains
        !      also for not yet done face ghost cells.
        nSendStage = 3
 
-       ! Used for stage 2a.
-       if(.not. allocated(State_VIIIB))&
-            allocate(&
+       allocate( &
             State_VIIIB(nVar,max(nI/2,1),max(nJ/2,1),max(nK/2,1),nBlock), &
-            IsAccurate_B(nBlock))
-
-    endif
-
-
-    if(.not.allocated(Slope_VG)) then
-       !$omp parallel
-       ! Allocate slope for prolongation. Size depends on nVar and nWidth
-       allocate(Slope_VG(nVar,1-nWidth:nI+nWidth,&
-            1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_))
-       ! Set to zero so we can add it for first order prolongation too
-       Slope_VG = 0.0
-       !$omp end parallel
+            IsAccurate_B(nBlock), &
+            IsAccurateFace_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,nBlock), &
+            IsPositive_V(nVar))
+       IsPositive_V = .false.
+       if(present(DefaultState_V)) IsPositive_V = DefaultState_V > 0
     end if
 
+    !$omp parallel
+    ! Allocate slope for prolongation. Size depends on nVar and nWidth
+    allocate(Slope_VG(nVar,1-nWidth:nI+nWidth,&
+         1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_))
+    ! Set to zero so we can add it for first order prolongation too
+    Slope_VG = 0.0
+    !$omp end parallel
 
     if(nProc == 1) then
 
-       do iSendStage=1, nSendStage
+       do iSendStage = 1, nSendStage
           if(UseHighResChange) then
              State_VIIIB = 0
              IsAccurate_B = .false.
@@ -382,8 +379,8 @@ contains
           !$omp parallel do
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
-             call message_pass_block(nVar,nG,State_VGB,iBlockSend,iSendStage,&
-                  iSubStage,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
+             call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                  TimeOld_B, Time_B, iLevelMin, iLevelMax)
           end do ! iBlockSend
           !$omp end parallel do 
 
@@ -456,9 +453,8 @@ contains
                 ! Loop through all blocks that may send a message
                 do iBlockSend = 1, nBlock
                    if(Unused_B(iBlockSend)) CYCLE
-                   call message_pass_block(nVar,nG,State_VGB,iBlockSend, &
-                        iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B,&
-                        iLevelMin,iLevelMax)
+                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                        TimeOld_B, Time_B, iLevelMin, iLevelMax)
                 end do ! iBlockSend
              end do ! iSubStage
              
@@ -504,9 +500,8 @@ contains
              !$omp parallel do
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
-                call message_pass_block(nVar,nG,State_VGB,iBlockSend, &
-                     iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B, &
-                     iLevelMin,iLevelMax)
+                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                     TimeOld_B, Time_B, iLevelMin, iLevelMax)
              end do ! iBlockSend                      
              !$omp end parallel do
              call timing_stop('local_mp_pass')
@@ -538,11 +533,12 @@ contains
        end do ! iSendStage
     end if
 
+    if(UseHighResChange) &
+         deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
+
     !$omp parallel
     deallocate(Slope_VG)
     !$omp end parallel
-    if(allocated(State_VIIIB)) deallocate(State_VIIIB,IsAccurate_B)
-    if(allocated(IsAccurateFace_GB)) deallocate(IsAccurateFace_GB)
 
     call timing_stop('batl_pass')
 
@@ -641,7 +637,7 @@ contains
 
       call prolongation_high_order_for_face_ghost(&
            iBlock, nVar, Field1_VG, State_VGB(:,:,:,:,iBlock), &
-           IsAccurateFace_GB(:,:,:,iBlock),IsPositiveIn_V=IsPositive_V)
+           IsAccurateFace_GB(:,:,:,iBlock), IsPositiveIn_V=IsPositive_V)
 
       DiLevelNei_I(1) = DiLevelNei_IIIB(-1,0,0,iBlock)
       DiLevelNei_I(2) = DiLevelNei_IIIB(+1,0,0,iBlock)
@@ -715,13 +711,19 @@ contains
 
                   iBufferR = iBufferR + nVar
                end do; end do; end do
-            else
+            elseif(UseHighResChange)then
                do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
                   if(.not. (iSendStage == 3 &
                        .and. IsAccurateFace_GB(i,j,k,iBlockRecv)))then
                      State_VGB(:,i,j,k,iBlockRecv) = &
                           BufferR_I(iBufferR+1:iBufferR+nVar)
                   endif
+                  iBufferR = iBufferR + nVar
+               end do; end do; end do
+            else
+               do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
+                  State_VGB(:,i,j,k,iBlockRecv) = &
+                       BufferR_I(iBufferR+1:iBufferR+nVar)
                   iBufferR = iBufferR + nVar
                end do; end do; end do
             end if
@@ -1936,8 +1938,8 @@ contains
   end subroutine test_pass_cell
   !============================================================================
 
-  subroutine message_pass_block(nVar,nG,State_VGB,iBlockSend,&
-       iSendStage,iSubStage,IsPositive_V,TimeOld_B,Time_B,iLevelMin,iLevelMax)
+  subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+       TimeOld_B, Time_B, iLevelMin, iLevelMax)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -1952,21 +1954,25 @@ contains
          UseTimeLevel, iTimeLevel_A
 
     ! Arguments
+    integer, intent(in):: iBlockSend
+
     integer, intent(in):: nVar  ! number of variables
     integer, intent(in):: nG    ! number of ghost cells for 1..nDim
     real, intent(inout):: State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
-    integer, intent(in):: iBlockSend
-    integer, intent(in):: iSendStage
-    integer, intent(in):: iSubStage
-    logical, intent(in):: IsPositive_V(nVar)
-    integer, intent(in),optional:: iLevelMin, iLevelMax
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
+    integer, intent(in),optional:: iLevelMin, iLevelMax
+
+    ! Send information from block iBlockSend to other blocks
+    ! If DoLocal is true, send info to blocks on same core
+    ! If DoRemote is true, send info to blocks on other cores
+
+    ! Local variables
 
     integer :: iNodeSend
-    integer :: iDir,jDir,kDir
+    integer :: iDir, jDir, kDir
 
     ! Is the sending node next to the symmetry axis?
     logical :: IsAxisNode
@@ -2061,7 +2067,7 @@ contains
              ! remote restriction.
              if(iSendStage == 3 .and. DiLevel /= 0 &
                   .and. iSubStage == 1) CYCLE
-             if(iSendStage == 3 .and. DiLevel ==0 &
+             if(iSendStage == 3 .and. DiLevel == 0 &
                   .and. iSubStage == 2) CYCLE
 
              if(DiLevel == 0)then
@@ -2527,7 +2533,6 @@ contains
       integer :: DiR, DjR, DkR
 
       logical :: UseTime ! true if time interpolation is to be done
-
       !------------------------------------------------------------------------
 
       DiR = 1; DjR = 1; DkR = 1
