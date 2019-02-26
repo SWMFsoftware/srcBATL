@@ -487,7 +487,6 @@ contains
              
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
-          
 
           if (nThread > 1) then
              call timing_start('local_mp_pass')
@@ -502,9 +501,9 @@ contains
                      TimeOld_B, Time_B, iLevelMin, iLevelMax)
              end do ! iBlockSend                      
              !$omp end parallel do
+
              call timing_stop('local_mp_pass')
           endif
-          
           
           call timing_start('wait_pass')
           ! wait for all requests to be completed
@@ -519,14 +518,14 @@ contains
           call timing_start('buffer_to_state')
           call buffer_to_state
           call timing_stop('buffer_to_state')
-          
+
           if(UseHighResChange .and. iSendStage == 2) then
              !$omp parallel do
              do iBlock = 1, nBlock
                 if (Unused_B(iBlock)) CYCLE
                 call high_prolong_for_face_ghost(iBlock)
              enddo
-             !$omp end parallel do
+             !$omp end parallel do 
           endif
        end do ! iSendStage
     end if
@@ -673,6 +672,8 @@ contains
       kRMin = 1; kRMax = 1
 
       DiR = 1; DjR = 1; DkR = 1
+
+      ! Initialize logical for time interpolation/extrapolation
       UseTime = .false.
       
       iBufferR = 0
@@ -2008,6 +2009,7 @@ contains
     end if
 
     IsAxisNode = .false.
+    UseTime = .false.
 
     do kDir = -1, 1
        ! Do not message pass in ignored dimensions
@@ -2826,8 +2828,7 @@ contains
       if(iProc == iProcRecv)then
 
          if(present(Time_B)) &
-              UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
-              
+              UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))  
          if(UseTime)then            
             ! Get time of neighbor and interpolate/extrapolate ghost cells
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
@@ -2873,57 +2874,57 @@ contains
                if(.not.IsAccurate_B(iBlockSend)) &
                     call calc_accurate_coarsened_block(iBlockSend)
             endif
-         end if
             
-         if(UseHighResChange) then
-            do kR = kRMin, kRMax, DkR
-               kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
-               do jR = jRMin, jRMax, DjR
-                  jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
-                  do iR = iRMin, iRMax, DiR
-                     iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
-                     do iVar = 1, nVar
-                        State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                             State_VIIIB(iVar,(iS1+1)/2,(jS1+1)/2,&
-                             (kS1+1)/2,iBlockSend)
-                     end do
-                  enddo
-               enddo
-            enddo
-         else
-            do kR = kRMin, kRMax, DkR
-               kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
-               kS2 = kS1 + kRatioRestr - 1
-               do jR = jRMin, jRMax, DjR
-                  jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
-                  jS2 = jS1 + jRatioRestr - 1
-                  do iR = iRMin, iRMax, DiR
-                     iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
-                     iS2 = iS1 + iRatioRestr - 1
-                     if(UseMin)then
-                        do iVar = 1, nVar
-                           State_VGB(iVar,iR,jR,kR,iBlockRecv) = minval( &
-                                State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2,&
-                                iBlockSend))
-                        end do
-                     else if(UseMax) then
-                        do iVar = 1, nVar
-                           State_VGB(iVar,iR,jR,kR,iBlockRecv) = maxval( &
-                                State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2,&
-                                iBlockSend))
-                        end do
-                     else
+            if(UseHighResChange) then
+               do kR = kRMin, kRMax, DkR
+                  kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
+                  do jR = jRMin, jRMax, DjR
+                     jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
+                     do iR = iRMin, iRMax, DiR
+                        iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
                         do iVar = 1, nVar
                            State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                                InvIjkRatioRestr * sum( &
-                                State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2, &
-                                iBlockSend))
+                                State_VIIIB(iVar,(iS1+1)/2,(jS1+1)/2,&
+                                (kS1+1)/2,iBlockSend)
                         end do
-                     end if
-                  end do ! iR
-               end do ! jR
-            end do ! kR
-         end if ! UseHighResChange
+                     enddo
+                  enddo
+               enddo
+            else
+               do kR = kRMin, kRMax, DkR
+                  kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
+                  kS2 = kS1 + kRatioRestr - 1
+                  do jR = jRMin, jRMax, DjR
+                     jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
+                     jS2 = jS1 + jRatioRestr - 1
+                     do iR = iRMin, iRMax, DiR
+                        iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
+                        iS2 = iS1 + iRatioRestr - 1
+                        if(UseMin)then
+                           do iVar = 1, nVar
+                              State_VGB(iVar,iR,jR,kR,iBlockRecv) = minval( &
+                                   State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2,&
+                                   iBlockSend))
+                           end do
+                        else if(UseMax) then
+                           do iVar = 1, nVar
+                              State_VGB(iVar,iR,jR,kR,iBlockRecv) = maxval( &
+                                   State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2,&
+                                iBlockSend))
+                           end do
+                        else
+                           do iVar = 1, nVar
+                              State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
+                                   InvIjkRatioRestr * sum( &
+                                   State_VGB(iVar,iS1:iS2,jS1:jS2,kS1:kS2, &
+                                   iBlockSend))
+                           end do
+                        end if
+                     end do ! iR
+                  end do ! jR
+               end do ! kR
+            end if ! UseHighResChange
+         end if ! UseTime
       else ! iProc /= iProcRecv
          if(UseHighResChange) then
             if(.not.IsAccurate_B(iBlockSend)) &
@@ -3357,10 +3358,8 @@ contains
                               iS = iSMin + abs((iR+9)/iRatioRestr &
                                    -           (iRMin+9)/iRatioRestr)
                               State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   WeightOld*State_VGB(:,&
-                                   iR,jR,kR,iBlockRecv) + &
-                                   WeightNew*(State_VGB(:,&
-                                   iS,jS,kS,iBlockSend)&
+                                   WeightOld*State_VGB(:,iR,jR,kR,iBlockRecv)+&
+                                   WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend)&
                                    + Slope_VG(:,iR,jR,kR))
                            end do
                         end do
