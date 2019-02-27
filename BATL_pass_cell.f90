@@ -109,9 +109,6 @@ module BATL_pass_cell
 
   ! indexes for multiple stages
   integer :: iSendStage, iSubStage
-  
-  ! For OpenMP: local ghost cells can be done multithreaded
-  logical :: DoLocal, DoRemote
 
   ! local variables corresponding to optional arguments
   logical :: UseTime        ! true if time interpolation is to be done
@@ -371,8 +368,6 @@ contains
 
           iSubStage = 1
           DoCountOnly = .false.
-          DoRemote = .false.
-          DoLocal  = .true.
 
           call timing_start('single_pass')
           
@@ -381,7 +376,7 @@ contains
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                  TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                  .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
           end do ! iBlockSend
           !$omp end parallel do 
 
@@ -444,9 +439,6 @@ contains
              nSubStage = 1
              if(iSendStage == 3) nSubStage = 2
              
-             DoRemote = .true.
-             DoLocal  = .false.
-             
              do iSubStage = 1, nSubStage
                 ! For the last stage of high order resolution change,
                 ! do_equal first, then do_prolong.
@@ -455,7 +447,7 @@ contains
                 do iBlockSend = 1, nBlock
                    if(Unused_B(iBlockSend)) CYCLE
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                        TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                        .true.,TimeOld_B, Time_B, iLevelMin, iLevelMax)
                 end do ! iBlockSend
              end do ! iSubStage
              
@@ -492,15 +484,13 @@ contains
           end do
 
           call timing_start('local_mp_pass')
-          DoRemote = .false.
-          DoLocal  = .true.
-          
+                    
           ! Loop through all blocks that may send a message
           !$omp parallel do
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                  TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                  .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
           end do ! iBlockSend                      
           !$omp end parallel do
           
@@ -1938,7 +1928,7 @@ contains
   !============================================================================
 
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-       TimeOld_B, Time_B, iLevelMin, iLevelMax)
+       DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -1960,13 +1950,13 @@ contains
     real, intent(inout):: State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
+    ! Send information from block iBlockSend to other blocks
+    ! If DoRemote is true, send info to blocks on other cores
+    logical, intent(in):: DoRemote
+
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
     integer, intent(in),optional:: iLevelMin, iLevelMax
-
-    ! Send information from block iBlockSend to other blocks
-    ! If DoLocal is true, send info to blocks on same core
-    ! If DoRemote is true, send info to blocks on other cores
 
     ! Local variables
 
@@ -2544,7 +2534,7 @@ contains
 
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-      if(iProc == iProcRecv .and. .not. DoLocal)  RETURN
+      if(iProc == iProcRecv .and.       DoRemote) RETURN
       if(iProc /= iProcRecv .and. .not. DoRemote) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
@@ -2713,7 +2703,7 @@ contains
 
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-      if(iProc == iProcRecv .and. .not. DoLocal)  RETURN
+      if(iProc == iProcRecv .and.       DoRemote) RETURN
       if(iProc /= iProcRecv .and. .not. DoRemote) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
@@ -3069,7 +3059,7 @@ contains
 
                iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-               if(iProc == iProcRecv .and. .not. DoLocal)  CYCLE
+               if(iProc == iProcRecv .and.       DoRemote) CYCLE
                if(iProc /= iProcRecv .and. .not. DoRemote) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
