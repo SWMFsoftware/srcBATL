@@ -295,6 +295,9 @@ contains
          nWidth, nProlongOrder, nCoarseLayer, DoSendCorner, &
          DoRestrictFace, DoResChangeOnly
 
+    ! Initialize logical for time interpolation/extrapolation
+    UseTime = .false.
+
     ! Set index ranges based on arguments
     call set_range
 
@@ -442,7 +445,7 @@ contains
              if(iSendStage == 3) nSubStage = 2
              
              DoRemote = .true.
-             DoLocal  = nThread == 1
+             DoLocal  = .false.
              
              do iSubStage = 1, nSubStage
                 ! For the last stage of high order resolution change,
@@ -473,14 +476,14 @@ contains
              
              iBufferS = iBufferS + nBufferS_P(iProcRecv)
           end do
-      
+
           ! post requests
           iRequestR = 0
           iBufferR  = 1
           do iProcSend = 0, nProc-1
              if(nBufferR_P(iProcSend) == 0) CYCLE
              iRequestR = iRequestR + 1
-             
+
              call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
                   MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
                   iError)
@@ -488,25 +491,23 @@ contains
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
 
-          if (nThread > 1) then
-             call timing_start('local_mp_pass')
-             DoRemote = .false.
-             DoLocal  = .true.
-             
-             ! Loop through all blocks that may send a message
-             !$omp parallel do
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                     TimeOld_B, Time_B, iLevelMin, iLevelMax)
-             end do ! iBlockSend                      
-             !$omp end parallel do
-
-             call timing_stop('local_mp_pass')
-          endif
+          call timing_start('local_mp_pass')
+          DoRemote = .false.
+          DoLocal  = .true.
           
-          call timing_start('wait_pass')
+          ! Loop through all blocks that may send a message
+          !$omp parallel do
+          do iBlockSend = 1, nBlock
+             if(Unused_B(iBlockSend)) CYCLE
+             call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                  TimeOld_B, Time_B, iLevelMin, iLevelMax)
+          end do ! iBlockSend                      
+          !$omp end parallel do
+          
+          call timing_stop('local_mp_pass')
+          
           ! wait for all requests to be completed
+          call timing_start('wait_pass')
           if(iRequestR > 0) &
                call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
           
@@ -514,7 +515,7 @@ contains
           if(iRequestS > 0) &
                call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
           call timing_stop('wait_pass')
-          
+
           call timing_start('buffer_to_state')
           call buffer_to_state
           call timing_stop('buffer_to_state')
@@ -672,9 +673,6 @@ contains
       kRMin = 1; kRMax = 1
 
       DiR = 1; DjR = 1; DkR = 1
-
-      ! Initialize logical for time interpolation/extrapolation
-      UseTime = .false.
       
       iBufferR = 0
       do iProcSend = 0, nProc-1
