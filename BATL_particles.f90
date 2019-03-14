@@ -654,6 +654,8 @@ contains
              !     These particles should be marked using
              !     mark_undefined procedure
              ! (2) passes to block assigned to different PE
+             ! (3) if the integration is done for finite integration
+             !     interval and the end of this interval is reached
              if(IsEndOfSegment)EXIT SEGMENT
           end do SEGMENT
        end do
@@ -666,6 +668,9 @@ contains
        ! Particles of (2) kind are sent to proper processor
        !/
        call message_pass_particles(iKindParticle)
+       !\
+       ! If all particles are of (3) kind
+       !/
        if(present(check_done))then
           call check_done(Done)
           if(is_for_all_pe(Done))RETURN
