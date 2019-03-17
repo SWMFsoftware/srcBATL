@@ -194,7 +194,7 @@ contains
 
     nUnset = count(iIndex_II(0,1:nParticle)<0)
     !\
-    ! Return, if there is no underfined particle
+    ! Return, if there is no undefined particle
     if(nUnset==0) RETURN
     !\
     ! Set nParticle to 0 and return if all particles are undefined
@@ -232,6 +232,14 @@ contains
     integer:: iBlock, iBlockFound, iProcFound
     !--------------------------------------------------------------------------
     Xyz_D = 0
+    if(Particle_I(iKindParticle)%iIndex_II(0, iParticle)<0)then
+       !\
+       ! Particle is already marked as undefined
+       !/
+       if(present(IsGone))IsGone = .true.
+       if(present(DoMove))  DoMove = .false.
+       RETURN
+    end if
     Xyz_D(1:nDim)  = Particle_I(iKindParticle)%State_VI(1:nDim, iParticle)
     iBlock         = Particle_I(iKindParticle)%iIndex_II(0, iParticle)
     call check_interpolate(Xyz_D, iBlock, iProcFound, iBlockFound)
@@ -267,7 +275,7 @@ contains
     ! if present => pass only this kind
     integer, optional, intent(in):: iKindParticleIn
 
-    integer          :: iKindParticle  ! loop variable
+    integer          :: iKindParticle, iStart, iEnd  ! loop variable
     real,    pointer :: State_VI(:,:)  ! state vec for particles of this kind
     integer, pointer :: iIndex_II(:,:) ! blocks having particles of this kind
     integer          :: nVar           ! # of variables including coordinates
@@ -285,11 +293,13 @@ contains
     !--------------------------------------------------------------------------
     if(.not.allocated(BufferSend_I))call allocate_buffers
     ! now buffers are allocated, perform pass for all kinds
-    do iKindParticle = 1, nKindParticle
-       if(present(iKindParticleIn))then
-          ! if kind is indicated => skip others
-          if(iKindParticle /= iKindParticleIn) CYCLE
-       end if
+    ! or for iKindParticleIn only:
+    if(present(iKindParticleIn))then
+       iStart = iKindParticleIn; iEnd = iStart
+    else
+       iStart = 1; iEnd = nKindParticle
+    end if
+    do iKindParticle = iStart, iEnd
        call set_pointer_to_particles(&
             iKindParticle, State_VI, iIndex_II,&
             nVar, nIndex, nParticle, nParticleMax)
@@ -307,6 +317,8 @@ contains
       integer:: iProcOut     ! proc that has iBlockOut
       integer:: iProcTo      ! loop variable
       integer:: iProcFrom    ! loop variable
+      integer:: nData        ! # of data to send-receive, per particle
+      integer:: nUnset       ! # of particles with undefined block
       integer:: iSendOffset  ! start position in BufferSend for particle data
       integer:: iRecvOffset  ! start position in BufferRecv for particle data
       integer:: nParticleStay! # of particles that stay on this proc
@@ -320,7 +332,10 @@ contains
       nSend_P       = 0; nRecv_P = 0
       iSendOffset_I(1:nParticle) =-1
       iProcTo_I(    1:nParticle) = iProc
-
+      !\
+      ! Number of data to send-receive, per particle
+      !/
+      nData = nVar + nIndex + 1
       ! cycle through particles & find which should be passed to other procs
       do iParticle = 1, nParticle
          call check_particle_location(iKindParticle,iParticle,iProcOut,DoMove)
@@ -328,12 +343,17 @@ contains
 
          ! prepare this particle to be passed
          iProcTo_I(    iParticle) = iProcOut
-         iSendOffset_I(iParticle) = nSend_P(iProcOut) * (nVar + nIndex + 1)
+         iSendOffset_I(iParticle) = nSend_P(iProcOut)*nData
          nSend_P(      iProcOut)  = nSend_P(iProcOut) + 1
       end do
 
-      if(nProc==1)RETURN
-
+      if(nProc==1)then
+         !\
+         ! Remove undefined particles
+         call remove_undefined_particles(iKindParticle)
+         nParticle = Particle_I(iKindParticle)%nParticle
+         RETURN
+      end if
       ! send size of messages
       iRequest = 0
       do iProcFrom = 0, nProc - 1
@@ -373,18 +393,25 @@ contains
       iSendOffset_P(0) = 0
       do iProcTo = 1, nProc - 1
          iSendOffset_P(iProcTo) = &
-              iSendOffset_P(iProcTo-1) + nSend_P(iProcTo-1)*(nVar+nIndex+1)
+              iSendOffset_P(iProcTo-1) + nSend_P(iProcTo-1)*nData
       end do
       iRecvOffset_P(0) = 0
       do iProcFrom = 1, nProc - 1
          iRecvOffset_P(iProcFrom) = &
-              iRecvOffset_P(iProcFrom-1) + nRecv_P(iProcFrom-1)*(nVar+nIndex+1)
+              iRecvOffset_P(iProcFrom-1) + nRecv_P(iProcFrom-1)*nData
       end do
 
       ! fill the BufferSend and rearrange particle data
-      nParticleStay = 0
+      nParticleStay = 0; nUnset = 0
       do iParticle = 1, nParticle
          if(iProcTo_I(iParticle) == iProc)then
+            if(iIndex_II(0, iParticle)<0) then
+               !\
+               ! Remove undefined particles
+               !/
+               nUnset = nUnset +1 
+               CYCLE
+            end if
             ! particle stays on this proc
             nParticleStay = nParticleStay + 1
             iIndex_II(:, nParticleStay) = iIndex_II(:, iParticle)
@@ -395,10 +422,10 @@ contains
               iSendOffset_P(iProcTo_I(iParticle)) + iSendOffset_I(iParticle)
          BufferSend_I(iSendOffset+1:iSendOffset+nVar) = &
               State_VI( :, iParticle)
-         BufferSend_I(iSendOffset+nVar+1:iSendOffset+nVar+nIndex+1) = &
+         BufferSend_I(iSendOffset+nVar+1:iSendOffset+nData) = &
               iIndex_II(:, iParticle)
       end do
-
+      nParticle = nParticle - nUnset
       ! transfer data
       iRequest = 0
       do iProcFrom = 0, nProc - 1
@@ -408,7 +435,7 @@ contains
             iTag = iProc
             call MPI_Irecv(&
                  BufferRecv_I(iRecvOffset_P(iProcFrom)+1), &
-                 nRecv_P(iProcFrom)*(nVar+nIndex+1), MPI_REAL, &
+                 nRecv_P(iProcFrom)*nData, MPI_REAL, &
                  iProcFrom, iTag, iComm, iRequest_I(iRequest), iError)
          end if
       end do
@@ -423,7 +450,7 @@ contains
                iTag = iProcTo
                call MPI_Rsend(&
                     BufferSend_I(iSendOffset_P(iProcTo)+1), &
-                    nSend_P(iProcTo)*(nVar+nIndex+1), MPI_REAL, &
+                    nSend_P(iProcTo)*nData, MPI_REAL, &
                     iProcTo, iTag, iComm, iError)
             end if
          end do
@@ -434,7 +461,7 @@ contains
                iRequest = iRequest + 1
                call MPI_Isend(&
                     BufferSend_I(iSendOffset_P(iProcTo)+1), &
-                    nSend_P(iProcTo)*(nVar+nIndex+1), MPI_REAL, &
+                    nSend_P(iProcTo)*nData, MPI_REAL, &
                     iProcTo, iTag, iComm, iRequest_I(iRequest), iError)
             end if
          end do
@@ -459,7 +486,7 @@ contains
               BufferRecv_I(iRecvOffset+1 : iRecvOffset+nVar)
          iIndex_II(:, nParticleStay + iParticle) = &
               nint(BufferRecv_I(iRecvOffset+nVar+1:iRecvOffset+nVar+nIndex+1))
-         iRecvOffset = iRecvOffset + nVar + nIndex + 1
+         iRecvOffset = iRecvOffset + nData
       end do
     end subroutine pass_this_kind
     !==========================================================================
@@ -601,6 +628,7 @@ contains
          !\
          ! call mark_undefined(iKind, iParticle)
          !/
+
          ! (2) check_interpolate in the displaced location of the
          ! particle shows that the particle location can no longer
          ! be interpolated at the given PE
@@ -661,13 +689,12 @@ contains
        end do
        !\
        ! Particles of the (1) kind are removed
-       call remove_undefined_particles(iKindParticle)
-       if(is_for_all_pe(Particle_I(iKindParticle)%nParticle == 0))&
-            RETURN
        !\
        ! Particles of (2) kind are sent to proper processor
        !/
        call message_pass_particles(iKindParticle)
+       if(is_for_all_pe(Particle_I(iKindParticle)%nParticle == 0))&
+            RETURN
        !\
        ! If all particles are of (3) kind
        !/
