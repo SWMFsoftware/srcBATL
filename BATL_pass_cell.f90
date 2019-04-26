@@ -127,7 +127,7 @@ contains
          nDim, jDim_, kDim_, &
          iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
          MinI, MinJ, MinK, MaxI, MaxJ, MaxK
-    use BATL_mpi, ONLY: iComm, nProc, barrier_mpi, nThread
+    use BATL_mpi, ONLY: iComm, nProc, nThread
     use BATL_tree, ONLY: &
          iNodeNei_IIIB, DiLevelNei_IIIB, Unused_B, Unused_BP, iNode_B
 
@@ -1003,7 +1003,7 @@ contains
     use BATL_size, ONLY: MaxDim, nDim, nDimAmr, iRatio, jRatio, kRatio, &
          MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, nI, nJ, nK, nBlock,&
          nIJK_D, iRatio_D
-    use BATL_mpi, ONLY: iComm, nProc, iProc, barrier_mpi
+    use BATL_mpi, ONLY: iComm, nProc, iProc
     use BATL_grid, ONLY: init_grid, create_grid, clean_grid, &
          Xyz_DGB, CellSize_DB, CoordMin_DB, CoordMin_D, DomainSize_D
     use BATL_tree, ONLY: init_tree, set_tree_root, find_tree_node, &
