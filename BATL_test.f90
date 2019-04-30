@@ -362,7 +362,8 @@ contains
 
     end if
 
-    if(DoTest .or. lVerbose > 1) then
+    if(lVerbose == 100 .or. ((lVerbose == 10 .or. DoTest) &
+         .and. (iProc == iProcTest .or. iProc == iProcTest2)))then
        if(present(iBlock))then
           write(*,*) NameSub,' is finished for iProc, iBlock=', iProc, iBlock
        elseif(nProc > 1 .and. (lVerbose == 100 .or. iProcTest2 >= 0))then
