@@ -1202,7 +1202,7 @@ contains
           IsLevel = .true.
        else if(NameCommand == "#AMRCRITERIARESOLUTION") then
           IsRes = .true.
-          UseCellSize = .true.
+          UseCellSize = .false.
           idxMaxGeoCritPhys_I = 1
       else if(NameCommand == "#AMRCRITERIACELLSIZE") then
           IsRes = .true.
@@ -1551,15 +1551,15 @@ contains
     real    :: MaxLength
     integer :: i,j,k
     !--------------------------------------------------------------------------
-      if(UseCellSize)then
+    if(.not. UseCellSize)then
        if(IsLogRadius .or. IsGenRadius)then
           MaxLength = cRadToDeg*CellSize_DB(Phi_,iBlock)
-         else
-            MaxLength = CellSize_DB(1,iBlock)
+       else
+          MaxLength = CellSize_DB(1,iBlock)
        end if
     elseif(IsCartesianGrid) then
        MaxLength = maxval(CellSize_DB(1:nDim,iBlock))
-      else
+    else
        ! Find the longest cell edge in the block
        MaxLength = 0.0
 
