@@ -124,12 +124,9 @@ contains
        iLevelMin, iLevelMax)
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
-         nDim, jDim_, kDim_, &
-         iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
-         MinI, MinJ, MinK, MaxI, MaxJ, MaxK
-    use BATL_mpi, ONLY: iComm, nProc, nThread
-    use BATL_tree, ONLY: &
-         iNodeNei_IIIB, DiLevelNei_IIIB, Unused_B, Unused_BP, iNode_B
+         nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
+    use BATL_mpi,  ONLY: iComm, nProc
+    use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B
 
     ! Arguments
     integer, intent(in) :: nVar  ! number of variables
@@ -192,7 +189,6 @@ contains
     integer :: iCountOnly     ! index for 2 stage scheme for count, sendrecv
 
     integer :: iProcRecv, iBlockSend, iProcSend
-    integer :: iLevelSend, DiLevel
     integer :: nSendStage
     integer :: iBlock
         
@@ -650,9 +646,9 @@ contains
       real :: TimeSend, WeightOld, WeightNew
 
       integer:: iBlockRecv
+
       ! Index range for recv and send segments of the blocks
       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
-      integer :: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
@@ -1002,7 +998,7 @@ contains
     use BATL_size, ONLY: MaxDim, nDim, nDimAmr, iRatio, jRatio, kRatio, &
          MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, nI, nJ, nK, nBlock,&
          nIJK_D, iRatio_D
-    use BATL_mpi, ONLY: iComm, nProc, iProc
+    use BATL_mpi, ONLY: iComm, iProc
     use BATL_grid, ONLY: init_grid, create_grid, clean_grid, &
          Xyz_DGB, CellSize_DB, CoordMin_DB, CoordMin_D, DomainSize_D
     use BATL_tree, ONLY: init_tree, set_tree_root, find_tree_node, &
@@ -1930,14 +1926,14 @@ contains
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax)
 
     use BATL_mpi, ONLY: iProc
-    use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
-         MaxDim, nDim, jDim_, kDim_, nDimAmr, &
+    use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
+         MaxDim, nDim, jDim_, kDim_, &
          iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
          MinI, MinJ, MinK, MaxI, MaxJ, MaxK
     use BATL_grid, ONLY: CoordMin_DB, CoordMax_DB, Xyz_DGB, DomainSize_D, &
          CoordMin_D
     use BATL_tree, ONLY: &
-         iNodeNei_IIIB, DiLevelNei_IIIB, Unused_B, Unused_BP, iNode_B, &
+         iNodeNei_IIIB, DiLevelNei_IIIB, Unused_BP, iNode_B, &
          iTree_IA, Proc_, Block_, Coord1_, Coord2_, Coord3_, Level_, &
          UseTimeLevel, iTimeLevel_A
 
@@ -2533,8 +2529,7 @@ contains
 
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-      if(iProc == iProcRecv .and.       DoRemote) RETURN
-      if(iProc /= iProcRecv .and. .not. DoRemote) RETURN
+      if(iProc == iProcRecv .eqv. DoRemote) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
@@ -2702,8 +2697,7 @@ contains
 
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-      if(iProc == iProcRecv .and.       DoRemote) RETURN
-      if(iProc /= iProcRecv .and. .not. DoRemote) RETURN
+      if(iProc == iProcRecv .eqv. DoRemote) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
@@ -3058,8 +3052,7 @@ contains
 
                iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-               if(iProc == iProcRecv .and.       DoRemote) CYCLE
-               if(iProc /= iProcRecv .and. .not. DoRemote) CYCLE
+               if(iProc == iProcRecv .eqv. DoRemote) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
 

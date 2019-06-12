@@ -150,6 +150,9 @@ module BATL_amr_criteria
   ! Converting index form running block and proc number to node numbers
   integer, allocatable :: iNode_I(:)
 
+  ! For usecellsize
+  logical :: UseCellSize = .false.
+
 contains
   !============================================================================
 
@@ -1144,7 +1147,7 @@ contains
     integer :: nCritArgs,iCritPhy
     character(len=nChar) :: CritName
     character(len=20) :: NameStatVar
-    logical :: IsLevel,IsRes
+    logical :: IsLevel, IsRes
     logical :: DoAmr
     integer :: DnAmr
     real    :: DtAmr
@@ -1160,12 +1163,12 @@ contains
 
     DoSortAmrCrit = .not. DoStrictAmr
     select case(NameCommand)
-    case("#AMRCRITERIA", "#AMRCRITERIALEVEL", "#AMRCRITERIARESOLUTION")
+    case("#AMRCRITERIA", "#AMRCRITERIALEVEL", "#AMRCRITERIARESOLUTION", "#AMRCRITERIACELLSIZE")
 
        nCrit       = nCritInOut
        nAmrCrit    = nCrit
        iCritPhy = 0
-       ! 'dx' and 'level' will be stord as the last indexes the array
+       ! 'dx' and 'level' will be stored as the last indexes the array
        ! nCritDxLevel will give the number of geometric AMR agruments at the end
        nCritDxLevel  =  0
        if(nCrit == 0) RETURN
@@ -1189,21 +1192,26 @@ contains
        if(present(nStateVarIn) .and. .not. allocated(iMapToStateVar_I))&
             allocate(iMapToStateVar_I(nCrit))
 
-       ! Can only have #AMRCRITERIALEVEL or #AMRCRITERIARESOLUTION
-       ! in one session
-       ! we always check for max Level
+       ! Can only have #AMRCRITERIALEVEL, #AMRCRITERIARESOLUTION, or #AMRCRITERIACELLSIZE
+       ! in one session  we always check for max Level
        idxMaxGeoCritPhys_I = 2
-       IsLevel = .false.
-       IsRes   = .false.
+       IsLevel     = .false.
+       IsRes       = .false.
+       UseCellSize = .false.
        if(NameCommand == "#AMRCRITERIALEVEL") then
           IsLevel = .true.
        else if(NameCommand == "#AMRCRITERIARESOLUTION") then
           IsRes = .true.
+          UseCellSize = .false.
           idxMaxGeoCritPhys_I = 1
-       end if
+      else if(NameCommand == "#AMRCRITERIACELLSIZE") then
+          IsRes = .true.
+          UseCellSize = .true.
+          idxMaxGeoCritPhys_I = 1
+        end if
 
        ! Turn off simple AMR behavior when using
-       ! #AMRCRITERIALEVELS / #AMRCRITERIARESOLUTION
+       ! #AMRCRITERIALEVELS / #AMRCRITERIARESOLUTION / #AMRCRITERIACELLSIZE
        IsSimpleAmr = .not.( IsLevel .or. IsRes)
 
        nIntCrit = 1
@@ -1277,7 +1285,7 @@ contains
                 nCritInOut = iMapToUniqCrit_I(iCritPhy)
              end if
              call SetCritArea(3,nCritArgs,CritName_I,iCritPhy)
-          case('dx')
+          case('dx', 'dr', 'dphi')
              ! at this time we do not know the correct index for dx
              iMapToUniqCrit_I(nCrit-nCritDxLevel) = 10001
              call SetCritArea(2,nCritArgs,CritName_I,nCrit-nCritDxLevel)
@@ -1324,7 +1332,7 @@ contains
              MaxLevelCritPhys_I(nCrit-nCritDxLevel) = -MaxLevel
              if(IsRes) MaxLevelCritPhys_I(nCrit-nCritDxLevel) = 0.0
              nCritDxLevel = nCritDxLevel+1
-          case('dx')
+          case('dx', 'dr', 'dphi')
              call read_var('RefineTo',RefineCritPhys_I(nCrit-nCritDxLevel))
              call read_var('CoarsenFrom',CoarsenCritPhys_I(nCrit-nCritDxLevel))
              MaxLevelCritPhys_I(nCrit-nCritDxLevel) = -MaxLevel
@@ -1411,7 +1419,7 @@ contains
        end if
        if(.not. DoStrictAmr) DoSortAmrCrit = .true.
     case default
-       call CON_stop(NameSub//'incorect PARAM.in!')
+       call CON_stop(NameSub//'incorrect PARAM.in!')
     end select
 
     DoStrictAmr = .not. DoSortAmrCrit
@@ -1534,16 +1542,22 @@ contains
 
     use BATL_grid,     ONLY: Xyz_DNB,CellSize_DB
     use BATL_size,     ONLY: nINode,nJNode,nKNode,nDim
-    use BATL_geometry, ONLY: IsCartesianGrid
+    use BATL_geometry, ONLY: IsCartesianGrid, Phi_, IsLogRadius, IsGenRadius
     use BATL_tree,     ONLY: iNode_B, iTree_IA, Level_
+    use ModNumConst,   ONLY: cRadToDeg
 
     integer, intent(in) :: iBlock
 
     real    :: MaxLength
     integer :: i,j,k
     !--------------------------------------------------------------------------
-
-    if(IsCartesianGrid) then
+    if(.not. UseCellSize)then
+       if(IsLogRadius .or. IsGenRadius)then
+          MaxLength = cRadToDeg*CellSize_DB(Phi_,iBlock)
+       else
+          MaxLength = CellSize_DB(1,iBlock)
+       end if
+    elseif(IsCartesianGrid) then
        MaxLength = maxval(CellSize_DB(1:nDim,iBlock))
     else
        ! Find the longest cell edge in the block
