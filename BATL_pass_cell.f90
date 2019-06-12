@@ -197,11 +197,11 @@ contains
     integer :: iBlock
         
     ! For high order resolution change, a few face ghost cells need to be
-    ! calculated remotely after the corase block have got accurate
+    ! calculated remotely after the coarse block have got accurate
     ! ghost cells. For this case with block cell size smaller than
     ! 8, these few inaccurate face ghost cells need to be sent to
     ! neighbour block before they are overwritten by 5th order values
-    ! calculated remotely.  So, nSubStage == 2 for this case. Do_equal
+    ! calculated remotely. So, nSubStage == 2 for this case. Do_equal
     ! is called first and then use do_prolong.
     integer:: nSubStage
     logical:: DoTest
@@ -317,7 +317,7 @@ contains
        ! HighResChange has an issue with boundary conditions so far. One
        ! boundary block's corner/edge neighbors may be not defined (like
        ! reflect boundary) and the ghost cell values are not accurate (the
-       ! values may be 777 after AMR). This problem only occures with
+       ! values may be 777 after AMR). This problem only occurs with
        ! resolution change along the boundary with reflect/shear/float
        ! (boundary conditions that ghost cells depending on physical
        ! cells) boundary conditions.
@@ -329,8 +329,7 @@ contains
        ! stage 2:
        !   a) Do high order restriction remotely for all kinds of ghost cells.
        !   b) Pass restricted cells from fine to coarse.
-       !   c) Do high order prolongation for face ghost cell
-       !      locally.
+       !   c) Do high order prolongation for face ghost cells locally.
        ! stage 3:
        !   a) Remote high order prolongation on coarse blocks for edges and
        !      corners and for faces that are too complex to do locally.
@@ -443,7 +442,7 @@ contains
                 ! For the last stage of high order resolution change,
                 ! do_equal first, then do_prolong.
                 
-                ! Loop through all blocks that may send a message
+                ! Prepare the buffer for remote message passing
                 do iBlockSend = 1, nBlock
                    if(Unused_B(iBlockSend)) CYCLE
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
@@ -485,7 +484,7 @@ contains
 
           call timing_start('local_mp_pass')
                     
-          ! Loop through all blocks that may send a message
+          ! Local message passing
           !$omp parallel do
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
