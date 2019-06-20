@@ -27,6 +27,8 @@ contains
 
     ! Initialize iComm, nProc and iProc. If iCommIn is not present, set it
     ! to MPI_COMM_WORLD and also call MPI_init
+
+    use omp_lib
     
     integer, optional, intent(in):: iCommIn
     integer :: iError
@@ -45,6 +47,7 @@ contains
                "insufficient threading support. Switching to pure MPI..."
           !$ call omp_set_num_threads(1)
        end if
+       !$ nThread = omp_get_max_threads()
     else
        iComm = iCommIn
     end if
