@@ -421,6 +421,11 @@ contains
     if(DoTest)write(*,*) NameSub, &
          ' call distribute_tree with DoBalanceEachLevel=', DoBalanceEachLevel
 
+    iAmrChange_B(1:nBlock) = AmrUnchanged_
+
+    ! Nothing to do if the grid did not change
+    if(.not.IsNewTree) RETURN
+
     if(DoBalanceEachLevel)then
        call distribute_tree(DoMove=.false., &
             iTypeBalance_A=iTree_IA(Level_,:)+1)
@@ -428,13 +433,6 @@ contains
        call distribute_tree(DoMove=.false., &
             iTypeBalance_A=iTypeBalance_A)
     end if
-
-    ! Initialize iAmrChange
-    iAmrChange_B(1:nBlock) = AmrUnchanged_
-
-    ! No grid changes, no need for do_amr
-    ! IsNewTree  == .true. also implies IsNewDecomposition == .true.
-    if(.not.IsNewDecomposition) RETURN
 
     ! Coarsen, refine and load balance the flow variables, and set Dt_B.
     if(DoTest)write(*,*) NameSub,' call do_amr'
@@ -447,7 +445,7 @@ contains
          unpack_extra_data=unpack_extra_data, &
          UseHighOrderAMRIn=UseHighOrderAMRIn, &
          DefaultStateIn_V=DefaultStateIn_V)
-    
+
     ! This logical tells find_neighbor (called by move_tree) to check 
     ! if the neighbor levels of a block (otherwise not affected by AMR) changed
     DoCheckResChange = nDim == 3 .and. IsNodeBasedGrid &
