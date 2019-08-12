@@ -53,8 +53,8 @@ module BATL_pass_face_field
   real, allocatable :: Counter_FDB(:,:,:,:,:)
   integer:: nBlockMax = -1
 
-  integer, allocatable:: iRequestR_I(:), iRequestS_I(:), &
-       iStatus_II(:,:)
+  integer, allocatable:: iRequestR_I(:), iRequestS_I(:)
+
 contains
   !============================================================================
   subroutine allocate_pe_arrays
@@ -62,9 +62,9 @@ contains
     !--------------------------------------------------------------------------
     if(allocated(iBufferS_P))RETURN
     allocate(iBufferS_P(0:nProc-1), nBufferS_P(0:nProc-1), &
-               nBufferR_P(0:nProc-1))
+         nBufferR_P(0:nProc-1))
     allocate(iRequestR_I(nProc-1), iRequestS_I(nProc-1))
-    allocate(iStatus_II(MPI_STATUS_SIZE,nProc-1))
+
   end subroutine allocate_pe_arrays
   !============================================================================
   subroutine check_buffer
@@ -125,10 +125,7 @@ contains
 
     character(len=*), parameter:: NameSub = 'message_pass_field'
     !--------------------------------------------------------------------------
-
-    call timing_start('batl_pass')
-
-    call timing_start('init_pass')
+    call timing_start(NameSub)
 
     ! Set values or defaults for optional arguments
     nWidth = nG
@@ -141,7 +138,6 @@ contains
     call set_range
 
     if(nProc > 1)call allocate_pe_arrays
-    call timing_stop('init_pass')
 
     do iCountOnly = 1, 2
        DoCountOnly = iCountOnly == 1
@@ -149,7 +145,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       call timing_start('local_pass')
+       !call timing_start('local_pass')
 
        if(nProc>1)then
           if(DoCountOnly)then
@@ -181,16 +177,16 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       call timing_stop('local_pass')
+       !call timing_stop('local_pass')
 
     end do ! iCountOnly
 
     if(nProc==1)then
-       call timing_stop('batl_pass')
+       call timing_stop(NameSub)
        RETURN
     end if
 
-    call timing_start('recv_pass')
+    !call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -206,15 +202,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    call timing_stop('recv_pass')
+    !call timing_stop('recv_pass')
 
     if(UseRSend) then
-       call timing_start('barrier_pass')
+       !call timing_start('barrier_pass')
        call barrier_mpi
-       call timing_stop('barrier_pass')
+       !call timing_stop('barrier_pass')
     end if
 
-    call timing_start('send_pass')
+    !call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -234,23 +230,23 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    call timing_stop('send_pass')
+    !call timing_stop('send_pass')
 
-    call timing_start('wait_pass')
+    !call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
-         call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+         call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
 
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
-         call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
-    call timing_stop('wait_pass')
+         call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
+    !call timing_stop('wait_pass')
 
-    call timing_start('buffer_to_state')
+    !call timing_start('buffer_to_state')
     call buffer_to_state
-    call timing_stop('buffer_to_state')
+    !call timing_stop('buffer_to_state')
 
-    call timing_stop('batl_pass')
+    call timing_stop(NameSub)
 
   contains
     !==========================================================================
@@ -512,11 +508,11 @@ contains
     integer :: MaxBufferS = -1, MaxBufferR = -1
     integer:: iRequestR, iRequestS, iError
 
-    character(len=*), parameter:: NameSub = 'BATL_pass::add_ghost_face_field'
+    character(len=*), parameter:: NameSub = 'add_ghost_face_field'
     !--------------------------------------------------------------------------
-    call timing_start('batl_pass')
+    call timing_start(NameSub)
 
-    call timing_start('init_pass')
+    !call timing_start('init_pass')
     !\
     ! Allocate block-based counter for currents through hysical phases
     !/
@@ -554,7 +550,7 @@ contains
             Current_FDB(1:nI, 1:nJ, 1-kDim_:nK, 3, iBlockSend)
     end do
 
-    call timing_stop('init_pass')
+    !call timing_stop('init_pass')
 
     do iCountOnly = 1, 2
        DoCountOnly = iCountOnly == 1
@@ -562,7 +558,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       call timing_start('local_pass')
+       !call timing_start('local_pass')
 
        ! Second order prolongation needs two stages:
        ! first stage fills in equal and coarser ghost cells
@@ -598,7 +594,7 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       call timing_stop('local_pass')
+       !call timing_stop('local_pass')
 
     end do ! iCountOnly
 
@@ -613,11 +609,11 @@ contains
           Current_FDB(1:nI, 1:nJ, 1-kDim_:nK, 3, iBlockSend) = &
                Counter_FDB(1:nI, 1:nJ, 1-kDim_:nK, 3, iBlockSend)
        end do
-       call timing_stop('batl_pass')
+       call timing_stop(NameSub)
        RETURN
     end if
 
-    call timing_start('recv_pass')
+    !call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -633,15 +629,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    call timing_stop('recv_pass')
+    !call timing_stop('recv_pass')
 
     if(UseRSend) then
-       call timing_start('barrier_pass')
+       !call timing_start('barrier_pass')
        call barrier_mpi
-       call timing_stop('barrier_pass')
+       !call timing_stop('barrier_pass')
     end if
 
-    call timing_start('send_pass')
+    !call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -661,21 +657,21 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    call timing_stop('send_pass')
+    !call timing_stop('send_pass')
 
-    call timing_start('wait_pass')
+    !call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
-         call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+         call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
 
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
-         call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
-    call timing_stop('wait_pass')
+         call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
+    !call timing_stop('wait_pass')
 
-    call timing_start('buffer_to_state')
+    !call timing_start('buffer_to_state')
     call buffer_to_state
-    call timing_stop('buffer_to_state')
+    !call timing_stop('buffer_to_state')
     do iBlockSend = 1, nBlock
        if(Unused_B(iBlockSend)) CYCLE
        Current_FDB(:, :, :, :, iBlockSend) = 0.0
@@ -687,7 +683,7 @@ contains
             Counter_FDB(1:nI, 1:nJ, 1-kDim_:nK, 3, iBlockSend)
     end do
 
-    call timing_stop('batl_pass')
+    call timing_stop(NameSub)
 
   contains
     !==========================================================================
@@ -923,15 +919,13 @@ contains
     integer :: MaxBufferS = -1, MaxBufferR = -1
     integer:: iRequestR, iRequestS, iError
 
-    character(len=*), parameter:: NameSub = 'BATL_pass::add_ghost_face_field'
-
     integer:: iBlock
 
+    character(len=*), parameter:: NameSub = 'add_ghost_cell_field'
     !--------------------------------------------------------------------------
+    call timing_start(NameSub)
 
-    call timing_start('batl_pass')
-
-    call timing_start('init_pass')
+    !call timing_start('init_pass')
 
     ! Set values or defaults for optional arguments
     nWidth = nG
@@ -944,7 +938,7 @@ contains
 
     if(nProc > 1)call allocate_pe_arrays
 
-    call timing_stop('init_pass')
+    !call timing_stop('init_pass')
 
     do iCountOnly = 1, 2
        DoCountOnly = iCountOnly == 1
@@ -952,7 +946,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       call timing_start('local_pass')
+       !call timing_start('local_pass')
 
        ! Second order prolongation needs two stages:
        ! first stage fills in equal and coarser ghost cells
@@ -988,16 +982,16 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       call timing_stop('local_pass')
+       !call timing_stop('local_pass')
 
     end do ! iCountOnly
 
     if(nProc==1)then
-       call timing_stop('batl_pass')
+       call timing_stop(NameSub)
        RETURN
     end if
 
-    call timing_start('recv_pass')
+    !call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -1013,15 +1007,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    call timing_stop('recv_pass')
+    !call timing_stop('recv_pass')
 
     if(UseRSend) then
-       call timing_start('barrier_pass')
+       !call timing_start('barrier_pass')
        call barrier_mpi
-       call timing_stop('barrier_pass')
+       !call timing_stop('barrier_pass')
     end if
 
-    call timing_start('send_pass')
+    !call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -1041,23 +1035,23 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    call timing_stop('send_pass')
+    !call timing_stop('send_pass')
 
-    call timing_start('wait_pass')
+    !call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
-         call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+         call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
 
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
-         call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
-    call timing_stop('wait_pass')
+         call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
+    !call timing_stop('wait_pass')
 
-    call timing_start('buffer_to_state')
+    !call timing_start('buffer_to_state')
     call buffer_to_state
-    call timing_stop('buffer_to_state')
+    !call timing_stop('buffer_to_state')
 
-    call timing_stop('batl_pass')
+    call timing_stop(NameSub)
 
   contains
     !==========================================================================
