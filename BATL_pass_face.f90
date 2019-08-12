@@ -98,8 +98,7 @@ contains
     real, pointer, save:: BufferR_IP(:,:), BufferS_IP(:,:)
 
     integer:: iRequestR, iRequestS, iError
-    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:), &
-         iStatus_II(:,:)
+    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:)
 
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_face'
@@ -131,7 +130,6 @@ contains
        if(.not.allocated(iBufferR_P))then
           allocate(iBufferR_P(0:nProc-1), iBufferS_P(0:nProc-1))
           allocate(iRequestR_I(nProc-1), iRequestS_I(nProc-1))
-          allocate(iStatus_II(MPI_STATUS_SIZE,nProc-1))
        end if
        ! Upper estimate of the number of variables sent
        ! from one block to another. Used for dynamic pointer buffers.
@@ -251,11 +249,11 @@ contains
 
     ! wait for all requests to be completed
     if(iRequestR > 0) &
-         call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+         call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
 
     ! wait for all sends to be completed
     if(iRequestS > 0) &
-         call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
+         call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
 
     call timing_stop('send_recv')
 

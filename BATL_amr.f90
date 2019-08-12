@@ -135,16 +135,16 @@ contains
     ! Permanently allocated array
     integer, save, allocatable :: iBlockAvailable_P(:)
 
-    integer :: iNodeSend, iNodeRecv
-    integer :: iProcSend, iProcRecv, iBlockSend, iBlockRecv
-    integer :: iChild
+    integer:: iNodeSend, iNodeRecv
+    integer:: iProcSend, iProcRecv, iBlockSend, iBlockRecv
+    integer:: iChild
 
-    integer:: iStatus_I(MPI_STATUS_SIZE), iError
+    integer:: iError
 
-    integer :: iMinP, iMaxP
-    integer :: jMinP, jMaxP
-    integer :: kMinP, kMaxP
-    integer :: nSizeP
+    integer:: iMinP, iMaxP
+    integer:: jMinP, jMaxP
+    integer:: kMinP, kMaxP
+    integer:: nSizeP
 
     integer, parameter:: MaxTry=100
     integer:: iTry
@@ -495,7 +495,7 @@ contains
       if(present(Dt_B))       iBuffer = iBuffer + 1
       if(present(nExtraData)) iBuffer = iBuffer + nExtraData
       call MPI_recv(Buffer_I, iBuffer, MPI_REAL, iProcSend, 31, iComm, &
-           iStatus_I, iError)
+           MPI_STATUS_IGNORE, iError)
 
       iBuffer = 0
       if(DoBalanceOnly)then
@@ -635,7 +635,7 @@ contains
          iBuffer = nIJK*nVar/IjkRatio
          if(present(Dt_B))  iBuffer = iBuffer + 1
          call MPI_recv(Buffer_I, iBuffer, MPI_REAL, iProcSend, 32, iComm, &
-              iStatus_I, iError)
+              MPI_STATUS_IGNORE, iError)
       end if
 
       ! Find the part of the block to be written into
@@ -838,7 +838,7 @@ contains
          iBuffer = nSizeP*nVarBuffer+1
          if(present(Dt_B)) iBuffer = iBuffer + 1
          call MPI_recv(Buffer_I, iBuffer, MPI_REAL, iProcSend, 33, iComm, &
-              iStatus_I, iError)
+              MPI_STATUS_IGNORE, iError)
       end if
 
       DoCheckMask = Buffer_I(1) > 0.5

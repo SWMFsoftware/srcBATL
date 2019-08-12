@@ -91,7 +91,7 @@ module BATL_pass_cell
   real, allocatable:: BufferR_I(:), BufferS_I(:)
 
   integer :: iRequestR, iRequestS, iError
-  integer, allocatable:: iRequestR_I(:), iRequestS_I(:), iStatus_II(:,:)
+  integer, allocatable:: iRequestR_I(:), iRequestS_I(:)
 
   ! Slopes for 2nd order prolongation
   real, allocatable:: Slope_VG(:,:,:,:)
@@ -300,7 +300,6 @@ contains
           allocate(iBufferS_P(0:nProc-1), nBufferS_P(0:nProc-1), &
                nBufferR_P(0:nProc-1))
           allocate(iRequestR_I(nProc-1), iRequestS_I(nProc-1))
-          allocate(iStatus_II(MPI_STATUS_SIZE,nProc-1))
        end if
     end if
 
@@ -494,11 +493,11 @@ contains
           ! wait for all requests to be completed
           call timing_start('wait_pass')
           if(iRequestR > 0) &
-               call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+               call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
           
           ! wait for all sends to be completed
           if(iRequestS > 0) &
-               call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
+               call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
           call timing_stop('wait_pass')
 
           call timing_start('buffer_to_state')

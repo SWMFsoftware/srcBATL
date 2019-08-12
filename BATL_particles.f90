@@ -326,7 +326,6 @@ contains
       integer:: nParticleNew ! # of particles after message pass
       logical:: IsOut        ! particle is out of domain
       integer:: iTag, iError, iRequest, iRequest_I(2*nProc)
-      integer:: iStatus_II(MPI_STATUS_SIZE, 2*nProc)
       !------------------------------------------------------------------------
       ! reset parameters of the message_pass for this kind of particles
       nSend_P       = 0; nRecv_P = 0
@@ -387,7 +386,7 @@ contains
       end if
 
       ! finalize transfer
-      call MPI_waitall(iRequest, iRequest_I, iStatus_II, iError)
+      call MPI_waitall(iRequest, iRequest_I, MPI_STATUSES_IGNORE, iError)
 
       ! get offsets for procs in BufferSend_I & BufferRecv_I
       iSendOffset_P(0) = 0
@@ -467,7 +466,7 @@ contains
          end do
       end if
       ! finalize transfer
-      call MPI_waitall(iRequest, iRequest_I, iStatus_II, iError)
+      call MPI_waitall(iRequest, iRequest_I, MPI_STATUSES_IGNORE, iError)
 
       ! change total number of particles of this kind
       nParticleNew = nParticle - sum(nSend_P) + sum(nRecv_P)
