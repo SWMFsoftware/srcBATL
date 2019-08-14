@@ -106,7 +106,10 @@ contains
     real, allocatable, save:: BufferR_I(:), BufferS_I(:)
 
     integer:: iRequestR, iRequestS, iError
-    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:)
+
+    ! On Pleiades the mpi-hpe/mpt.2.17r13 library fails with MPI_STATUSES_IGNORE
+    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:), &
+         iStatus_II(:,:)
 
     integer, allocatable :: nCount_NB(:,:,:,:)
 
@@ -159,6 +162,7 @@ contains
        allocate(iBufferS_P(0:nProc-1), nBufferS_P(0:nProc-1), &
             nBufferR_P(0:nProc-1))
        allocate(iRequestR_I(nProc), iRequestS_I(nProc))
+       allocate(iStatus_II(MPI_STATUS_SIZE,nProc))
     end if
 
     ! call timing_stop('init_pass_node')
@@ -296,13 +300,11 @@ contains
        ! wait for all requests to be completed
        ! call timing_start('wait_pass_node')
        if(iRequestR > 0) &
-            call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, &
-            iError)
+            call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
 
        ! wait for all sends to be completed
        if(.not.UseRSend .and. iRequestS > 0) &
-            call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, &
-            iError)
+            call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
 
        ! call timing_stop('wait_pass_node')
     end if
