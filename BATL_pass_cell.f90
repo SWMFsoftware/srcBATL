@@ -192,14 +192,6 @@ contains
     integer :: nSendStage
     integer :: iBlock
         
-    ! For high order resolution change, a few face ghost cells need to be
-    ! calculated remotely after the coarse block have got accurate
-    ! ghost cells. For this case with block cell size smaller than
-    ! 8, these few inaccurate face ghost cells need to be sent to
-    ! neighbour block before they are overwritten by 5th order values
-    ! calculated remotely. So, nSubStage == 2 for this case. Do_equal
-    ! is called first and then use do_prolong.
-    integer:: nSubStage
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
@@ -326,14 +318,13 @@ contains
        !   b) Pass restricted cells from fine to coarse.
        !   c) Do high order prolongation for face ghost cells locally.
        ! stage 3:
-       !   a) Remote high order prolongation on coarse blocks for edges and
-       !      corners and for faces that are too complex to do locally.
-       !   b) Pass locally high order prolonged face ghost cells
-       !      to edge/corner ghost cells of neighboring fine block.
-       !   c) Pass remotely high order refined ghost cells from coarse
-       !      to fine block for other edge and corner ghost cells and
-       !      also for not yet done face ghost cells.
-       nSendStage = 3
+       !      Pass the locally high order prolonged face ghost cells
+       !      to the edge/corner ghost cells of the neighboring fine blocks.
+       ! stage 4: 
+       !      Perform remote high order prolongation on coarse blocks for 
+       !      edges, corners and the face ghost cells that are too complex 
+       !      to do locally. 
+       nSendStage = 4
 
        allocate( &
             State_VIIIB(nVar,max(nI/2,1),max(nJ/2,1),max(nK/2,1),nBlock), &
@@ -430,20 +421,13 @@ contains
                 end do
              end if
              
-             nSubStage = 1
-             if(iSendStage == 3) nSubStage = 2
-             
-             do iSubStage = 1, nSubStage
-                ! For the last stage of high order resolution change,
-                ! do_equal first, then do_prolong.
                 
-                ! Prepare the buffer for remote message passing
-                do iBlockSend = 1, nBlock
-                   if(Unused_B(iBlockSend)) CYCLE
-                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                        .true.,TimeOld_B, Time_B, iLevelMin, iLevelMax)
-                end do ! iBlockSend
-             end do ! iSubStage
+             ! Prepare the buffer for remote message passing
+             do iBlockSend = 1, nBlock
+                if(Unused_B(iBlockSend)) CYCLE
+                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                     .true.,TimeOld_B, Time_B, iLevelMin, iLevelMax)
+             end do ! iBlockSend
              
              call timing_stop('part1_pass')
              
@@ -696,7 +680,7 @@ contains
                end do; end do; end do
             elseif(UseHighResChange)then
                do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-                  if(.not. (iSendStage == 3 &
+                  if(.not. (iSendStage ==4 &
                        .and. IsAccurateFace_GB(i,j,k,iBlockRecv)))then
                      State_VGB(:,i,j,k,iBlockRecv) = &
                           BufferR_I(iBufferR+1:iBufferR+nVar)
@@ -1964,11 +1948,7 @@ contains
 
     ! For high order resolution change, a few face ghost cells need to be
     ! calculated remotely after the coarse block have got accurate
-    ! ghost cells. For this case with block cell size smaller than
-    ! 8, these few inaccurate face ghost cells need to be sent to
-    ! neighbour block before they are overwritten by 5th order values
-    ! calculated remotely.  So, nSubStage == 2 for this case. Do_equal
-    ! is called first and then use do_prolong.
+    ! ghost cells. 
     logical:: DoSendFace, DoRecvFace
 
     ! For 6th order correction, which may be better because of symmetry,
@@ -2046,13 +2026,11 @@ contains
              if(iSendStage == 2 .and. DiLevel == 0) CYCLE
 
              ! Fill in the edge/corner ghost cells with values from
-             ! face ghost cells first (do_equal). Replace the
-             ! inaccurate face ghost cells with the values from
-             ! remote restriction.
-             if(iSendStage == 3 .and. DiLevel /= 0 &
-                  .and. iSubStage == 1) CYCLE
-             if(iSendStage == 3 .and. DiLevel == 0 &
-                  .and. iSubStage == 2) CYCLE
+             ! face ghost cells.
+             if(iSendStage == 3 .and. DiLevel /= 0) CYCLE
+
+             ! Remote high order prolongation
+             if(iSendStage == 4 .and. DiLevel == 0) CYCLE
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -2700,7 +2678,7 @@ contains
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
-      if(iSendStage == 3 .and. nK > 1 .and. &
+      if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
          if(.not.DoRecvFace) RETURN
@@ -2714,7 +2692,7 @@ contains
 
       if(DoCountOnly .and. (&
            (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
-           (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 3)))) &
+           (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
            then
          ! For high resolution change, finer block only receives data
          ! when iSendStage = 1.
@@ -2745,7 +2723,7 @@ contains
       if(UseHighResChange .and. iSendStage == 1) RETURN
 
       ! Do prolongation for edge/corner ghost cells remotely.
-      if(UseHighResChange .and. iSendStage == 3) RETURN
+      if(UseHighResChange .and. iSendStage == 4) RETURN
 
       iRecv = iSend - 3*iDir
       jRecv = jSend - 3*jDir
@@ -3055,7 +3033,7 @@ contains
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
-               if(iSendStage == 3 .and. nK > 1 .and. &
+               if(iSendStage == 4 .and. nK > 1 .and. &
                     abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
                   ! Do_prolongation for edge/corner ghost cells and for
                   ! some special face cells.
@@ -3131,7 +3109,7 @@ contains
                if(nDim > 2) DjR = sign(1, jRMax - jRMin)
                if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
-               if(UseHighResChange .and. iSendStage == 3) then
+               if(UseHighResChange .and. iSendStage == 4) then
                   ! The values set in set_range are used for iSendStage == 1,
                   ! Which is first order prolongtion. Now, for high order
                   ! prolongation, some values need to be corrected.
@@ -3174,7 +3152,7 @@ contains
                iRatioRestr = iRatio
                jRatioRestr = jRatio
                kRatioRestr = kRatio
-               if(iSendStage /= 3 .and. nCoarseLayer > 1)then
+               if(iSendStage /= 4 .and. nCoarseLayer > 1)then
                   if(iDir /= 0) iRatioRestr = 1
                   if(jDir /= 0) jRatioRestr = 1
                   if(kDir /= 0) kRatioRestr = 1
@@ -3344,7 +3322,7 @@ contains
                         end do
                      end do
                   else
-                     if(UseHighResChange .and. iSendStage == 3) then
+                     if(UseHighResChange .and. iSendStage == 4) then
                         iDir1 = 0; jDir1 = 0; kDir1 = 0
                         i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 = max(5*Dk,1)
                         do kR = kRMin, kRMax, DkR
@@ -3428,7 +3406,7 @@ contains
                      BufferS_I(iBufferS) = Time_B(iBlockSend)
                   end if
                   
-                  if(UseHighResChange .and. iSendStage == 3) then
+                  if(UseHighResChange .and. iSendStage == 4) then
                      iDir1 = 0; jDir1 = 0; kDir1 = 0
                      i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 =  max(5*Dk,1)
                      do kR = kRMin, kRMax, DkR
@@ -4455,7 +4433,6 @@ contains
             !         The corner one (ic=1,jc=nk/2,kc=nk/2) is interpolated
             !         diagionally in 3D space.
 
-            State_VIIIB = 0
             nEdge = 0
             if(.not. allocated(nCorrected_III)) allocate(&
                  nCorrected_III(max(nI/2,1), max(nJ/2,1),max(nK/2,1)))
