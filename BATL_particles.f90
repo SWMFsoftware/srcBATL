@@ -309,6 +309,7 @@ contains
   contains
     !==========================================================================
     subroutine pass_this_kind
+      use BATL_tree, ONLY: IsNeighbor_P
       integer:: iParticle    ! loop variable
       real   :: Xyz_D(MaxDim)! particle coordinates
       logical:: IsPossible   ! can interpolate to Xyz_D on current block
@@ -356,7 +357,7 @@ contains
       ! send size of messages
       iRequest = 0
       do iProcFrom = 0, nProc - 1
-         if(iProcFrom == iProc) CYCLE ! skip this proc
+         if(.not.IsNeighbor_P(iProcFrom)) CYCLE ! skip this proc           
          iTag = iProc
          iRequest = iRequest + 1
          call MPI_Irecv(&
@@ -369,7 +370,7 @@ contains
          call MPI_Barrier(iComm, iError)
 
          do iProcTo = 0, nProc - 1
-            if(iProcTo == iProc) CYCLE ! skip this proc
+            if(.not.IsNeighbor_P(iProcTo)) CYCLE ! skip this proc
             iTag = iProcTo
             call MPI_Rsend(&
                  nSend_P(iProcTo), 1, MPI_INTEGER, &
@@ -377,6 +378,7 @@ contains
          end do
       else
          do iProcTo = 0, nProc - 1
+            if(.not.IsNeighbor_P(iProcTo)) CYCLE ! skip this proc
             iTag = iProcTo
             iRequest = iRequest + 1
             call MPI_Isend(&

@@ -210,6 +210,7 @@ module BATL_tree
   ! All neighbors can be found by going from node to node
   integer, allocatable:: iNodeAxisNei_A(:)
 
+  logical, public, allocatable :: IsNeighbor_P(:)
   ! Use uniform resolution around axis
   logical:: UseUniformAxis = .false.
 
@@ -259,6 +260,7 @@ contains
     allocate(iNode_B(MaxBlock));                        iNode_B        = Unset_
     allocate(Unused_B(MaxBlock));                       Unused_B       = .true.
     allocate(Unused_BP(MaxBlock,0:nProc-1));            Unused_BP      = .true.
+    allocate(IsNeighbor_P(0:nProc-1));                  IsNeighbor_P   = .true.
     allocate(iNodeNei_IIIB(0:3,0:3,0:3,MaxBlock));      iNodeNei_IIIB  = Unset_
     allocate(DiLevelNei_IIIB(-1:1,-1:1,-1:1,MaxBlock)); DiLevelNei_IIIB= Unset_
     allocate(iAmrChange_B(MaxBlock));                   iAmrChange_B   = Unset_
@@ -1415,7 +1417,7 @@ contains
              iNodeNei_IIIB(i,j,k,iBlock) = jNode
              DiLevelNei_IIIB(Di,Dj,Dk,iBlock) = &
                   iLevel - iTree_IA(Level_, jNode)
-
+             IsNeighbor_P(iTree_IA(Proc_,  jNode)) = .true.
              if(DoTest) write(*,'(a,3i2,3f6.3,i4)') &
                   'i,j,k,x,y,z,jNode=',i,j,k,x,y,z,jNode
 
@@ -1484,6 +1486,7 @@ contains
 
        call find_tree_node(Coord_D, jNode)
        iNodeAxisNei_A(iNode) = jNode
+       IsNeighbor_P(iTree_IA(Proc_,  jNode)) = .true.
     end do
 
   end subroutine find_axis_neighbor
@@ -1831,7 +1834,10 @@ contains
     end do
     ! Now that we removed children of coarsened blocks, compact the tree
     call compact_tree(iTypeNode_A)
-
+    !\
+    ! Inintialize list of neighboring processors:
+    !/
+    IsNeighbor_P = .false.
     ! Set neighbor info
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
@@ -1839,7 +1845,8 @@ contains
     end do
 
     if(UseUniformAxis) call find_axis_neighbor
-
+    ! iProc is not a neighbor to itself
+    IsNeighbor_P(iProc) = .false.
   end subroutine move_tree
   !============================================================================
   subroutine order_tree
