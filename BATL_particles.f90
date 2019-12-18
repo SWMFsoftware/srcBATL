@@ -26,7 +26,7 @@ module BATL_particles
   public:: trace_particles
   SAVE
   !\
-  ! Use the pair RSend + IRecv or ISend + IRecv
+  ! Use the pair RSend+IRecv or ISend+IRecv
   !/
   logical, parameter, private:: DoRSend = .true.
 
