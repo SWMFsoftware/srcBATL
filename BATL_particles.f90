@@ -309,7 +309,6 @@ contains
   contains
     !==========================================================================
     subroutine pass_this_kind
-      !use BATL_tree, ONLY: IsNeighbor_P
       integer:: iParticle    ! loop variable
       real   :: Xyz_D(MaxDim)! particle coordinates
       logical:: IsPossible   ! can interpolate to Xyz_D on current block
