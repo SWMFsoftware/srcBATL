@@ -141,6 +141,9 @@ module BATL_tree
        DiLevelNei_IIIB(:,:,:,:),  &  ! Level difference relative to neighbors
        iNodeNei_IIIB(:,:,:,:)        ! Node index of neighboring blocks
 
+  ! True for procs that contain blocks adjacent with blocks of this processor
+  logical, public, allocatable :: IsNeighbor_P(:)
+
   ! Index for unset values (that are otherwise larger)
   integer, public, parameter :: Unset_ = -100
 
@@ -261,6 +264,7 @@ contains
     allocate(Unused_BP(MaxBlock,0:nProc-1));            Unused_BP      = .true.
     allocate(iNodeNei_IIIB(0:3,0:3,0:3,MaxBlock));      iNodeNei_IIIB  = Unset_
     allocate(DiLevelNei_IIIB(-1:1,-1:1,-1:1,MaxBlock)); DiLevelNei_IIIB= Unset_
+    allocate(IsNeighbor_P(0:nProc-1));                  IsNeighbor_P   = .true.
     allocate(iAmrChange_B(MaxBlock));                   iAmrChange_B   = Unset_
 
     ! Initialize minimum and maximum levels of refinement
@@ -300,9 +304,10 @@ contains
          iStatusNew_A, iStatusAll_A, &
          iProcNew_A, iNodeNew_A, &
          iNode_B, Unused_B, Unused_BP, &
-         iNodeNei_IIIB, DiLevelNei_IIIB, iAmrChange_B)
+         iNodeNei_IIIB, DiLevelNei_IIIB, IsNeighbor_P, iAmrChange_B)
 
-    if(allocated(iRank_A))        deallocate(iRank_A)
+    if(allocated(iRank_A)) deallocate(iRank_A)
+
     call set_tree_param(UseUniformAxisIn=.false.)
 
     MaxNode = 0
