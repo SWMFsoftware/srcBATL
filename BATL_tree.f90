@@ -1420,6 +1420,7 @@ contains
              iNodeNei_IIIB(i,j,k,iBlock) = jNode
              DiLevelNei_IIIB(Di,Dj,Dk,iBlock) = &
                   iLevel - iTree_IA(Level_, jNode)
+             IsNeighbor_P(iTree_IA(Proc_, jNode)) = .true.
              if(DoTest) write(*,'(a,3i2,3f6.3,i4)') &
                   'i,j,k,x,y,z,jNode=',i,j,k,x,y,z,jNode
 
@@ -1838,7 +1839,7 @@ contains
     !\
     ! Inintialize list of neighboring processors:
     !/
-    
+    IsNeighbor_P = .false.
     ! Set neighbor info
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
@@ -1847,7 +1848,7 @@ contains
 
     if(UseUniformAxis) call find_axis_neighbor
     ! iProc is not a neighbor to itself
- 
+    IsNeighbor_P(iProc) = .false.
   end subroutine move_tree
   !============================================================================
   subroutine order_tree
