@@ -8,7 +8,6 @@ include ../Makefile.conf
 -include Makefile.DEPEND
 
 install:
-	touch Makefile.DEPEND
 
 OBJECTS = \
 	BATL_amr.o \
@@ -80,5 +79,5 @@ ${BINDIR}/GAME.exe: game_of_life.o ${OBJECTS}
 clean: cleanfiles
 
 distclean: clean
-	rm -f BATL_size.f90 Makefile.DEPEND
+	rm -f BATL_size.f90
 
