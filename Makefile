@@ -5,7 +5,7 @@ include ../Makefile.def
 
 include ../Makefile.conf
 
-include Makefile.DEPEND
+-include Makefile.DEPEND
 
 install:
 	touch Makefile.DEPEND
