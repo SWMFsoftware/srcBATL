@@ -78,7 +78,7 @@ module BATL_lib
   public:: MaxLevel, nLevelMin, nLevelMax, MaxCoord_I
   public:: Unused_B, Unused_BP, Used_GB
   public:: iNode_B, iMortonNode_A, iNodeMorton_I
-  public:: DiLevelNei_IIIB, iNodeNei_IIIB
+  public:: DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P
   public:: iStatusNew_A, Refine_, Coarsen_, Unset_
   public:: iTree_IA, Status_,  Level_, MinLevel_, MaxLevel_, Block_, Proc_, &
        Coord0_, Coord1_, Coord2_, Coord3_, Used_
