@@ -149,11 +149,11 @@ module BATL_tree
 
   ! Possible values for the status variable
   integer, public, parameter :: &
-       Unused_      = -1, & ! unused block (not a leave)
+       Unused_      = -1, & ! unused block (not a leaf)
        Refine_      = -2, & ! parent block to be refined
        DontCoarsen_ = -3, & ! block not to be coarsened
        Coarsen_     = -4, & ! child block to be coarsened
-       Used_        =  1, & ! currently used block (leave)
+       Used_        =  1, & ! currently used block (leaf)
        RefineNew_   =  2, & ! child block to be refined
        Refined_     =  3, & ! refined child block
        CoarsenNew_  =  4, & ! parent block to be coarsened
