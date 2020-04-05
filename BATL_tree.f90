@@ -103,7 +103,7 @@ module BATL_tree
   ! Number of items stored in iTree_IA
   integer, parameter :: nInfo = ChildLast_
 
-  character(len=10), parameter:: NameTreeInfo_I(Child0_+8) = (/ &
+  character(len=10), parameter:: NameTreeInfo_I(Child0_+8) = [ &
        'Status   ', &
        'Level    ', &
        'Proc     ', &
@@ -121,7 +121,7 @@ module BATL_tree
        'Child5   ', &
        'Child6   ', &
        'Child7   ', &
-       'Child8   ' /)
+       'Child8   ' ]
 
   ! New status (refine, coarsen etc) requested for nodes
   integer, public, allocatable :: iStatusNew_A(:)
@@ -174,10 +174,10 @@ module BATL_tree
   ! The maximum integer coordinate for a given level below root nodes
   ! Implied do loop was not understooed by the pgf90 compiler, so list them
   integer, parameter, public :: MaxCoord_I(0:MaxLevel) = &
-       (/ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, &
+       [ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, &
        16384, 32768, 65536, 131072, 262144, 524288, 1048576, 2097152, &
        4194304, 8388608, 16777216, 33554432, 67108864, 134217728, &
-       268435456, 536870912, 1073741824 /)
+       268435456, 536870912, 1073741824 ]
 
   ! The number of root nodes in all dimensions, and altogether
   integer, public :: nRoot_D(MaxDim) = 0, nRoot = 0
@@ -369,7 +369,7 @@ contains
        do jRoot = 1, nRoot_D(2)
           do iRoot = 1, nRoot_D(1)
 
-             iRoot_D = (/ iRoot, jRoot, kRoot /)
+             iRoot_D = [ iRoot, jRoot, kRoot ]
 
              iNode = iNode + 1
              iTree_IA(Status_, iNode)            = Used_
@@ -1274,7 +1274,7 @@ contains
                 end if
              end if
 
-             call find_tree_node( (/x, y, z/), jNode)
+             call find_tree_node( [x, y, z], jNode)
 
              iNodeNei_III(i,j,k) = jNode
              DiLevelNei_III(Di,Dj,Dk) = &
@@ -2131,8 +2131,8 @@ contains
     use BATL_geometry, ONLY: init_geometry
 
     integer, parameter:: MaxBlockTest            = 50
-    integer, parameter:: nRootTest_D(MaxDim)     = (/3,2,1/)
-    logical, parameter:: IsPeriodicTest_D(MaxDim)= (/.true., .true., .false./)
+    integer, parameter:: nRootTest_D(MaxDim)     = [3,2,1]
+    logical, parameter:: IsPeriodicTest_D(MaxDim)= [.true., .true., .false.]
     real,    parameter:: CoordTest_D(MaxDim)     = 0.99
 
     integer :: iNode, iCoord_D(MaxDim), iCell_D(MaxDim)
@@ -2178,7 +2178,7 @@ contains
          write(*,*) 'set_tree_root failed, nRoot_D=',nRoot_D(1:nDim),&
          ' should be ',nRootTest_D(1:nDim)
 
-    iCoord_D = (/3,1,1/)
+    iCoord_D = [3,1,1]
 
     if(any( iTree_IA(Coord1_:Coord0_+nDim,3) /= iCoord_D(1:nDim) )) &
          write(*,*) 'set_tree_root failed, coordinates of node four=',&
@@ -2208,27 +2208,27 @@ contains
     call interpolate_tree(CoordTest_D, iNodeCell_II, Weight_I)
     select case(nDim)
     case(1)
-       iNodeCellGood_II(0:1,1:2) = reshape( (/ nRoot,nI,nRoot,nI+1 /), &
-            (/2,2/) )
-       WeightGood_I(1:2)         = (/ 1-Distance_D(1), Distance_D(1) /)
+       iNodeCellGood_II(0:1,1:2) = reshape( [ nRoot,nI,nRoot,nI+1 ], &
+            [2,2] )
+       WeightGood_I(1:2)         = [ 1-Distance_D(1), Distance_D(1) ]
     case(2)
        iNodeCellGood_II(0:2,1:4) = reshape( &
-            (/ nRoot,nI,nJ,nRoot,nI+1,nJ,nRoot,nI,nJ+1,nRoot,nI+1,nJ+1 /), &
-            (/3,4/) )
-       WeightGood_I(1:4) = (/ &
+            [ nRoot,nI,nJ,nRoot,nI+1,nJ,nRoot,nI,nJ+1,nRoot,nI+1,nJ+1 ], &
+            [3,4] )
+       WeightGood_I(1:4) = [ &
             (1-Distance_D(1))*(1-Distance_D(2)), &
             Distance_D(1)    *(1-Distance_D(2)), &
             (1-Distance_D(1))*Distance_D(2)    , &
             Distance_D(1)    *Distance_D(2)      &
-            /)
+            ]
     case(3)
-       iNodeCellGood_II(0:3,1:8) = reshape( (/ &
+       iNodeCellGood_II(0:3,1:8) = reshape( [ &
             nRoot,nI,nJ,nK, &
             nRoot,nI+1,nJ,nK, nRoot,nI,nJ+1,nK, nRoot,nI+1,nJ+1,nK, &
             nRoot,nI,nJ,nK+1, &
-            nRoot,nI+1,nJ,nK+1, nRoot,nI,nJ+1,nK+1, nRoot,nI+1,nJ+1,nK+1 /),&
-            (/4,8/) )
-       WeightGood_I(1:8) = (/ &
+            nRoot,nI+1,nJ,nK+1, nRoot,nI,nJ+1,nK+1, nRoot,nI+1,nJ+1,nK+1 ],&
+            [4,8] )
+       WeightGood_I(1:8) = [ &
             (1-Distance_D(1))*(1-Distance_D(2))*(1-Distance_D(3)), &
             Distance_D(1)    *(1-Distance_D(2))*(1-Distance_D(3)), &
             (1-Distance_D(1))*Distance_D(2)    *(1-Distance_D(3)), &
@@ -2237,7 +2237,7 @@ contains
             Distance_D(1)    *(1-Distance_D(2))*Distance_D(3)    , &
             (1-Distance_D(1))*Distance_D(2)    *Distance_D(3)    , &
             Distance_D(1)    *Distance_D(2)    *Distance_D(3)      &
-            /)
+            ]
     end select
 
     if(any(iNodeCell_II /= iNodeCellGood_II(0:nDim,1:2**nDim))) &
