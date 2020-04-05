@@ -41,6 +41,7 @@ BATL_size.f90: BATL_size_orig.f90
 	cp -f BATL_size_orig.f90 BATL_size.f90
 
 MY_LIB = libBATL.a
+MY_DYN_LIB = libBATL.so
 
 LIB: DEPEND
 	$(MAKE) ${MY_LIB}
@@ -51,6 +52,18 @@ LIB: DEPEND
 ${MY_LIB}: ${OBJECTS}
 	rm -f ${MY_LIB}
 	${AR} ${MY_LIB} ${OBJECTS}
+
+LIBSO: DEPEND
+	$(MAKE) ${MY_DYN_LIB}
+	@echo
+	@echo ${MY_DYN_LIB} has been brought up to date.
+	@echo
+
+${MY_DYN_LIB}: ${OBJECTS}
+	rm -f ${MY_DYN_LIB}
+	$(COMPILE.f90) ${Cflag3} -c -Wall -fPIC external_routines.f90
+	${LINK.f90} -shared -fPIC -o ${MY_DYN_LIB} ${OBJECTS} external_routines.o \
+	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
 
 BATL:
 	make DEPEND
