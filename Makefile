@@ -30,7 +30,8 @@ OBJECTS = \
 
 ALLOBJECTS = \
 	${OBJECTS} \
-	main.o \
+	ModUnittest.o \
+	unit_test.o \
 	advect_main.o \
 	game_of_life.o
 
@@ -41,7 +42,7 @@ BATL_size.f90: BATL_size_orig.f90
 	cp -f BATL_size_orig.f90 BATL_size.f90
 
 MY_LIB = libBATL.a
-MY_DYN_LIB = libBATL.so
+MY_DYN_LIB =  ${LIBDIR}/libBATL.so
 
 LIB: DEPEND
 	$(MAKE) ${MY_LIB}
@@ -60,18 +61,23 @@ LIBSO: DEPEND
 	@echo
 
 ${MY_DYN_LIB}: ${OBJECTS}
-	rm -f ${MY_DYN_LIB}
-	$(COMPILE.f90) ${Cflag3} -c -Wall -fPIC external_routines.f90
+	${COMPILE.f90} ${Cflag3} -Wall -fPIC external_routines.f90
 	${LINK.f90} -shared -fPIC -o ${MY_DYN_LIB} ${OBJECTS} external_routines.o \
+	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+
+BATL_dynamic:
+	make DEPEND
+	${COMPILE.f90} ${Cflag3} unit_test.f90
+	${LINK.f90} -o ${BINDIR}/BATL.exe unit_test.o ModUnittest.o ${MY_DYN_LIB} \
 	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
 
 BATL:
 	make DEPEND
-	$(MAKE) ${BINDIR}/BATL.exe
+	${MAKE} ${BINDIR}/BATL.exe
 
-${BINDIR}/BATL.exe: main.o ${OBJECTS}
-	${LINK.f90} -o ${BINDIR}/BATL.exe main.o ${OBJECTS} \
-		-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+${BINDIR}/BATL.exe: unit_test.o ModUnittest.o ${OBJECTS}
+	${LINK.f90} -o ${BINDIR}/BATL.exe unit_test.o ModUnittest.o ${OBJECTS} \
+	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
 
 ADVECT:
 	make DEPEND

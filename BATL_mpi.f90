@@ -1,5 +1,5 @@
-!  Copyright (C) 2002 Regents of the University of Michigan, 
-!  portions used with permission 
+!  Copyright (C) 2002 Regents of the University of Michigan,
+!  portions used with permission
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module BATL_mpi
 
@@ -29,20 +29,20 @@ contains
     ! to MPI_COMM_WORLD and also call MPI_init
 
     use omp_lib
-    
+
     integer, optional, intent(in):: iCommIn
     integer :: iError
 
     ! OpenMP support levels
     integer, parameter :: lSupportRequired = MPI_THREAD_SINGLE
-    integer            :: lSupportProvided = MPI_THREAD_SINGLE 
+    integer            :: lSupportProvided = MPI_THREAD_SINGLE
     !--------------------------------------------------------------------------
     if(.not.present(iCommIn))then
        iComm = MPI_COMM_WORLD
        call MPI_init_thread(lSupportRequired, lSupportProvided, iError)
        ! Check the threading support level
-       if (lSupportProvided < lSupportRequired) then
-          if (iProc == 0) write(*,*) &
+       if(lSupportProvided < lSupportRequired) then
+          if(iProc == 0) write(*,*) &
                "Warning:  This MPI implementation provides ",   &
                "insufficient threading support. Switching to pure MPI..."
           !$ call omp_set_num_threads(1)
@@ -53,7 +53,7 @@ contains
     end if
     call MPI_comm_rank(iComm, iProc, iError)
     call MPI_comm_size(iComm, nProc, iError)
-    
+
   end subroutine init_mpi
   !============================================================================
 

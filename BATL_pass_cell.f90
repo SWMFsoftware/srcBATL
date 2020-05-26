@@ -4,15 +4,15 @@
 module BATL_pass_cell
 
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
-       IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
-       coord_to_xyz, init_geometry, z_, IsPeriodic_D, rot_to_cart, &
-       xyz_to_coord, coord_to_xyz
+  	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
+  	coord_to_xyz, init_geometry, z_, IsPeriodic_D, rot_to_cart, &
+  	xyz_to_coord, coord_to_xyz
   use ModNumConst, ONLY: cPi, cHalfPi, cTwoPi
   use BATL_high_order, ONLY: restriction_high_order_reschange, &
-       prolongation_high_order_amr, &
-       prolongation_high_order_for_face_ghost, &
-       correct_face_ghost_for_fine_block, &
-       limit_interpolation, restriction_high_order_amr
+  	prolongation_high_order_amr, &
+  	prolongation_high_order_for_face_ghost, &
+  	correct_face_ghost_for_fine_block, &
+  	limit_interpolation, restriction_high_order_amr
   use BATL_size, ONLY: MaxDim
   use ModUtilities, ONLY: CON_stop
   use ModMpi
@@ -44,8 +44,7 @@ module BATL_pass_cell
 
   private ! except
 
-  public message_pass_cell, message_pass_ng_int1
-  public test_pass_cell
+  public:: message_pass_cell, message_pass_ng_int1
 
   interface message_pass_cell
      module procedure            &
@@ -69,7 +68,7 @@ module BATL_pass_cell
   logical :: DoResChangeOnly
   logical :: UseHighResChange
   character(len=3) :: NameOperator
-  
+
   ! Variables for coarsened block.
   real, allocatable:: State_VIIIB(:,:,:,:,:)
   logical, allocatable:: IsAccurate_B(:)
@@ -83,7 +82,7 @@ module BATL_pass_cell
   integer :: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
   integer :: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
   !$omp threadprivate( iEqualS_DII, iEqualR_DII )
-  
+
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
   integer :: iBufferS, iBufferR
@@ -100,11 +99,11 @@ module BATL_pass_cell
   ! Positivity of variables
   logical, allocatable:: IsPositive_V(:)
 
-  ! High order resolution change 
+  ! High order resolution change
   logical, allocatable:: IsAccurateFace_GB(:,:,:,:)
 
   ! counting vs. sendrecv stages
-  logical :: DoCountOnly    
+  logical :: DoCountOnly
   ! Stage indexes
 
   ! indexes for multiple stages
@@ -113,7 +112,7 @@ module BATL_pass_cell
   ! local variables corresponding to optional arguments
   logical :: UseTime        ! true if time interpolation is to be done
   !$omp threadprivate( UseTime )
-  
+
 contains
   !============================================================================
 
@@ -191,7 +190,7 @@ contains
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: nSendStage
     integer :: iBlock
-        
+
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
@@ -320,10 +319,10 @@ contains
        ! stage 3:
        !      Pass the locally high order prolonged face ghost cells
        !      to the edge/corner ghost cells of the neighboring fine blocks.
-       ! stage 4: 
-       !      Perform remote high order prolongation on coarse blocks for 
-       !      edges, corners and the face ghost cells that are too complex 
-       !      to do locally. 
+       ! stage 4:
+       !      Perform remote high order prolongation on coarse blocks for
+       !      edges, corners and the face ghost cells that are too complex
+       !      to do locally.
        nSendStage = 4
 
        allocate( &
@@ -355,7 +354,7 @@ contains
           DoCountOnly = .false.
 
           call timing_start('single_pass')
-          
+
           ! Loop through all blocks that may send a message
           !$omp parallel do
           do iBlockSend = 1, nBlock
@@ -363,10 +362,10 @@ contains
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                   .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
           end do ! iBlockSend
-          !$omp end parallel do 
+          !$omp end parallel do
 
           call timing_stop('single_pass')
-          
+
           if(UseHighResChange .and. iSendStage == 2) then
              !$omp parallel do
              do iBlock = 1, nBlock
@@ -375,7 +374,7 @@ contains
              enddo
              !$omp end parallel do
           endif
-          
+
        end do
     else
        ! nProc > 1 case
@@ -385,16 +384,16 @@ contains
              State_VIIIB = 0
              IsAccurate_B = .false.
           endif
-          
+
           do iCountOnly = 1, 2
              DoCountOnly = iCountOnly == 1
 
              call timing_start('part1_pass')
-             
+
              ! Second order prolongation needs two stages:
              ! first stage fills in equal and coarser ghost cells
              ! second stage uses these to prolong and fill in finer ghost cells
-             
+
              if(DoCountOnly)then
                 ! Initialize buffer size
                 nBufferR_P = 0
@@ -406,13 +405,13 @@ contains
                    MaxBufferR = sum(nBufferR_P)
                    allocate(BufferR_I(MaxBufferR))
                 end if
-                
+
                 if(sum(nBufferS_P) > MaxBufferS) then
                    if(allocated(BufferS_I)) deallocate(BufferS_I)
                    MaxBufferS = sum(nBufferS_P)
                    allocate(BufferS_I(MaxBufferS))
                 end if
-                
+
                 ! Initialize buffer indexes for storing data into BufferS_I
                 iBufferS = 0
                 do iProcRecv = 0, nProc-1
@@ -420,17 +419,17 @@ contains
                    iBufferS = iBufferS + nBufferS_P(iProcRecv)
                 end do
              end if
-             
-                
+
+
              ! Prepare the buffer for remote message passing
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                      .true.,TimeOld_B, Time_B, iLevelMin, iLevelMax)
              end do ! iBlockSend
-             
+
              call timing_stop('part1_pass')
-             
+
           end do ! iCountOnly
 
           ! post sends
@@ -439,11 +438,11 @@ contains
           do iProcRecv = 0, nProc-1
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
-             
+
              call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
                   MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
                   iError)
-             
+
              iBufferS = iBufferS + nBufferS_P(iProcRecv)
           end do
 
@@ -457,28 +456,28 @@ contains
              call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
                   MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
                   iError)
-             
+
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
 
           call timing_start('local_mp_pass')
-                    
+
           ! Local message passing
           !$omp parallel do
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                   .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
-          end do ! iBlockSend                      
+          end do ! iBlockSend
           !$omp end parallel do
-          
+
           call timing_stop('local_mp_pass')
-          
+
           ! wait for all requests to be completed
           call timing_start('wait_pass')
           if(iRequestR > 0) &
                call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
-          
+
           ! wait for all sends to be completed
           if(iRequestS > 0) &
                call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
@@ -494,7 +493,7 @@ contains
                 if (Unused_B(iBlock)) CYCLE
                 call high_prolong_for_face_ghost(iBlock)
              enddo
-             !$omp end parallel do 
+             !$omp end parallel do
           endif
        end do ! iSendStage
     end if
@@ -518,7 +517,7 @@ contains
       integer:: iDirCorner, jDirCorner, kDirCorner
       integer:: iBegin, iEnd, jBegin, jEnd, kBegin, kEnd, Di, Dj, Dk
       integer:: iDir,jDir,kDir
-      
+
       ! Non-face ghost cells are also set false.
       character(len=*), parameter:: NameSub = 'is_face_accurate'
       !------------------------------------------------------------------------
@@ -594,7 +593,7 @@ contains
 
       integer, intent(in):: iBlock
       real, allocatable:: Field1_VG(:,:,:,:)
-      integer:: DiLevelNei_I(6)     
+      integer:: DiLevelNei_I(6)
       !------------------------------------------------------------------------
       if(.not. allocated(Field1_VG)) &
            allocate(Field1_VG(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK))
@@ -641,7 +640,7 @@ contains
       kRMin = 1; kRMax = 1
 
       DiR = 1; DjR = 1; DkR = 1
-      
+
       iBufferR = 0
       do iProcSend = 0, nProc-1
          if(nBufferR_P(iProcSend) == 0) CYCLE
@@ -665,7 +664,7 @@ contains
                TimeSend = BufferR_I(iBufferR)
                UseTime  = (TimeSend /= Time_B(iBlockRecv))
             end if
-               
+
             if(UseTime) then
                ! Time interpolation
                WeightOld = (TimeSend - Time_B(iBlockRecv)) &
@@ -675,7 +674,7 @@ contains
                   State_VGB(:,i,j,k,iBlockRecv) = &
                        WeightOld*State_VGB(:,i,j,k,iBlockRecv) + &
                        WeightNew*BufferR_I(iBufferR+1:iBufferR+nVar)
-                  
+
                   iBufferR = iBufferR + nVar
                end do; end do; end do
             elseif(UseHighResChange)then
@@ -976,935 +975,6 @@ contains
   end subroutine message_pass_ng_int1
   !============================================================================
 
-  subroutine test_pass_cell
-
-    use BATL_size, ONLY: MaxDim, nDim, nDimAmr, iRatio, jRatio, kRatio, &
-         MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, nI, nJ, nK, nBlock,&
-         nIJK_D, iRatio_D
-    use BATL_mpi, ONLY: iComm, iProc
-    use BATL_grid, ONLY: init_grid, create_grid, clean_grid, &
-         Xyz_DGB, CellSize_DB, CoordMin_DB, CoordMin_D, DomainSize_D
-    use BATL_tree, ONLY: init_tree, set_tree_root, find_tree_node, &
-         refine_tree_node, distribute_tree, show_tree, clean_tree, &
-         Unused_B, DiLevelNei_IIIB, iNode_B
-
-    integer, parameter:: MaxBlockTest = 200
-    logical:: IsPeriodicTest_D(MaxDim)= .true.
-    integer:: nRootTest_D(MaxDim) = [3,3,3]
-    real   :: DomainMin_D(MaxDim) = [ 1.0, 10.0, 100.0 ]
-    real   :: DomainMax_D(MaxDim) = [ 4.0, 40.0, 400.0 ]
-
-    real   :: Tolerance = 1e-6
-
-    integer, parameter:: nVar = nDim
-    real, allocatable:: State_VGB(:,:,:,:,:)
-    real, allocatable:: Scalar_GB(:,:,:,:)
-    real, allocatable:: FineGridLocal_III(:,:,:)
-    real, allocatable:: FineGridGlobal_III(:,:,:)
-    real, allocatable:: XyzCorn_DGB(:,:,:,:,:)
-    real :: CourseGridCell_III(iRatio,jRatio,kRatio)
-
-    integer:: nWidth
-    integer:: nProlongOrder
-    integer:: nCoarseLayer
-    integer:: iSendCorner,  iRestrictFace
-    logical:: DoSendCorner, DoRestrictFace
-
-    real:: Xyz_D(MaxDim)
-    integer:: iNode, iBlock, i, j, k, iMin, iMax, jMin, jMax, kMin, kMax, iDim
-    integer:: iDir, jDir, kDir, Di, Dj, Dk
-
-    integer ::iOp
-    integer, parameter :: nOp=2
-    character(len=4) :: NameOperator_I(nOp) = [ "min", "max" ]
-    character(len=4) :: NameOperator = "Min"
-    real :: FineGridStep_D(MaxDim)
-    integer :: iFG, jFG, kFG
-    integer :: nFineCell
-    integer :: iMpiOperator
-    integer :: iError, iTest
-
-    character(len=20):: NameGeometry
-
-    logical:: DoTest
-    character(len=*), parameter:: NameSub = 'test_pass_cell'
-    !--------------------------------------------------------------------------
-    DoTest = iProc == 0
-
-    if(DoTest) write(*,*) 'Starting ',NameSub
-
-    call test_switches
-    call test_scalar
-
-    if(nDim == 1) RETURN !------------------------
-    call test_non_cartesian
-
-    if(nG < 3) RETURN
-    if(nDim > nDimAmr) RETURN
-    call test_high_order_cartesian
-    call test_high_order_non_cartesian
-
-  contains
-    !==========================================================================
-    !----------------------------------------------------------------------
-    subroutine test_switches
-
-      !------------------------------------------------------------------------
-      call init_tree(MaxBlockTest)
-      call init_geometry( IsPeriodicIn_D = IsPeriodicTest_D(1:nDim) )
-      call init_grid( DomainMin_D(1:nDim), DomainMax_D(1:nDim) )
-      call set_tree_root( nRootTest_D(1:nDim))
-
-      call find_tree_node( [0.5,0.5,0.5], iNode)
-      if(DoTest)write(*,*) NameSub,' middle node=',iNode
-      call refine_tree_node(iNode)
-      call distribute_tree(.true.)
-      call create_grid
-
-      if(DoTest) call show_tree(NameSub,.true.)
-
-      allocate(State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-
-      do nProlongOrder = 1, 2; do nCoarseLayer = 1, 2; do nWidth = 1, nG
-
-         ! Second order prolongation does not work with sending multiple
-         ! coarse cell layers into the fine cells with their original values.
-         if(nProlongOrder == 2 .and. nCoarseLayer == 2) CYCLE
-
-         ! Cannot send more coarse layers than the number of ghost cell layers
-         if(nCoarseLayer > nWidth) CYCLE
-
-         if(DoTest)write(*,*) 'testing message_pass_cell with', &
-              ' nProlongOrder=',  nProlongOrder, &
-              ' nCoarseLayer=',   nCoarseLayer,  &
-              ' nWidth=',         nWidth
-
-         ! Set the range of ghost cells that should be set
-         iMin =  1 - nWidth
-         jMin =  1; if(nDim > 1) jMin = 1 - nWidth
-         kMin =  1; if(nDim > 2) kMin = 1 - nWidth
-         iMax = nI + nWidth
-         jMax = nJ; if(nDim > 1) jMax = nJ + nWidth
-         kMax = nK; if(nDim > 2) kMax = nK + nWidth
-
-         do iSendCorner = 1, 2; do iRestrictFace = 1, 2
-
-            DoSendCorner   = iSendCorner   == 2
-            DoRestrictFace = iRestrictFace == 2
-
-            ! Second order prolongation does not work with restricting face:
-            ! the first order restricted cell cannot be used in the
-            ! prolongation.
-            if(DoRestrictFace .and. nProlongOrder == 2) CYCLE
-
-            if(DoTest)write(*,*) 'testing message_pass_cell with', &
-                 ' DoSendCorner=',   DoSendCorner, &
-                 ' DoRestrictFace=', DoRestrictFace
-
-            State_VGB = 0.0
-
-            do iBlock = 1, nBlock
-               if(Unused_B(iBlock)) CYCLE
-               State_VGB(:,1:nI,1:nJ,1:nK,iBlock) = &
-                    Xyz_DGB(1:nDim,1:nI,1:nJ,1:nK,iBlock)
-            end do
-
-            call message_pass_cell(nVar, State_VGB, &
-                 nProlongOrderIn =nProlongOrder,    &
-                 nCoarseLayerIn  =nCoarseLayer,     &
-                 nWidthIn        =nWidth,           &
-                 DoSendCornerIn  =DoSendCorner,     &
-                 DoRestrictFaceIn=DoRestrictFace)
-
-            do iBlock = 1, nBlock
-               if(Unused_B(iBlock)) CYCLE
-
-               ! Loop through all cells including ghost cells
-               do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
-
-                  ! The filled in second order accurate ghost cell value
-                  ! should be the same as the coordinates of the cell center
-                  Xyz_D = Xyz_DGB(:,i,j,k,iBlock)
-
-                  ! Check that no info is sent in the non-used dimensions,
-                  ! i.e. for all iDim: nDim+1 < iDim < MaxDim
-                  if(  i < iMin .or. i > iMax .or. &
-                       j < jMin .or. j > jMax .or. &
-                       k < kMin .or. k > kMax) then
-                     do iDim = 1, nDim
-                        if(abs(State_VGB(iDim,i,j,k,iBlock)) > 1e-6)then
-                           write(*,*)'Face should not be set: ', &
-                                'iProc,iBlock,i,j,k,iDim,State,Xyz=', &
-                                iProc,iBlock,i,j,k,iDim, &
-                                State_VGB(iDim,i,j,k,iBlock), &
-                                Xyz_D(iDim)
-                        end if
-                     end do
-
-                     CYCLE
-                  end if
-
-                  ! Get the direction vector
-                  iDir = 0; if(i<1) iDir = -1; if(i>nI) iDir = 1
-                  jDir = 0; if(j<1) jDir = -1; if(j>nJ) jDir = 1
-                  kDir = 0; if(k<1) kDir = -1; if(k>nK) kDir = 1
-
-                  ! If nCoarseLayer==2 and DoSendCorner is true
-                  ! the second ghost cells in the corner/edges
-                  ! are not well defined (they may contain
-                  ! the value coming from the first or second coarse cell).
-
-                  if(nCoarseLayer==2 .and. DoSendCorner .and. ( &
-                       (i<0 .or. i>nI+1) .and. (jDir /= 0 .or. kDir /= 0) .or.&
-                       (j<0 .or. j>nJ+1) .and. (iDir /= 0 .or. kDir /= 0) .or.&
-                       (k<0 .or. k>nK+1) .and. (iDir /= 0 .or. jDir /= 0) &
-                       )) CYCLE
-
-                  ! if we do not send corners and edges, check that the
-                  ! State_VGB in these cells is still the unset value
-                  if(.not.DoSendCorner .and. ( &
-                       iDir /= 0 .and. jDir /= 0 .or. &
-                       iDir /= 0 .and. kDir /= 0 .or. &
-                       jDir /= 0 .and. kDir /= 0 ))then
-
-                     do iDim = 1, nDim
-                        if(abs(State_VGB(iDim,i,j,k,iBlock)) > 1e-6)then
-                           write(*,*)'corner/edge should not be set: ', &
-                                'iProc,iBlock,i,j,k,iDim,State,Xyz=', &
-                                iProc,iBlock,i,j,k,iDim, &
-                                State_VGB(iDim,i,j,k,iBlock), &
-                                Xyz_D
-                        end if
-                     end do
-
-                     CYCLE
-                  end if
-
-                  ! Shift ghost cell coordinate into periodic domain
-                  Xyz_D = CoordMin_D + modulo(Xyz_D - CoordMin_D, DomainSize_D)
-
-                  ! Calculate distance of ghost cell layer
-                  Di = 0; Dj = 0; Dk = 0
-                  if(i <  1 .and. iRatio == 2) Di = 2*i-1
-                  if(i > nI .and. iRatio == 2) Di = 2*(i-nI)-1
-                  if(j <  1 .and. jRatio == 2) Dj = 2*j-1
-                  if(j > nJ .and. jRatio == 2) Dj = 2*(j-nJ)-1
-                  if(k <  1 .and. kRatio == 2) Dk = 2*k-1
-                  if(k > nK .and. kRatio == 2) Dk = 2*(k-nK)-1
-
-                  if(DoRestrictFace .and. &
-                       DiLevelNei_IIIB(iDir,jDir,kDir,iBlock) == -1)then
-
-                     ! Shift coordinates if only 1 layer of fine cells
-                     ! is averaged in the orthogonal direction
-                     Xyz_D(1) = Xyz_D(1) - 0.25*Di*CellSize_DB(1,iBlock)
-                     Xyz_D(2) = Xyz_D(2) - 0.25*Dj*CellSize_DB(2,iBlock)
-                     Xyz_D(3) = Xyz_D(3) - 0.25*Dk*CellSize_DB(3,iBlock)
-
-                  end if
-
-                  if(nProlongOrder == 1 .and. &
-                       DiLevelNei_IIIB(iDir,jDir,kDir,iBlock) == 1)then
-
-                     ! Shift depends on the parity of the fine ghost cell
-                     ! except when there is no AMR or multiple coarse cell
-                     ! layers are sent in that direction
-                     if(iRatio == 2 .and. (nCoarseLayer == 1 .or. iDir == 0)) &
-                          Di = 2*modulo(i,2) - 1
-                     if(jRatio == 2 .and. (nCoarseLayer == 1 .or. jDir == 0)) &
-                          Dj = 2*modulo(j,2) - 1
-                     if(kRatio == 2 .and. (nCoarseLayer == 1 .or. kDir == 0)) &
-                          Dk = 2*modulo(k,2) - 1
-
-                     Xyz_D(1) = Xyz_D(1) + 0.5*Di*CellSize_DB(1,iBlock)
-                     Xyz_D(2) = Xyz_D(2) + 0.5*Dj*CellSize_DB(2,iBlock)
-                     Xyz_D(3) = Xyz_D(3) + 0.5*Dk*CellSize_DB(3,iBlock)
-
-                  end if
-
-                  do iDim = 1, nDim
-                     if(abs(State_VGB(iDim,i,j,k,iBlock) - Xyz_D(iDim)) &
-                          > Tolerance)then
-                        write(*,*)'iProc,iBlock,i,j,k,iDim,State,Xyz=', &
-                             iProc,iBlock,i,j,k,iDim, &
-                             State_VGB(iDim,i,j,k,iBlock), &
-                             Xyz_D(iDim)
-                     end if
-                  end do
-               end do; end do; end do
-            end do
-
-         end do; end do; end do
-      end do; end do ! test parameters
-      deallocate(State_VGB)
-
-      call clean_grid
-      call clean_tree
-    end subroutine test_switches
-    !==========================================================================
-    !----------------------------------------------------------------------
-
-    subroutine test_scalar
-      !------------------------ Test Scalar -----------------------------
-
-      ! To test the message pass for the cell with min max operators we
-      ! generate a fine uniform grid
-      ! for the whole domain and transfer the cell values from the
-      ! block cells to the cells on the fine grid. Then we gather all the
-      ! data on the fine grid with the proper operator.
-      ! We can then compare the values on the coresponding node after
-      ! message_pass_cell_scalar is called with the fine grid values.
-
-      ! rescale the domain to make indexing easyer
-      !------------------------------------------------------------------------
-      DomainSize_D = iRatio_D*nRootTest_D*nIJK_D
-      DomainMin_D = [ 0.0, 0.0, 0.0 ]
-      DomainMax_D = DomainSize_D
-
-      call init_tree(MaxBlockTest)
-      call init_grid( DomainMin_D(1:nDim), DomainMax_D(1:nDim) )
-      call init_geometry( IsPeriodicIn_D = IsPeriodicTest_D(1:nDim) )
-      call set_tree_root( nRootTest_D(1:nDim))
-
-      call find_tree_node( [0.5,0.5,0.5], iNode)
-      call refine_tree_node(iNode)
-      call distribute_tree(.true.)
-      call create_grid
-
-      ! Position of cell corners, for solving problems with round-off
-      ! when getting fine grid positions
-      allocate(XyzCorn_DGB(MaxDim,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-      do iBlock = 1, nBlock
-         if(Unused_B(iBlock)) CYCLE
-         do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
-            XyzCorn_DGB(:,i,j,k,iBlock) = &
-                 Xyz_DGB(:,i,j,k,iBlock) - &
-                 0.5*CellSize_DB(:,iBlock)*&
-                 [ min(1,nI-1),min(1,nJ-1),min(1,nK-1) ]
-         end do; end do; end do
-      end do
-
-      allocate(Scalar_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-      Scalar_GB = -7777
-
-      allocate(FineGridLocal_III( &
-           nI*iRatio*nRootTest_D(1),&
-           nJ*jRatio*nRootTest_D(2),&
-           nK*kRatio*nRootTest_D(3)))
-      allocate(FineGridGlobal_III( &
-           (nI)*iRatio*nRootTest_D(1),&
-           (nJ)*jRatio*nRootTest_D(2),&
-           (nK)*kRatio*nRootTest_D(3)))
-
-      nFineCell = ((nI)*iRatio*nRootTest_D(1))*&
-           ((nJ)*jRatio*nRootTest_D(2))*&
-           ((nK)*kRatio*nRootTest_D(3))
-
-      FineGridStep_D = DomainSize_D &
-           / (DomainMax_D - DomainMin_D)
-
-      do iOp = 1, nOp
-
-         NameOperator = NameOperator_I(iOp)
-         select case(NameOperator)
-         case("min")
-            FineGridLocal_III(:,:,:)  =  1.0e8
-            FineGridGlobal_III(:,:,:) =  1.0e8
-            iMpiOperator = MPI_MIN
-         case("max")
-            FineGridLocal_III(:,:,:)  = -1.0e8
-            FineGridGlobal_III(:,:,:) = -1.0e8
-            iMpiOperator=MPI_MAX
-         case default
-            call CON_stop(NameSub//': incorrect operator name')
-         end select
-
-         if(DoTest) write(*,*) 'testing message_pass_cell_scalar ', &
-              'with operator= ',NameOperator
-
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            do k = 1, nK; do j = 1, nJ; do i = 1, nI
-               Scalar_GB(i,j,k,iBlock)= iNode_B(iBlock) + &
-                    sum(CoordMin_DB(:,iBlock) + &
-                    ( [i, j, k] ) * CellSize_DB(:,iBlock))
-            end do; end do; end do
-         end do
-
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            do k = 1, nK; do j = 1, nJ; do i = 1, nI
-
-               iFG = nint(XyzCorn_DGB(1,i,j,k,iBlock)*FineGridStep_D(1)) + 1
-               jFG = nint(XyzCorn_DGB(2,i,j,k,iBlock)*FineGridStep_D(2)) + 1
-               kFG = nint(XyzCorn_DGB(3,i,j,k,iBlock)*FineGridStep_D(3)) + 1
-
-               FineGridLocal_III(iFG,jFG,kFG) = Scalar_GB(i,j,k,iBlock)
-            end do; end do; end do
-         end do
-
-         call message_pass_cell(Scalar_GB, &
-              nProlongOrderIn=1, nCoarseLayerIn=2, &
-              DoSendCornerIn=.true., DoRestrictFaceIn=.false., &
-              NameOperatorIn=NameOperator_I(iOp))
-
-         call MPI_ALLREDUCE(FineGridLocal_III(1,1,1), &
-              FineGridGlobal_III(1,1,1),              &
-              nFineCell, MPI_REAL, iMpiOperator, iComm, iError)
-
-         ! making sure that we have the center cell along the x=0 side
-         ! so the boundary are not tested.
-         call find_tree_node( [0.0,0.5,0.5], iNode)
-
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            if(iNode_B(iBlock) == iNode) then
-               do k = MinK, MaxK; do j = MinJ, MaxJ; do i = 1, MaxI
-
-                  iFG = nint(XyzCorn_DGB(1,i,j,k,iBlock)*FineGridStep_D(1)) + 1
-                  jFG = nint(XyzCorn_DGB(2,i,j,k,iBlock)*FineGridStep_D(2)) + 1
-                  kFG = nint(XyzCorn_DGB(3,i,j,k,iBlock)*FineGridStep_D(3)) + 1
-
-                  ! copy cells that are inside the course grid cell
-                  CourseGridCell_III = FineGridGlobal_III(&
-                       iFG:iFG+min(1,iRatio-1),&
-                       jFG:jFG+min(1,jRAtio-1),&
-                       kFG:kFG+min(1,kRatio-1))
-
-                  select case(NameOperator)
-                  case("min")
-                     if(Scalar_GB(i,j,k,iBlock) /= &
-                          minval(CourseGridCell_III))then
-                        write (*,*) "Error for operator, iNode,  iBlock= ",&
-                             NameOperator, iNode_B(iBlock),iBlock, ", value=",&
-                             minval(CourseGridCell_III),&
-                             " should be ",Scalar_GB(i,j,k,iBlock),"index : ",&
-                             i,j,k, " ::", iFG, jFG,kFG
-
-                     end if
-                  case("max")
-                     if(Scalar_GB(i,j,k,iBlock) /= &
-                          maxval(CourseGridCell_III))then
-                        write (*,*) "Error for operator, iNode,  iBlock= ",&
-                             NameOperator, iNode_B(iBlock), iBlock, ",value=",&
-                             maxval(CourseGridCell_III),&
-                             " should be ",Scalar_GB(i,j,k,iBlock),"index : ",&
-                             i,j,k, " ::", iFG, jFG,kFG
-                     end if
-                  end select
-
-               end do; end do; end do
-            end if
-         end do
-
-      end do
-      deallocate(Scalar_GB, FineGridLocal_III, FineGridGlobal_III,XyzCorn_DGB)
-      call clean_grid
-      call clean_tree
-
-    end subroutine test_scalar
-    !==========================================================================
-    subroutine test_non_cartesian
-
-      !------------------------------------------------------------------------
-      do iTest = 1,6
-
-         ! The code is quite inaccurate for partial AMR across the pole
-         if(nDimAmr < nDim .and. iTest > 3) EXIT
-
-         call init_tree(MaxBlockTest)
-
-         ! Do not test ghost cells in the radial direction
-         iMin = 1; iMax = nI
-         jMin = MinJ; jMax = MaxJ
-         kMin = MinK; kMax = MaxK
-
-         select case(iTest)
-         case(1,4)
-            NameGeometry = 'cylindrical'
-
-            ! 0 < r < 10, 0 < phi < 360deg, -5 < z < 5
-            DomainMin_D = [ 0.0,  0.0, -5.0 ]
-            DomainMax_D = [ 8.0, cTwoPi, +5.0 ]
-            IsPeriodicTest_D = [ .false., .true., .true. ]
-
-            ! There must be an even number of root blocks in the phi direction
-            ! There are 3 root blocks in z so that we can refine the middle
-            ! and avoid issues of periodicity in the testing
-            nRootTest_D = [ 2, 4, 3 ]
-
-            ! Test ghost cells at rMin
-            iMin = MinI
-
-         case(2,5)
-            if(nDim < 3)CYCLE
-            NameGeometry = 'spherical'
-
-            ! 1 < r < 9, 0 < theta < 180deg, 0 < phi < 360deg
-            DomainMin_D = [ 1.0,  0.0, 0.0 ]
-            DomainMax_D = [ 9.0,  cPi, cTwoPi ]
-            IsPeriodicTest_D = [ .false., .false., .true. ]
-
-            ! There must be an even number of root blocks in the phi direction
-            ! There are 3 root blocks in r so that we can refine the middle
-            ! and avoid issues at inner and outer radial boundaries
-            nRootTest_D = [ 3, 2, 4 ]
-
-         case(3,6)
-            if(nDim < 3)CYCLE
-            NameGeometry = 'rlonlat'
-
-            ! 1 < r < 9, 0 < phi < 360deg, -90 < lat < 90
-            DomainMin_D = [ 1.0,    0.0, -cHalfPi ]
-            DomainMax_D = [ 9.0, cTwoPi, cHalfPi ]
-            IsPeriodicTest_D = [ .false., .true., .false. ]
-
-            ! There must be an even number of root blocks in the phi direction
-            ! There are 3 root blocks in r so that we can refine the middle
-            ! and avoid issues at inner and outer radial boundaries
-            nRootTest_D = [ 3, 4, 2 ]
-
-         end select
-         DomainSize_D = DomainMax_D - DomainMin_D
-
-         if(DoTest)then
-            if(iTest <= 3)write(*,*) &
-                 'testing message_pass_cell across '//trim(NameGeometry)// &
-                 ' pole'
-            if(iTest >= 4)write(*,*) &
-                 'testing message_pass_cell across '//trim(NameGeometry)// &
-                 ' pole with resolution change'
-         end if
-
-         call init_geometry(NameGeometry, &
-              IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
-
-         call init_grid(DomainMin_D(1:nDim), DomainMax_D(1:nDim), &
-              UseDegreeIn=.false.)
-         call set_tree_root( nRootTest_D(1:nDim))
-
-         if(any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
-              write(*,*) NameSub,': IsPeriodic_D=', IsPeriodic_D(1:nDim), &
-              ' should agree with ', IsPeriodicTest_D(1:nDim)
-
-         if(iTest > 3)then
-            ! Test with refined grid
-            if(iTest==4)then
-               ! refine node next to r=0 axis but middle in Z direction
-               call refine_tree_node(9)
-            else
-               ! refine root nodes at min and max (theta/lat/phi) coordinates
-               ! but middle in the R direction
-               call refine_tree_node(2)
-               call refine_tree_node(23)
-            end if
-            ! Restriction is not linear so there is truncation error
-            Tolerance = 0.15
-         else
-            ! For tests with no AMR the error is round-off only
-            Tolerance = 1e-6
-         end if
-
-         call distribute_tree(.true.)
-         call create_grid
-
-         allocate(State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-
-         State_VGB = 0.0
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            State_VGB(:,1:nI,1:nJ,1:nK,iBlock) = &
-                 Xyz_DGB(1:nDim,1:nI,1:nJ,1:nK,iBlock)
-         end do
-
-         ! Second order
-         call message_pass_cell(nVar, State_VGB)
-
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-
-            ! Loop through all cells including ghost cells
-            do k = kMin, kMax; do j = jMin, jMax; do i = iMin, iMax
-
-               ! The filled in second order accurate ghost cell value
-               ! should be the same as the coordinates of the cell center
-               Xyz_D = Xyz_DGB(:,i,j,k,iBlock)
-
-               ! For 3D cylindrical Z coordinate is periodic
-               if( (iTest==1 .or. iTest==4) .and. nDim == 3) &
-                    Xyz_D(z_) = DomainMin_D(z_) &
-                    + modulo(Xyz_D(z_) - DomainMin_D(z_), DomainSize_D(z_))
-
-               do iDim = 1, nDim
-                  if(abs(State_VGB(iDim,i,j,k,iBlock) - Xyz_D(iDim)) &
-                       /abs( Xyz_D(iDim)) > Tolerance)then
-                     write(*,*)'iProc,iBlock,i,j,k,iDim,State,Xyz=', &
-                          iProc,iBlock,i,j,k,iDim, &
-                          State_VGB(iDim,i,j,k,iBlock), &
-                          Xyz_D(iDim)
-
-                  end if
-               end do
-            end do; end do; end do
-         end do
-
-         deallocate(State_VGB)
-
-         call clean_grid
-         call clean_tree
-      end do
-
-      ! In previous do loop, it may cycle some loops without cleaning.
-      call clean_grid
-      call clean_tree
-
-    end subroutine test_non_cartesian
-    !==========================================================================
-
-    subroutine test_high_order_cartesian
-      real    :: ExactSolution, Error, ErrorTotal
-      integer :: iCount, nCount, nRefineNode, iRefinement,nRefinement
-      integer :: iNode_I(8)
-      integer :: iNode1_I(8)
-      logical :: DoTestMeOnly = .false.
-      integer :: nPoly = 3
-
-      !------------------------------------------------------------------------
-      if(nDim == 2) then
-         nCount = 16; nRefineNode = 4
-      else
-         nCount = 256; nRefineNode = 8
-      endif
-
-      if(nDimAmr < nDim) RETURN
-
-      iMin = MinI; iMax = MaxI
-      jMin = MinJ; jMax = MaxJ
-      kMin = MinK; kMax = MaxK
-
-      NameGeometry = 'cartesian'
-
-      DomainMin_D = [0.0, 0.0, 0.0]
-      DomainMax_D = [8.0, 8.0, 8.0]
-      DomainSize_D = DomainMax_D - DomainMin_D
-
-      IsPeriodicTest_D = [.true., .true., .true.]
-      nRootTest_D = [4,4,4]
-
-      nRefinement = 2
-      do iRefinement = 1, nRefinement
-         ! iRefinement = 1: 1 level refine
-         ! iRefinement = 2: 2 level refine
-
-         if(DoTest)then
-            write(*,*) &
-                 'testing message_pass_cell across '//trim(NameGeometry)// &
-                 ' with high resolution change with refinement level =', &
-                 iRefinement
-         end if
-
-         if(nDim == 2) then
-            if(iRefinement == 1) then
-               iNode_I = [6,7,10,11,-1,-1,-1,-1]
-            else
-               iNode1_I = [6,7,10,11,-1,-1,-1,-1]
-               iNode_I  = [20,23,26,29,-1,-1,-1,-1]
-            endif
-         else ! 3D
-            if(iRefinement == 1) then
-               iNode_I = [22,23,26,27,38,39,42,43]
-            else
-               iNode1_I = [22,23,26,27,38,39,42,43]
-               iNode_I = [72,79,86,93,100,107,114,121]
-            endif
-         endif
-
-         do iCount = 0, nCount-1
-            if(DoTestMeOnly) then
-               write(*,*) ''
-               write(*,*) 'test_high_order iCount = ', iCount
-            endif
-            call init_tree(MaxBlockTest)
-            call init_geometry(NameGeometry, &
-                 IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
-
-            call init_grid(DomainMin_D(1:nDim), DomainMax_D(1:nDim), &
-                 UseDegreeIn=.false.)
-            call set_tree_root( nRootTest_D(1:nDim))
-
-            if(any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
-                 write(*,*) NameSub,': IsPeriodic_D=', IsPeriodic_D(1:nDim), &
-                 ' should agree with ', IsPeriodicTest_D(1:nDim)
-
-            if(iRefinement == 2) then
-               do iNode = 1,nRefineNode
-                  call refine_tree_node(iNode1_I(iNode))
-               enddo
-            endif
-
-            do iNode = 1,nRefineNode
-               if(btest(iCount,iNode-1)) then
-                  call refine_tree_node(iNode_I(iNode))
-                  if(DoTestMeOnly) &
-                       write(*,*) 'iNode IsRefined:', iNode_I(iNode), 'TRUE'
-               else
-                  if(DoTestMeOnly) &
-                       write(*,*) 'iNode IsRefined:', iNode_I(iNode), 'FALSE'
-               endif
-            enddo
-
-            Tolerance = 5e-15
-
-            call distribute_tree(.true.)
-            call create_grid
-
-            allocate(&
-                 State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-            State_VGB = 0
-
-            do iBlock = 1, nBlock
-               if(Unused_B(iBlock)) CYCLE
-               do i = 1,nI; do j = 1,nJ; do k = 1,nK
-                  State_VGB(1,i,j,k,iBlock) = &
-                       exact_solution(Xyz_DGB(:,i,j,k,iBlock),nPolyIn=nPoly)
-               enddo; enddo; enddo
-            end do
-
-            call message_pass_real(nVar,nG,State_VGB,nProlongOrderIn=1,&
-                 nCoarseLayerIn=2,DoResChangeOnlyIn=.false., &
-                 UseHighResChangeIn=.true.)
-            ErrorTotal = 0
-            do iBlock = 1, nBlock
-               if(Unused_B(iBlock)) CYCLE
-
-               ! Loop through all cells including ghost cells
-               do k = kMin,kMax; do j = jMin,jMax; do i = iMin, iMax
-                  Xyz_D = Xyz_DGB(:,i,j,k,iBlock)
-                  if(.not. (all(Xyz_D(1:nDim) < DomainMax_D(1:nDim)) &
-                       .and. all(Xyz_D(1:nDim) > DomainMin_D(1:nDim)))) then
-                     CYCLE
-                  endif
-
-                  ExactSolution= exact_solution(Xyz_D, nPolyIn=nPoly)
-                  Error = abs(ExactSolution - State_VGB(1,i,j,k,iBlock))
-                  ErrorTotal = ErrorTotal + Error
-                  if(abs(Error)/abs(ExactSolution)>Tolerance)&
-                       then
-                     write(*,*)&
-                          'iProc,iNode,i,j,k,x,y,z,',&
-                          'state,exact-solution,error,relative-error='
-                     write(*,'(5I5,7e20.12)')&
-                          iProc,iNode_B(iBlock),i,j,k, &
-                          Xyz_D,State_VGB(1,i,j,k,iBlock), &
-                          ExactSolution, Error, abs(Error)/abs(ExactSolution)
-
-                  end if
-               end do; end do; end do
-            end do
-            if(DoTestMeOnly ) then
-               write(*,*) 'Refine level = ', iRefinement
-               write(*,*) 'Total error  = ', ErrorTotal
-            endif
-            deallocate(State_VGB)
-
-            call clean_grid
-            call clean_tree
-         enddo ! iCount
-      enddo ! iRefinement
-
-    end subroutine test_high_order_cartesian
-    !==========================================================================
-
-    subroutine test_high_order_non_cartesian
-      real    :: ErrorTotal, ExactSolution, Error
-      real    :: Xyz1_D(3), XyzGeneral_D(3)
-      integer :: nPoly
-      !------------------------------------------------------------------------
-      do iTest = 1, 2
-
-         ! The code is quite inaccurate for partial AMR across the pole
-         if(nDimAmr < nDim .and. iTest > 3) EXIT
-
-         call init_tree(MaxBlockTest)
-
-         ! Do not test ghost cells in the radial direction
-         iMin = 1; iMax = nI
-         jMin = MinJ; jMax = MaxJ
-         kMin = MinK; kMax = MaxK
-
-         select case(iTest)
-         case(1)
-
-            NameGeometry = 'cylindrical'
-
-            ! 2 < r < 8, 0 < phi < 360deg, -5 < z < 5
-            DomainMin_D = [ 2.0,  0.0, -5.0 ]
-            DomainMax_D = [ 8.0, cTwoPi, +5.0 ]
-            IsPeriodicTest_D = [ .false., .true., .true. ]
-
-            ! There must be an even number of root blocks in the phi direction
-            ! There are 3 root blocks in z so that we can refine the middle
-            ! and avoid issues of periodicity in the testing
-            nRootTest_D = [3,4,3]
-
-            ! Test ghost cells at rMin
-            iMin = MinI
-
-         case(2)
-            NameGeometry = 'rotatedcartesian'
-
-            DomainMin_D = [0.0, 0.0, 0.0]
-            DomainMax_D = [6.0, 6.0, 6.0]
-
-            IsPeriodicTest_D = [.false., .false., .false.]
-            nRootTest_D = [3,3,3]
-         end select
-         DomainSize_D = DomainMax_D - DomainMin_D
-
-         if(DoTest)then
-            write(*,*) &
-                 'testing message_pass_cell across '//trim(NameGeometry)// &
-                 ' with high resolution change'
-         end if
-
-         call init_geometry(NameGeometry, &
-              IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
-
-         call init_grid(DomainMin_D(1:nDim), DomainMax_D(1:nDim), &
-              UseDegreeIn=.false.)
-         call set_tree_root( nRootTest_D(1:nDim))
-
-         if(any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
-              write(*,*) NameSub,': IsPeriodic_D=', IsPeriodic_D(1:nDim), &
-              ' should agree with ', IsPeriodicTest_D(1:nDim)
-
-         if(iTest==1)then
-            ! refine node next to r=0 axis but middle in Z direction
-            if(nDim==2) then
-               call refine_tree_node(2)
-            elseif(nDim==3) then
-               call refine_tree_node(17)
-            endif
-         elseif(iTest == 2) then
-            if(nDim==2) then
-               call refine_tree_node(5)
-            elseif(nDim==3) then
-               call refine_tree_node(14)
-            endif
-         end if
-
-         if(iTest == 2) then
-            Tolerance = 1e-14
-            nPoly=3
-         else
-            Tolerance = 7e-3
-            nPoly=1
-         endif
-
-         call distribute_tree(.true.)
-         call create_grid
-
-         allocate(State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlockTest))
-         State_VGB = 0
-
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            do i = 1,nI; do j = 1,nJ; do k = 1,nK
-               State_VGB(1,i,j,k,iBlock) = &
-                    exact_solution(Xyz_DGB(:,i,j,k,iBlock),nPolyIn=nPoly)
-            enddo; enddo; enddo
-         end do
-
-         call message_pass_real(nVar,nG,State_VGB,nProlongOrderIn=1,&
-              nCoarseLayerIn=2,DoResChangeOnlyIn=.false., &
-              UseHighResChangeIn=.true.)
-
-         ! Second order
-         ! call message_pass_cell(nVar, State_VGB)
-
-         ErrorTotal = 0
-         do iBlock = 1, nBlock
-            if(Unused_B(iBlock)) CYCLE
-            ! Loop through all cells including ghost cells
-            do k = kMin,kMax; do j = jMin,jMax; do i = iMin, iMax
-
-               Xyz_D = Xyz_DGB(:,i,j,k,iBlock)
-
-               if(iTest == 2) then
-                  Xyz1_D = rot_to_cart(Xyz_D)
-               else
-                  call Xyz_to_coord(Xyz_D, Xyz1_D)
-               endif
-
-               if(.not. (all(Xyz1_D(1:nDim) < DomainMax_D(1:nDim)) &
-                    .and. all(Xyz1_D(1:nDim) > DomainMin_D(1:nDim)))) then
-                  CYCLE
-               endif
-
-               ExactSolution= exact_solution(Xyz_D,nPolyIn=nPoly)
-               Error = abs(ExactSolution - State_VGB(1,i,j,k,iBlock))
-               ErrorTotal = ErrorTotal + Error/abs(ExactSolution)
-
-               if(abs(Error)/abs(ExactSolution)> Tolerance)then
-                  write(*,*)&
-                       'iProc,iNode,i,j,k,x,y,z,',&
-                       'state,exact-solution,error,relative-error='
-                  write(*,'(5I5,7e20.12)')&
-                       iProc,iNode_B(iBlock),i,j,k, &
-                       Xyz_D,State_VGB(1,i,j,k,iBlock), &
-                       ExactSolution, Error, abs(Error)/abs(ExactSolution)
-                  call Xyz_to_coord(Xyz_D, XyzGeneral_D)
-                  write(*,*) 'Xyz general = ',XyzGeneral_D
-                  write(*,*) ''
-               end if
-
-            end do; end do; end do
-         end do
-
-         deallocate(State_VGB)
-
-         call clean_grid
-         call clean_tree
-      end do ! iTest
-
-    end subroutine test_high_order_non_cartesian
-    !==========================================================================
-
-    !----------------------------------------------------------------------
-
-    real function exact_solution(Xyz_D, nPolyIn)
-      real, intent(in):: Xyz_D(3)
-      integer, optional,intent(in) :: nPolyIn
-      integer:: nPoly
-      real:: x, y, z
-
-      !------------------------------------------------------------------------
-      nPoly = 4
-      if(present(nPolyIn)) nPoly = nPolyIn
-
-      x = Xyz_D(1)
-      y = Xyz_D(2)
-      z = Xyz_D(3)
-
-      ! exact_solution = 4.0+sin(y*2*cpi/8.0)+cos(z*2*cpi/8.0)+sin(x*2*cpi/8.0)
-      select case(nPoly)
-      case(4)
-         exact_solution = x**4 +y**4+ z**4 + x**3*y &
-              + y**3*x + x**3*z + x*z**3 + y**3*z + y*z**3 &
-              + x**2*y**2 + x**2*z**2 + y**2*z**2 &
-              + y*z*x**2 + x*z*y**2 + x*y*z**2
-      case(3)
-         exact_solution = x**3 + y**3 + z**3 + x*y*z + x**2*y + x*y**2 + &
-              x**2*z + x*z**2 + y**2*z + y*z**2
-      case(1)
-         exact_solution = x + y + z
-      end select
-    end function exact_solution
-    !==========================================================================
-
-  end subroutine test_pass_cell
-  !============================================================================
-
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax)
 
@@ -1948,7 +1018,7 @@ contains
 
     ! For high order resolution change, a few face ghost cells need to be
     ! calculated remotely after the coarse block have got accurate
-    ! ghost cells. 
+    ! ghost cells.
     logical:: DoSendFace, DoRecvFace
 
     ! For 6th order correction, which may be better because of symmetry,
@@ -1957,7 +1027,7 @@ contains
     logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
          (nK==1 .or. nK>7)
     !--------------------------------------------------------------------------
-    
+
     iNodeSend = iNode_B(iBlockSend)
 
     ! Skip if the sending block level is not in the level range
@@ -2049,7 +1119,7 @@ contains
           end do ! iDir
        end do ! jDir
     end do ! kDir
-    
+
   contains
     !==========================================================================
 
@@ -2062,7 +1132,7 @@ contains
       integer:: iSend,jSend,kSend
       integer:: iNodeRecv
       !------------------------------------------------------------------------
-      
+
       nDir = abs(iDir) + abs(jDir) + abs(kDir)
 
       if(nDir > nDim-1) RETURN
@@ -2103,7 +1173,7 @@ contains
             do iDir1 = -1, 1, 2
                if(DiLevelNei_IIIB(iDir1,jDir1,kDir1,iBlockSend) == 1 .or. &
                     DiLevelNei_IIIB(iDir1,jDir, kDir1,iBlockSend) == 1) then
-                  
+
                   iEqualSOrig_DII = iEqualS_DII
                   iEqualROrig_DII = iEqualR_DII
                   if(iDir1 == -1) then
@@ -2111,7 +1181,7 @@ contains
                      iEqualS_DII(1,0,Max_) = 0
 
                      iEqualR_DII(1,0,Min_) = 1 - nWidth
-                     iEqualR_DII(1,0,Max_) = 0                     
+                     iEqualR_DII(1,0,Max_) = 0
                   elseif(iDir1 == 1) then
                      iEqualS_DII(1,0,Min_) = nI + 1
                      iEqualS_DII(1,0,Max_) = nI + nWidth
@@ -2497,7 +1567,7 @@ contains
       !------------------------------------------------------------------------
 
       DiR = 1; DjR = 1; DkR = 1
-      
+
       iSend = (3*iDir + 3)/2
       jSend = (3*jDir + 3)/2
       kSend = (3*kDir + 3)/2
@@ -2528,7 +1598,7 @@ contains
       jRMax = iEqualR_DII(2,jDir,Max_)
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
-      
+
       if(iSendStage == 3) then
          ! Only edge/corner cells need to be overwritten.
          nWithin = 0
@@ -2560,14 +1630,14 @@ contains
             iRMax = iEqualR_DII(1,1,Min_)
          end if
       end if
-      
+
       iSMin = iEqualS_DII(1,iDir,Min_)
       iSMax = iEqualS_DII(1,iDir,Max_)
       jSMin = iEqualS_DII(2,jDir,Min_)
       jSMax = iEqualS_DII(2,jDir,Max_)
       kSMin = iEqualS_DII(3,kDir,Min_)
       kSMax = iEqualS_DII(3,kDir,Max_)
-      
+
       if(iProc == iProcRecv)then
          ! Local copy
          if(nDim > 1) DiR = sign(1, iRMax - iRMin)
@@ -2786,13 +1856,13 @@ contains
       if(iProc == iProcRecv)then
 
          if(present(Time_B)) &
-              UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))  
-         if(UseTime)then            
+              UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
+         if(UseTime)then
             ! Get time of neighbor and interpolate/extrapolate ghost cells
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
             WeightNew = 1 - WeightOld
-            
+
             do kR = kRMin, kRMax, DkR
                kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                kS2 = kS1 + kRatioRestr - 1
@@ -2832,7 +1902,7 @@ contains
                if(.not.IsAccurate_B(iBlockSend)) &
                     call calc_accurate_coarsened_block(iBlockSend)
             endif
-            
+
             if(UseHighResChange) then
                do kR = kRMin, kRMax, DkR
                   kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
@@ -2891,7 +1961,7 @@ contains
                allocate(State_VG(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK))
                State_VG = 1
             endif
-            
+
             do kR = kRMin, kRMax, DkR
                kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                do jR = jRMin, jRMax, DjR
@@ -3301,10 +2371,10 @@ contains
                      WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                           /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
                      WeightNew = 1 - WeightOld
-                     
+
                      do kR = kRMin, kRMax, DkR
                         ! For kRatio = 1 simple shift: kS = kSMin+kR-kRMin
-                        ! For kRatio = 2 coarsen both kR and kRMin before 
+                        ! For kRatio = 2 coarsen both kR and kRMin before
                         ! shift
                         kS = kSMin + abs((kR+9)/kRatioRestr &
                              -           (kRMin+9)/kRatioRestr)
@@ -3341,10 +2411,10 @@ contains
                                       -           (iRMin+9)/iRatioRestr)
                                  if(iRatioRestr == 2) &
                                       iDir1 = 2*mod(iR+2*nI,2) - 1
-                                 
+
                                  if(IsAccurateFace_GB(iR,jR,kR,iBlockRecv))&
                                       CYCLE
-                                 
+
                                  do iVar = 1, nVar
                                     CoarseCell_III(1:i5,1:j5,1:k5) = &
                                          State_VGB(iVar,&
@@ -3352,13 +2422,13 @@ contains
                                          jS-2*jDir1:jS+2*jDir1:sign(1,jDir1),&
                                          kS-2*kDir1:kS+2*kDir1:sign(1,kDir1),&
                                          iBlockSend)
-                                    
+
                                     State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
                                          prolongation_high_order_amr&
                                          (CoarseCell_III,&
                                          IsPositiveIn=IsPositive_V(iVar))
                                  enddo
-                                 
+
                               end do ! iR
                            end do ! jR
                         end do ! kR
@@ -3372,7 +2442,7 @@ contains
                               do iR = iRMin, iRMax, DiR
                                  iS = iSMin + abs((iR+9)/iRatioRestr &
                                       -           (iRMin+9)/iRatioRestr)
-                                 
+
                                  if(nProlongOrder==2 .and. &
                                       (UseMin .or. UseMax))then
                                     ! Assign min/max value stored in Slope_VG
@@ -3386,12 +2456,12 @@ contains
                               end do
                            end do
                         end do
-                        
+
                      end if ! HighRes
                   end if ! UseTime
                else
                   iBufferS = iBufferS_P(iProcRecv)
-                  
+
                   BufferS_I(            iBufferS+1) = iBlockRecv
                   BufferS_I(            iBufferS+2) = iRMin
                   BufferS_I(            iBufferS+3) = iRMax
@@ -3399,13 +2469,13 @@ contains
                   if(nDim > 1)BufferS_I(iBufferS+5) = jRMax
                   if(nDim > 2)BufferS_I(iBufferS+6) = kRMin
                   if(nDim > 2)BufferS_I(iBufferS+7) = kRMax
-                  
+
                   iBufferS = iBufferS + 1 + 2*nDim
                   if(present(Time_B))then
                      iBufferS = iBufferS + 1
                      BufferS_I(iBufferS) = Time_B(iBlockSend)
                   end if
-                  
+
                   if(UseHighResChange .and. iSendStage == 4) then
                      iDir1 = 0; jDir1 = 0; kDir1 = 0
                      i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 =  max(5*Dk,1)

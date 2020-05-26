@@ -5,7 +5,7 @@ module BATL_test
   use ModReadParam, ONLY: lStringLine, read_var
   use BATL_mpi,  ONLY: iProc, nProc, iComm
   use BATL_size, ONLY: nDim, MaxDim, nBlock, &
-       MinI, MaxI, MinJ, MaxJ, MinK, MaxK
+    MinI, MaxI, MinJ, MaxJ, MinK, MaxK
   use BATL_grid, ONLY: find_grid_block, show_grid_cell
 
   use ModUtilities, ONLY: CON_stop

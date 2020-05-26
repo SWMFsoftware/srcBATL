@@ -40,12 +40,14 @@ module BATL_lib
 
   ! Inherited from BATL_size
   public:: MaxDim, nDim, Dim1_, Dim2_, Dim3_, iDim_, jDim_, kDim_
+  public:: iRatio, jRatio, kRatio
   public:: nDimAmr, iDimAmr_D
   public:: MaxBlock, nBlock
   public:: nI, nJ, nK, nIJK, nIJK_D, MinIJK_D, MaxIJK_D
   public:: MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
   public:: j0_, j2_, nJp1_, nJm1_, k0_, k2_, nKp1_, nKm1_, i0_, nIp1_
   public:: nINode, nJNode, nKNode
+  public:: iRatio_D
 
   ! Inherited from BATL_amr_criteria
   public:: AmrCrit_IB, nAmrCrit, DoCritAmr, DoAutoAmr, DoStrictAmr
@@ -71,10 +73,10 @@ module BATL_lib
 
   ! Inherited from BATL_mpi
   public:: init_mpi, clean_mpi, barrier_mpi
-  public:: iComm, nProc, iProc, nThread, iThread          
+  public:: iComm, nProc, iProc, nThread, iThread
 
   ! Inherited from BATL_tree
-  public:: MaxNode, nNode, nNodeUsed, nRoot_D
+  public:: MaxNode, nNode, nNodeUsed, nRoot_D, nRoot
   public:: MaxLevel, nLevelMin, nLevelMax, MaxCoord_I
   public:: Unused_B, Unused_BP, Used_GB
   public:: iNode_B, iMortonNode_A, iNodeMorton_I
@@ -144,10 +146,44 @@ module BATL_lib
   public:: message_pass_particles, remove_undefined_particles, mark_undefined
 
   ! Inherited from BATL_tree
-  public:: write_tree_file, read_tree_file
-  public:: get_tree_position
-  public:: min_tree_level
-  public:: set_tree_periodic
+  public:: init_tree        ! initialize tree
+  public:: clean_tree       ! clean tree data
+  public:: set_tree_param   ! set parameters like UseUniformAxis
+  public:: set_tree_root    ! set root nodes
+  public:: refine_tree_node ! refined one tree node
+  public:: coarsen_tree_node! coarsen one tree node
+  public:: adapt_tree       ! refine and coarsen the whole tree
+  public:: distribute_tree  ! distribute tree nodes over processors
+  public:: move_tree        ! finish load balance and compact tree
+  public:: get_tree_position! get node position in the domain
+  public:: find_tree_node   ! find tree node containing a given point
+  public:: find_tree_cell   ! find tree cell containing a given point
+  public:: interpolate_tree ! not yet complete
+  public:: write_tree_file  ! save tree info for restart
+  public:: read_tree_file   ! read tree info for restart
+  public:: min_tree_level   ! return min level for a subcycling stage
+  public:: set_tree_periodic! switch periodicity info on/off as needed
+  public:: show_tree        ! show info for debugging
+  public:: find_neighbor_for_anynode
+  public:: i_node_new
+  public:: is_point_inside_node
+
+  ! Inherited from BATL_grid
+  public :: init_grid           ! initializa module
+  public :: clean_grid          ! clean module
+  public :: interpolate_grid_amr
+  public :: interpolate_grid_amr_gc
+  public :: show_grid_proc      ! only used in test?
+
+  ! Inherited from BATL_geometry
+  public:: init_geometry  ! initialize the module
+  public:: clean_geometry ! clean up storage
+  public:: xyz_to_coord   ! convert XYZ coordinates to generalized coordinates
+  public:: coord_to_xyz   ! convert generalized coordinates to XYZ coordinates
+  public:: radius_to_gen  ! convert radial coordinate to generalized coordinate
+  public:: gen_to_radius  ! convert generalized coordinate to radial coordinate
+  public:: rot_to_cart    ! Rotate a vector/matrix from rotated to Cartesian
+  public:: set_high_geometry
 
   ! Inherited from BATL_test
   public:: read_test_param, find_test_cell
@@ -197,7 +233,7 @@ contains
     ! during the whole run.
     ! At the base level the domain is decomposed into the root blocks.
     !
-    ! The optional nRootIn_D argument provides the number of root blocks 
+    ! The optional nRootIn_D argument provides the number of root blocks
     ! in each dimension. The default is a single root block at the base level.
     !
     ! The optional TypeGeometry describes the geometry of the coordinate
@@ -207,7 +243,7 @@ contains
     ! The optional IsPeriodicIn_D argument tells if a certain direction
     ! is periodic or not.
     !
-    ! At the completion of this subroutine, the domain and the block-tree 
+    ! At the completion of this subroutine, the domain and the block-tree
     ! are initialized, the root blocks are distributed and their coordinates
     ! cell volumes, face areas, etc. are all set.
     !
@@ -239,7 +275,7 @@ contains
   end subroutine init_batl
   !============================================================================
   subroutine clean_batl
-    
+
     !------------------------------------------------------------------------
     ! Free up memory
     call clean_amr_criteria
@@ -326,7 +362,7 @@ contains
     optional:: pack_extra_data, unpack_extra_data
 
     ! If UseHighOrderAMRIn is true, 5th (6th) order accuracy will be achieved
-    ! for refined (coarsened) blocks. 
+    ! for refined (coarsened) blocks.
     logical, intent(in), optional:: UseHighOrderAMRIn
 
     ! Default values of each states. Used for high order AMR. If the default
@@ -355,7 +391,7 @@ contains
     ! The nExtraData, pack_extra_data and unpack_extra_data arguments
     ! allow sending nExtraData real numbers together with the blocks.
     !
-    ! Refinement and coarsening is primarily based on the iStatusNew_A array 
+    ! Refinement and coarsening is primarily based on the iStatusNew_A array
     ! (available via the BATL_lib module) that is indexed by nodes
     ! (so a processor can request refinement for a non-local block).
     ! It should be set to the values Refine_ and Coarsen_. The AMR algorithm
@@ -446,7 +482,7 @@ contains
          UseHighOrderAMRIn=UseHighOrderAMRIn, &
          DefaultStateIn_V=DefaultStateIn_V)
 
-    ! This logical tells find_neighbor (called by move_tree) to check 
+    ! This logical tells find_neighbor (called by move_tree) to check
     ! if the neighbor levels of a block (otherwise not affected by AMR) changed
     DoCheckResChange = nDim == 3 .and. IsNodeBasedGrid &
          .and. .not.IsCartesianGrid
