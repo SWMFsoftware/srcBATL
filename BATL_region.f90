@@ -29,7 +29,8 @@ module BATL_region
   public:: get_region_indexes
   public:: block_inside_regions
   public:: points_inside_region
-
+  public:: is_point_inside_regions
+  
   ! Maximum number of geometric areas
   integer, public, parameter :: MaxArea = 100
 
@@ -604,6 +605,63 @@ contains
   end subroutine read_region_param
   !============================================================================
 
+  logical function is_point_inside_regions(iRegion_I, Xyz_D)
+
+    ! return true if point Xyz_D is inside any region defined by
+    ! iRegion_I
+
+    use BATL_geometry, ONLY: IsCartesianGrid
+    use ModUtilities,  ONLY: lower_case
+
+    integer, intent(in):: iRegion_I(:)
+    real,    intent(in):: Xyz_D(nDim)
+
+    integer:: nRegion, iRegion, iArea, iSign
+    logical:: IsInside = .false., IsInsideOld = .false.
+    real:: Xyz_DI(nDim, 1)
+
+    logical:: DoTest = .false.
+    character(len=*), parameter:: NameSub = 'point_inside_regions'
+    !--------------------------------------------------------------------------
+
+    nRegion = size(iRegion_I)
+    if(nRegion < 1) call CON_stop(NameSub//': empty region index array')
+
+    ! Loop through all regions
+    do iRegion = 1, nRegion
+
+       ! Store results obtained from previous regions
+       if(iRegion > 1) IsInsideOld = IsInside
+
+       ! Get Area index and evaluate it
+       iArea = abs(iRegion_I(iRegion))
+       iSign = sign(1, iRegion_I(iRegion))
+       Area => Area_I(iArea)
+       NameShape = Area%NameShape
+
+       Xyz_DI(1:nDim, 1) = Xyz_D
+
+       call points_inside_region(1, Xyz_DI, Area, IsInside)
+
+       ! Negate results for negative sign
+       if(iRegion == 1)then
+          if(iSign < 0) IsInside = .not. IsInside
+       else
+          ! Combine last region info with previous
+          if(iSign < 0)then
+             IsInside = IsInsideOld .and. .not. IsInside
+          else
+             IsInside = IsInsideOld .or. IsInside
+          end if
+       end if
+
+    end do ! end loop through regions
+
+    is_point_inside_regions = IsInside
+
+  end function is_point_inside_regions
+  !============================================================================
+  
   subroutine block_inside_regions(iRegion_I, iBlock, nValue, StringLocation, &
        IsInside, IsInside_I, Value_I, WeightDefaultIn)
 
