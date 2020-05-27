@@ -82,8 +82,8 @@ module BATL_lib
   public:: iNode_B, iMortonNode_A, iNodeMorton_I
   public:: DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P
   public:: iStatusNew_A, Refine_, Coarsen_, Unset_
-  public:: iTree_IA, Status_,  Level_, MinLevel_, MaxLevel_, Block_, Proc_, &
-       Coord0_, Coord1_, Coord2_, Coord3_, Used_
+  public:: iTree_IA, Status_,  Level_, MinLevel_, MaxLevel_, Block_, Proc_
+  public:: Coord0_, Coord1_, Coord2_, Coord3_, Used_
   public:: UseTimeLevel, nTimeLevel, iTimeLevel_A
   public:: IsNewDecomposition, IsNewTree
   public:: iAmrChange_B
@@ -91,15 +91,14 @@ module BATL_lib
 
   ! Inherited from BATL_geometry
   public:: TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry
-  public:: IsRotatedCartesian, GridRot_DD, rot_to_cart, cart_to_rot
+  public:: IsRotatedCartesian, GridRot_DD
   public:: IsSpherical, IsRLonLat, IsCylindrical
   public:: IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis
   public:: x_, y_, z_, r_, Phi_, Theta_, Lon_, Lat_
   public:: IsLogRadius, IsGenRadius, nRgen, LogRgen_I
   public:: IsPeriodic_D, IsPeriodicCoord_D, IsNodeBasedGrid
-  public:: xyz_to_coord, coord_to_xyz, radius_to_gen, gen_to_radius
   public:: Xi_, Eta_, Zeta_
-  public:: UseHighFDGeometry, set_high_geometry
+  public:: UseHighFDGeometry
   public:: rRound0, rRound1, IsRoundCube, SqrtNDim
 
   ! Inherited from BATL_grid
@@ -178,12 +177,8 @@ module BATL_lib
   ! Inherited from BATL_geometry
   public:: init_geometry  ! initialize the module
   public:: clean_geometry ! clean up storage
-  public:: xyz_to_coord   ! convert XYZ coordinates to generalized coordinates
-  public:: coord_to_xyz   ! convert generalized coordinates to XYZ coordinates
-  public:: radius_to_gen  ! convert radial coordinate to generalized coordinate
-  public:: gen_to_radius  ! convert generalized coordinate to radial coordinate
-  public:: rot_to_cart    ! Rotate a vector/matrix from rotated to Cartesian
-  public:: set_high_geometry
+  public:: xyz_to_coord, coord_to_xyz, radius_to_gen, gen_to_radius
+  public:: set_high_geometry, rot_to_cart, cart_to_rot
 
   ! Inherited from BATL_test
   public:: read_test_param, find_test_cell
