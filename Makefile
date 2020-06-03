@@ -31,7 +31,7 @@ OBJECTS = \
 ALLOBJECTS = \
 	${OBJECTS} \
 	BATL_unit_test.o \
-	unit_test.o \
+	batl.o \
 	advect_main.o \
 	game_of_life.o
 
@@ -67,16 +67,16 @@ ${MY_DYN_LIB}: ${OBJECTS}
 
 BATL_dynamic:
 	make DEPEND
-	${COMPILE.f90} ${Cflag3} unit_test.f90
-	${LINK.f90} -o ${BINDIR}/BATL.exe unit_test.o BATL_unit_test.o ${MY_DYN_LIB} \
+	${COMPILE.f90} ${Cflag3} batl.f90
+	${LINK.f90} -o ${BINDIR}/BATL.exe batl.o BATL_unit_test.o ${MY_DYN_LIB} \
 	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
 
 BATL:
 	make DEPEND
 	${MAKE} ${BINDIR}/BATL.exe
 
-${BINDIR}/BATL.exe: unit_test.o BATL_unit_test.o ${OBJECTS}
-	${LINK.f90} -o ${BINDIR}/BATL.exe unit_test.o BATL_unit_test.o ${OBJECTS} \
+${BINDIR}/BATL.exe: batl.o BATL_unit_test.o ${OBJECTS}
+	${LINK.f90} -o ${BINDIR}/BATL.exe batl.o BATL_unit_test.o ${OBJECTS} \
 	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
 
 ADVECT:
