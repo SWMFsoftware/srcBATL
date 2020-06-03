@@ -159,22 +159,25 @@ contains
     ! Set size of domain (in generalized coordinates)
     DomainSize_D = CoordMax_D - CoordMin_D
 
-    allocate(CoordMin_DB(MaxDim,MaxBlock))
-    allocate(CoordMax_DB(MaxDim,MaxBlock))
-    allocate(CellSize_DB(MaxDim,MaxBlock))
+    allocate(CoordMin_DB(MaxDim,MaxBlock)); CoordMin_DB = 0.0 
+    allocate(CoordMax_DB(MaxDim,MaxBlock)); CoordMax_DB = 0.0
+    allocate(CellSize_DB(MaxDim,MaxBlock)); CellSize_DB = 1.0
 
-    allocate(CellFace_DB(MaxDim,MaxBlock))
-    if(.not.IsCartesian) &
-         allocate(CellFace_DFB(MaxDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
-
-    allocate(CellVolume_B(MaxBlock))
+    allocate(CellFace_DB(MaxDim,MaxBlock)); CellFace_DB = 0.0
+    if(.not.IsCartesian) then
+       allocate(CellFace_DFB(MaxDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
+       CellFace_DFB = 0.0
+    end if
+    allocate(CellVolume_B(MaxBlock)); CellVolume_B = 1.0
     allocate(CellVolume_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
+    CellVolume_GB = 0.0
     allocate(Xyz_DGB(MaxDim,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
+    Xyz_DGB = 0.0
     allocate(Xyz_DNB(MaxDim,nINode,nJNode,nKNode,MaxBlock))
-
+    Xyz_DNB = 0.0
     if(.not.IsCartesian) then
        allocate(FaceNormal_DDFB(nDim,nDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
-
+       FaceNormal_DDFB = 0.0
     end if
 
     ! Periodicity in the radial direction is not possible at all
@@ -1925,13 +1928,16 @@ contains
     ! If the point is out of the first layer of ghostcells, neither iBlockIn
     ! or its connectivity list can be used for interpolation
     !/
-    DoSearch = Unused_B(iBlockIn) .or. &
+    if(Unused_B(iBlockIn))then
+       DoSearch = .true.
+    else
+       DoSearch = &
          any(&
          Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn)  &
          - CellSize_DB(1:nDim,iBlockIn)              .or.&
          Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn)  &
          + CellSize_DB(1:nDim,iBlockIn))
-
+    end if
     if(DoSearch)then
        ! find a block that contains the point
        !-----------------------------------------------------------------------
