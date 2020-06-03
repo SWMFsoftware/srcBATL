@@ -663,30 +663,10 @@ contains
   !============================================================================
   
   subroutine block_inside_regions(iRegion_I, iBlock, nValue, StringLocation, &
-       IsInside, IsInside_I, Value_I, WeightDefaultIn)
+       IsInside, IsInside_I, Value_I, WeightDefaultIn, user_specify_region)
 
     use BATL_geometry, ONLY: IsCartesianGrid
     use ModUtilities,  ONLY: lower_case
-
-    ! Interface for the external user routine
-    interface
-       subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
-            IsInside, IsInside_I, Value_I, WeightDefaultIn)
-
-         implicit none
-
-         integer,   intent(in):: iArea        ! area index in BATL_region
-         integer,   intent(in):: iBlock       ! block index
-         integer,   intent(in):: nValue       ! number of output values
-         character, intent(in):: NameLocation ! c, g, x, y, z, or n
-
-         logical, optional, intent(out) :: IsInside
-         logical, optional, intent(out) :: IsInside_I(nValue)
-         real,    optional, intent(out) :: Value_I(nValue)
-         real,    optional, intent(in)  :: WeightDefaultIn
-
-       end subroutine user_specify_region
-    end interface
 
     ! Check the intersection of block iBlock with one or more regions
     ! indexed by the iRegion_I array. Positive region index means
@@ -725,6 +705,26 @@ contains
     real,         optional, intent(out):: Value_I(nValue)
     real,         optional, intent(in)  :: WeightDefaultIn
 
+    optional:: user_specify_region
+    interface
+       subroutine user_specify_region(iArea, iBlock, nValue, NameLocation, &
+            IsInside, IsInside_I, Value_I, WeightDefaultIn)
+
+         implicit none
+
+         integer,   intent(in):: iArea        ! area index in BATL_region
+         integer,   intent(in):: iBlock       ! block index
+         integer,   intent(in):: nValue       ! number of output values
+         character, intent(in):: NameLocation ! c, g, x, y, z, or n
+
+         logical, optional, intent(out) :: IsInside
+         logical, optional, intent(out) :: IsInside_I(nValue)
+         real,    optional, intent(out) :: Value_I(nValue)
+         real,    optional, intent(in)  :: WeightDefaultIn
+
+       end subroutine user_specify_region
+    end interface
+    
     real:: WeightDefault, Weight
 
     integer:: iRegion, nRegion, iArea, iSign, iPoint
