@@ -159,26 +159,19 @@ contains
     ! Set size of domain (in generalized coordinates)
     DomainSize_D = CoordMax_D - CoordMin_D
 
-    allocate(CoordMin_DB(MaxDim,MaxBlock)); CoordMin_DB = 0.0 
-    allocate(CoordMax_DB(MaxDim,MaxBlock)); CoordMax_DB = 0.0
-    allocate(CellSize_DB(MaxDim,MaxBlock)); CellSize_DB = 1.0
+    allocate(CoordMin_DB(MaxDim,MaxBlock))
+    allocate(CoordMax_DB(MaxDim,MaxBlock))
+    allocate(CellSize_DB(MaxDim,MaxBlock))
 
-    allocate(CellFace_DB(MaxDim,MaxBlock)); CellFace_DB = 0.0
-    if(.not.IsCartesian) then
-       allocate(CellFace_DFB(MaxDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
-       CellFace_DFB = 0.0
-    end if
-    allocate(CellVolume_B(MaxBlock)); CellVolume_B = 1.0
+    allocate(CellFace_DB(MaxDim,MaxBlock))
+    if(.not.IsCartesian) &
+         allocate(CellFace_DFB(MaxDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
+    allocate(CellVolume_B(MaxBlock))
     allocate(CellVolume_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
-    CellVolume_GB = 0.0
     allocate(Xyz_DGB(MaxDim,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
-    Xyz_DGB = 0.0
     allocate(Xyz_DNB(MaxDim,nINode,nJNode,nKNode,MaxBlock))
-    Xyz_DNB = 0.0
-    if(.not.IsCartesian) then
-       allocate(FaceNormal_DDFB(nDim,nDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
-       FaceNormal_DDFB = 0.0
-    end if
+    if(.not.IsCartesian) &
+         allocate(FaceNormal_DDFB(nDim,nDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
 
     ! Periodicity in the radial direction is not possible at all
     if(r_ > 0) IsPeriodic_D(r_) = .false.
