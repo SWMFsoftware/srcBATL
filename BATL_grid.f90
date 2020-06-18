@@ -37,21 +37,20 @@ module BATL_grid
   public :: show_grid_proc      ! only used in test?
 
   interface interpolate_grid_amr_gc
-     !\
-     ! Works only at the processor at which the
-     ! block is allocated suitable for interpolating
-     ! using ghost cell values. The Id of this block
-     ! is the required input parameter
-     !/
-     module procedure interpolate_grid_amr_gc_ib
-     !\
-     ! Parallel version similar to interpolate_grid_amr
-     ! Calculates iPe and iBlock for the block
-     ! suitable for interpolating using ghost cell values.
-     ! Returns zero interpolation weights for all iProc/=iPe
-     !/
-     module procedure interpolate_grid_amr_gc_nob
-  end interface interpolate_grid_amr_gc
+
+     ! Uses a single block with at least one layer
+     ! of ghost cells filled without prolongation. 
+     ! The index of the block suitable for interpolation
+     ! is a required input parameter.
+     module procedure interpolate_grid_amr_gc_iblock
+
+     ! Find the processor iPe and block iBlock suitable for interpolation
+     ! and then call interpolate_grid_amr_gc_iblock on iProc==iPe.
+     ! Returns zero interpolation weights for all iProc/=iPe.
+     module procedure interpolate_grid_amr_gc
+
+  end interface
+
   ! Coordinate limits and size of domain inherited from BATL_geometry
   public:: CoordMin_D, CoordMax_D, DomainSize_D, CellSizeRoot
 
@@ -1609,7 +1608,11 @@ contains
     ! nCell returns the number of cells found on the processor.
     ! iCell_II returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
-    !                                 using AMR interpolateion procedure
+    ! Using second order accurate AMR interpolateion procedure 
+    ! that is continuous across resolution changes 
+    !
+    ! See Borovikov et al. JCP 2015, doi:10.1016/j.jcp.2015.05.038
+
     real,    intent(in) :: XyzIn_D(MaxDim)
     integer, intent(out):: nCell
     integer, intent(out):: iCell_II(0:nDim,2**nDim)
@@ -1641,20 +1644,16 @@ contains
   end subroutine interpolate_grid_amr
   !============================================================================
 
-  !\
-  ! Parallel version similar to interpolate_grid_amr
-  ! Calculates iPe and iBlock for the block
-  ! suitable for interpolating using ghost cell values.
-  ! Returns zero interpolation weights for all iProc/=iPe
-  !/
-  subroutine interpolate_grid_amr_gc_nob(XyzIn_D, &
+  subroutine interpolate_grid_amr_gc(XyzIn_D, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
+
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
     ! iCell_II returns the block+cell indexes for each cell.
-    ! Weight_I returns the interpolation weights calculated
-    !                                 using AMR interpolateion procedure
+    ! Weight_I returns the interpolation weights calculated.
+    ! 
     ! Interpolation is performed using cells (including ghost) of single block
+
     real,    intent(in)   :: XyzIn_D(MaxDim)
     integer, intent(out)  :: nCell
     integer, intent(out)  :: iCell_II(0:nDim,2**nDim)
@@ -1672,19 +1671,24 @@ contains
        RETURN
     end if
     Xyz_D = XyzIn_D
+
     ! find a block suitable for interpolation
     call check_interpolate_amr_gc(Xyz_D, 1, iProcOut, iBlockOut)
+
     ! check if it is on the current processor
     if (iProcOut /= iProc)then
        nCell = 0
        if(present(IsSecondOrder)) IsSecondOrder = .false.
        RETURN
     end if
-    call interpolate_grid_amr_gc_ib(Xyz_D, iBlockOut, &
-       nCell, iCell_II, Weight_I, IsSecondOrder)
-  end subroutine interpolate_grid_amr_gc_nob
+
+    call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockOut, &
+         nCell, iCell_II, Weight_I, IsSecondOrder)
+
+  end subroutine interpolate_grid_amr_gc
+
   !============================================================================
-  subroutine interpolate_grid_amr_gc_ib(XyzIn_D, iBlock, &
+  subroutine interpolate_grid_amr_gc_iblock(XyzIn_D, iBlock, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
 
     use ModInterpolateAMR, ONLY: interpolate_amr_gc
@@ -1693,13 +1697,13 @@ contains
     ! nCell returns the number of cells found on the processor.
     ! iCell_II returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
-    !                                 using AMR interpolateion procedure
     ! Interpolation is performed using cells (including ghost) of single block
 
     ! NOTE: it is assumed that iBlock is appropriate for interpolation
     ! that utilizes only 1 layer of ghost cells, i.e. the call
     !     call check_interpolate_amr_gc(XyzIn_D, iBlock, iPeOut, iBlockOut)
     ! would result in iBlockOut==iBlock
+
     real,    intent(in) :: XyzIn_D(MaxDim)
     integer, intent(in) :: iBlock
     integer, intent(out):: nCell
@@ -1711,6 +1715,7 @@ contains
     integer:: DiLevelNei_III(-1:1,-1:1,-1:1)
     integer:: iDim ! loop variable
     real   :: Coord_D(MaxDim), DCoord_D(MaxDim), CoordBlock_D(MaxDim)
+
     !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
@@ -1731,12 +1736,11 @@ contains
     CoordBlock_D =  CoordMin_DB(:,iBlock)
     DCoord_D   = (CoordMax_DB(:,iBlock) - CoordMin_DB(:,iBlock)) / nIJK_D
 
-    !\
     ! account for periodic or "flipped" coordinates:
     ! may need to adjust Coord_D if point is outside the block
     if(any(&
-         Coord_D(1:nDim) < CoordMin_DB(1:nDim, iBlock) .or. &
-         Coord_D(1:nDim) >=CoordMax_DB(1:nDim, iBlock)))then
+         Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlock) .or. &
+         Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlock)))then
        ! fix periodic coordinates
        ! NOTE: periodic coords are fixed BEFORE spherical theta,
        !       otherwise there's error near 0 longitude near axis
@@ -1752,6 +1756,7 @@ contains
              Coord_D(iDim) = Coord_D(iDim) + DomainSize_D(iDim)
           end if
        end do
+
        ! fix spherical coordinates
        if(IsSpherical .or. IsRLonLat)then
           ! example in rlonlat coords: point's latitude is close to pi/2 and
@@ -1790,96 +1795,75 @@ contains
 
     ! return block number as well
     iCell_II(0,:) = iBlock
-  end subroutine interpolate_grid_amr_gc_ib
-  !============================================================================
 
+  end subroutine interpolate_grid_amr_gc_iblock
+  !============================================================================
   subroutine check_interpolate_amr_gc(Xyz_D, iBlockIn, iPeOut, iBlockOut)
-    !\
+
     ! Checks if a point with the Cartesian coordinates, Xyz_D,
     ! can be interpolated using the data in the block iBlockIn at the
     ! given processor, with the ghost cell values included, if needed
-    !/
     use ModInterpolateAMR, ONLY: get_reference_block
-    !\
+
     ! INPUTS:
-    !/
     real,    intent(inout):: Xyz_D(MaxDim) ! Point Cartesian coordinates
-    integer, intent(in)   :: iBlockIn      !# of block assumed to be used
-    !\
+    integer, intent(in)   :: iBlockIn      ! block index assumed to be used
+
     ! OUTPUTS:
-    !/
-    integer, intent(out):: iPeOut, iBlockOut ! else, Pe and Block to be used
-    !\
+    integer, intent(out):: iPeOut, iBlockOut ! Pe and Block to be used
+
     ! Generalized Coordinates, for given Xyz_D
-    !/
     real    :: Coord_D(MaxDim)
-    !\
+
     ! Direction along which the point goes out of the block inner part
-    !/
-    !\
-    !/
     logical :: DoSearch ! If .true. find iPeOut and iBlockOut via tree search
-    !\
+
     ! Shifts to subgrids from the lower left corner
-    !/
     integer, parameter:: iShift_DI(3,8) = reshape((/&
          0,0,0, 1,0,0, 0,1,0, 1,1,0, &
          0,0,1, 1,0,1, 0,1,1, 1,1,1/),(/3,8/))
-    !\
+
     ! Powers of 2
-    !/
     integer, parameter:: iPowerOf2_D(3) = (/1,2,4/)
-    !\
+
     ! For a search throughout the tree
-    !/
     real:: CoordTree_D(MaxDim)
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
     integer:: iNode
-    !\
+
     ! If can avoid tree search, copy parameters from indicated node
-    !/
     integer:: iNodeCopy_I(2**nDim)
-    !\
+
     ! Dimensionless coords of the point relative to the block's corner
-    !/
     real:: Dimless_D(nDim)
-    !\
+
     ! Corners of a block that contains the point
-    !/
     real:: CoordBlockMin_D(nDim), CoordBlockMax_D(nDim)
-    !\
+
     ! Its refinement level
-    !/
     integer:: iLevelNode
-    !\
+
     ! Discriminator for point's displacement relative to block's interior
-    !/
     integer:: iDiscr_D(MaxDim)
-    !\
+
     ! Discriminator used to find  block containing point if it is within
-    ! 1st layer of ghost cells of input block
-    !/
+    ! first layer of ghost cells of input block
     integer:: iDiscrSearch_D(MaxDim)
-    !\
+
     ! Coordinates of the supergrid
-    !/
     real:: CoordGrid_DI(nDim, 2**nDim)
-    !\
+
     ! Parameters of the supergrid
-    !/
     integer:: iLevel_I(2**nDim), iNode_I(2**nDim)
     logical:: IsOut_I(2**nDim)
-    !\
+
     ! Cell sizes
-    !/
     real:: dCoord_D(nDim), dCoordInv_D(nDim), dCoordNei_D(nDim)
-    !\
+
     ! Loop variable
-    !/
     integer:: iGrid
-    !\
+
     ! The reference block
-    !/
     integer:: iGridRef
     integer:: iDimAmr = 1
 
@@ -1891,50 +1875,45 @@ contains
     else
        call xyz_to_coord(Xyz_D, Coord_D)
     end if
-    !\
+
     ! For periodic boundary conditions fix the input coordinate if
     ! beyond the tree bounadaries
-    !/
     where(IsPeriodic_D(1:nDim)) Coord_D(1:nDim) = CoordMin_D(1:nDim) + &
          modulo(Coord_D(1:nDim) - CoordMin_D(1:nDim), DomainSize_D(1:nDim))
 
-    !\
     ! Fix coordinates for periodic boundary conditions
-    !/
     ! For Cartesian grid: for all dimensions
     if(IsCartesianGrid .and. any(IsPeriodic_D(1:nDim))) &
          Xyz_D = Coord_D
-    !\
+
     ! For cylindrical coordinates: along z asis only:
     if((IsCylindrical.or.IsRzGeometry) .and. IsPeriodic_D(nDim)) &
          Xyz_D(nDim) = Coord_D(nDim)
 
-    !\
     ! Figure out if the point falls out of the computational domain
-    !/
     if(any(   Coord_D(1:nDim) <  CoordMin_D(1:nDim)&
          .or. Coord_D(1:nDim) >= CoordMax_D(1:nDim)))then
        iPeOut = Unset_; iBlockOut = Unset_
        RETURN
     end if
-    !\
+
     ! Decide whether need to perform search in the global tree structure
     ! If the point is out of the first layer of ghostcells, neither iBlockIn
     ! or its connectivity list can be used for interpolation
-    !/
     if(Unused_B(iBlockIn))then
        DoSearch = .true.
     else
        DoSearch = &
-         any(&
-         Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn)  &
-         - CellSize_DB(1:nDim,iBlockIn)              .or.&
-         Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn)  &
-         + CellSize_DB(1:nDim,iBlockIn))
+            any(&
+            Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn)  &
+            - CellSize_DB(1:nDim,iBlockIn)              .or.&
+            Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn)  &
+            + CellSize_DB(1:nDim,iBlockIn))
     end if
+
     if(DoSearch)then
        ! find a block that contains the point
-       !-----------------------------------------------------------------------
+
        ! Calculate normalized (to DomainSize_D) coordinates for tree search
        CoordTree_D = 0
        CoordTree_D(1:nDim) = &
@@ -1962,10 +1941,9 @@ contains
 
        ! Check if the block is suitable to interpolate with ghost cells
        iDiscr_D = 0
-       !\
+
        ! Discriminator equals zero if the point is within the grid of
        ! the physical cell centers, +- 1 otherwise
-       !/
        iDiscr_D(1:nDim) = floor(&
             (Coord_D(1:nDim) - CoordBlockMin_D  - 0.5*dCoord_D)*dCoordInv_D / &
             (nIJK_D(1:nDim) - 1))
@@ -1982,9 +1960,7 @@ contains
        iLevel_I = 0
        IsOut_I  = .false.
 
-       !\
        ! Fill in grid point coordinates
-       !/
        ! first point can be found from dimless coordinates of the point
        ! relative to block's corner:
        Dimless_D = &
@@ -1992,9 +1968,11 @@ contains
             dCoord_D(1:nDim)
        CoordGrid_DI(:,1) = CoordBlockMin_D(1:nDim) +      &
             dCoord_D(1:nDim) * (floor(0.50 + Dimless_D) - 0.50)
-       ! fill array that contains id of node to copy info from
+
+       ! fill array that contains node index to copy info from
        ! if it is possible to avoid tree search
        iNodeCopy_I(1) = 1
+
        ! the rest of the supergrid can be found from the first one
        ! and displacements towards them
        do iGrid = 2, 2**nDim
@@ -2059,7 +2037,7 @@ contains
        end do
     else
        ! find a block that contains the point
-       !-----------------------------------------------------------------------
+
        ! discriminator show displacement outside of input block (-1, 0, 1)
        iDiscrSearch_D = 0
        iDiscrSearch_D(1:nDim) = floor(&
@@ -2074,6 +2052,7 @@ contains
        iDiscrSearch_D(1:nDim) = 1 + floor(&
             ( Coord_D(1:nDim) - CoordMin_DB(1:nDim,iBlockIn) ) / &
             ( 0.5 * CellSize_DB(1:nDim,iBlockIn) * nIJK_D(1:nDim) ) )
+
        ! node index of blockcontaining point
        iNode = iNodeNei_IIIB(&
             iDiscrSearch_D(1), iDiscrSearch_D(2), iDiscrSearch_D(3), iBlockIn)
@@ -2089,22 +2068,20 @@ contains
        ! find block's corners
        if(iLevelNode == -1)then
           CoordBlockMin_D(1:nDim) =  CoordMin_DB(1:nDim, iBlockIn) + &
-               dCoord_D * nIJK_D(1:nDim) * max(1, iDiscrSearch_D(1:nDim)-1)
+               dCoord_D*nIJK_D(1:nDim)*max(1, iDiscrSearch_D(1:nDim)-1)
        else
           CoordBlockMin_D(1:nDim) =  CoordMin_DB(1:nDim, iBlockIn) + &
-               dCoord_D * nIJK_D(1:nDim) * floor( 0.5*(iDiscrSearch_D(1:nDim)-0.5) )
+               dCoord_D*nIJK_D(1:nDim)*floor(0.5*(iDiscrSearch_D(1:nDim)-0.5))
        end if
-       CoordBlockMax_D(1:nDim) =  CoordMin_D(1:nDim) + &
-            dCoord_D * nIJK_D(1:nDim)
+       CoordBlockMax_D(1:nDim) = CoordMin_D(1:nDim) + dCoord_D*nIJK_D(1:nDim)
 
        dCoordInv_D = 1/dCoord_D
 
        ! Check if the block is suitable to interpolate with ghost cells
        iDiscr_D = 0
-       !\
+
        ! Discriminator equals zero if the point is within the grid of
        ! the physical cell centers, +- 1 otherwise
-       !/
        iDiscr_D(1:nDim) = floor(&
             (Coord_D(1:nDim) - CoordBlockMin_D  - 0.5*dCoord_D)*dCoordInv_D / &
             (nIJK_D(1:nDim) - 1))
@@ -2121,9 +2098,7 @@ contains
        iLevel_I = 0
        IsOut_I  = .false.
 
-       !\
        ! Fill in grid point coordinates
-       !/
        ! first point can be found from dimless coordinates of the point
        ! relative to block's corner:
        Dimless_D = &
@@ -2174,21 +2149,25 @@ contains
 
     ! passed iLevel_I MUST have either 0's, or 1's ONLY
     if(any(iLevel_I==-1)) iLevel_I = iLevel_I + 1
+
     ! get reference block
     call get_reference_block(nDim, Coord_D(1:nDim), &
          CoordGrid_DI(1:nDim,1:2**nDim), iLevel_I, IsOut_I, iGridRef)
-    iPeOut = iTree_IA(Proc_, iNode_I(iGridRef))
+
+    iPeOut    = iTree_IA(Proc_,  iNode_I(iGridRef))
     iBlockOut = iTree_IA(Block_, iNode_I(iGridRef))
+
   end subroutine check_interpolate_amr_gc
   !============================================================================
   subroutine calc_face_normal(iBlock)
+
     ! Interpolate dx3/dx1 to the face, where x3=hat(Xi,Eta,Zeta), x1=x,y,z.
+
     integer, intent(in):: iBlock
     integer:: iFace, jFace, kFace
     integer:: iDimCart
     integer:: nIFace, nJFace, nKFace
     real   :: Area
-
     !--------------------------------------------------------------------------
     nIFace = nI + 1; nJFace = nJ + 1; nKFace = nK + 1
     do kFace = 1, nK; do jFace = 1, nJ; do iFace = 1, nIFace
