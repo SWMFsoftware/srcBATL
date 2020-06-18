@@ -1655,12 +1655,13 @@ contains
     ! Weight_I returns the interpolation weights calculated
     !                                 using AMR interpolateion procedure
     ! Interpolation is performed using cells (including ghost) of single block
-    real,    intent(inout):: XyzIn_D(MaxDim)
+    real,    intent(in)   :: XyzIn_D(MaxDim)
     integer, intent(out)  :: nCell
     integer, intent(out)  :: iCell_II(0:nDim,2**nDim)
     real,    intent(out)  :: Weight_I(2**nDim)
 
     logical, optional, intent(out):: IsSecondOrder
+    real   :: Xyz_D(MaxDim)
     integer:: iBlockOut, iProcOut
     !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
@@ -1670,16 +1671,16 @@ contains
        if(present(IsSecondOrder)) IsSecondOrder = .true.
        RETURN
     end if
-
+    Xyz_D = XyzIn_D
     ! find a block suitable for interpolation
-    call check_interpolate_amr_gc(XyzIn_D, 1, iProcOut, iBlockOut)
+    call check_interpolate_amr_gc(Xyz_D, 1, iProcOut, iBlockOut)
     ! check if it is on the current processor
     if (iProcOut /= iProc)then
        nCell = 0
        if(present(IsSecondOrder)) IsSecondOrder = .false.
        RETURN
     end if
-    call interpolate_grid_amr_gc_ib(XyzIn_D, iBlockOut, &
+    call interpolate_grid_amr_gc_ib(Xyz_D, iBlockOut, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
   end subroutine interpolate_grid_amr_gc_nob
   !============================================================================
