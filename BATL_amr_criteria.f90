@@ -1523,6 +1523,7 @@ contains
     if(allocated(iMapToUniqCrit_I))   deallocate(iMapToUniqCrit_I)
     if(allocated(iMapToStateVar_I))   deallocate(iMapToStateVar_I)
     if(allocated(iNode_I))            deallocate(iNode_I)
+    if(allocated(nAreaPerCritAll_I))  deallocate(nAreaPerCritAll_I)
 
     nAmrCrit      = 0
     nAmrCritUsed  = 0
