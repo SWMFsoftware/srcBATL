@@ -137,7 +137,8 @@ module BATL_tree
        Unused_B(:), Unused_BP(:,:), & ! Unused blocks on local/all processors
        Used_GB(:,:,:,:)               ! Used cells on local processors
 
-  integer, public, allocatable :: &
+  ! Target is useful to allow pointer from C wrapper
+  integer, public, allocatable, target :: &
        DiLevelNei_IIIB(:,:,:,:),  &  ! Level difference relative to neighbors
        iNodeNei_IIIB(:,:,:,:)        ! Node index of neighboring blocks
 
