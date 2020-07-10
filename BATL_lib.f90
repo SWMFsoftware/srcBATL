@@ -112,6 +112,8 @@ module BATL_lib
   public:: check_interpolate_amr_gc
   public:: create_grid, show_grid_cell
   public:: integrate_grid, minval_grid, maxval_grid
+  public:: interpolate_state_vector !Interpolate state vactor to a given loc,
+                                    !Need all ghost cells with ProlongOrder=1
 
   !--------------------
   ! Functions inherited

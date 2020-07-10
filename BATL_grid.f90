@@ -32,6 +32,8 @@ module BATL_grid
   public :: interpolate_grid_amr ! only used in test?
   public :: interpolate_grid_amr_gc
   public :: check_interpolate_amr_gc
+  public :: interpolate_state_vector !Interpolate state vactor to a given loc,
+                                     !Need all ghost cells with ProlongOrder=1
 
   public :: show_grid_cell      ! provide information about grid cell
   public :: show_grid_proc      ! only used in test?
@@ -2159,6 +2161,63 @@ contains
 
   end subroutine check_interpolate_amr_gc
   !============================================================================
+  subroutine interpolate_state_vector(&
+       XyzIn_D, nVar, State_VGB,    State_V, IsFound)
+    !
+    !Interpolate state vactor to a given loc,
+    !Need all ghost cells with ProlongOrder=1
+    !If needed, use before
+    !call message_pass_cell(nVar, State_VGB, ProlongOrderIn=1)
+    !
+    use ModMpi
+    !INPUTS:
+    integer, intent (in) :: nVar
+    real,    intent (in) :: XyzIn_D(MaxDim), State_VGB(nVar, &
+         1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
+    !OUT:
+    real,    intent(out) :: State_V(nVar)
+    logical, optional, intent(out) :: IsFound
+    !
+    ! Local:
+    ! Block and PE number at which to interpolate
+    integer :: iProcFound, iBlockFound
+    ! Misc:
+    integer :: iError, iCell 
+    real    :: Xyz_D(MaxDim)
+    !
+    ! Interpolation stencil
+    !
+    integer :: nCell, iCell_II(0:nDim,2**nDim)
+    real    :: Weight_I(2**nDim)
+
+    character(LEN=*), parameter :: NameSub = 'interpolate_state_vector'
+    !--------------------------------------------------------------------------
+    State_V = 0.0; Xyz_D = XyzIn_D
+    call check_interpolate_amr_gc(Xyz_D, 1, iProcFound, iBlockFound)
+    if(iProcFound==Unset_)then
+       if(present(IsFound))then
+          IsFound = .true.
+          RETURN
+       else
+          !Add a stop statement
+       end if
+    end if
+    if(iProc==iProcFound)then
+       call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockFound, &
+            nCell, iCell_II, Weight_I)
+       do iCell = 1, nCell
+          State_V = State_V + Weight_I(iCell)*&
+               State_VGB(:, iCell_II(1, iCell), iCell_II(2, iCell),&
+               iCell_II(3, iCell), iBlockFound)
+       end do
+    end if
+    call MPI_bcast(State_V, 3, MPI_Real, iProcFound, iComm, iError)
+    if(present(IsFound))then
+       call MPI_bcast(nCell, 1, MPI_Integer, iProcFound, iComm, iError)
+       IsFound = nCell > 0
+    end if
+  end subroutine interpolate_state_vector
+ !============================================================================
   subroutine calc_face_normal(iBlock)
 
     ! Interpolate dx3/dx1 to the face, where x3=hat(Xi,Eta,Zeta), x1=x,y,z.
