@@ -2211,7 +2211,7 @@ contains
                iCell_II(3, iCell), iBlockFound)
        end do
     end if
-    call MPI_bcast(State_V, 3, MPI_Real, iProcFound, iComm, iError)
+    call MPI_bcast(State_V, nVar, MPI_Real, iProcFound, iComm, iError)
     if(present(IsFound))then
        call MPI_bcast(nCell, 1, MPI_Integer, iProcFound, iComm, iError)
        IsFound = nCell > 0
