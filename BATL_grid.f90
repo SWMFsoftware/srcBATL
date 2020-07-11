@@ -1351,16 +1351,16 @@ contains
   end function maxval_grid
   !============================================================================
 
-  subroutine interpolate_grid(Xyz_D, nCell, iCell_II, Weight_I)
+  subroutine interpolate_grid(Xyz_D, nCell, iCell_DI, Weight_I)
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights
 
     real,    intent(in) :: Xyz_D(MaxDim)
     integer, intent(out):: nCell
-    integer, intent(out):: iCell_II(0:nDim,2**nDim)
+    integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
 
     real:: Coord_D(MaxDim), CoordOrig_D(MaxDim), CoordCell_D(nDim)
@@ -1382,7 +1382,7 @@ contains
 
     ! Initialize values in case no cells are found on this processor
     nCell    = 0
-    iCell_II = 0
+    iCell_DI = 0
     Weight_I = 0
 
     ! For periodic boundaries we may have to shift the coordinates
@@ -1575,19 +1575,19 @@ contains
                 write(*,*)'Coord_D=',Coord_D(1:nDim)
                 i_D = 1
                 do iCell = 1, 2**nDim
-                   i_D(1:nDim) = iCell_II(1:nDim,iCell)
-                   write(*,*)'iCell, iCell_II(:,i), weight, Xyz=', &
-                        iCell, iCell_II(:,iCell), Weight_I(iCell), &
-                        Xyz_DGB(1:nDim,i_D(1),i_D(2),i_D(3),iCell_II(0,iCell))
+                   i_D(1:nDim) = iCell_DI(1:nDim,iCell)
+                   write(*,*)'iCell, iCell_DI(:,i), weight, Xyz=', &
+                        iCell, iCell_DI(:,iCell), Weight_I(iCell), &
+                        Xyz_DGB(1:nDim,i_D(1),i_D(2),i_D(3),iCell_DI(0,iCell))
                 end do
              end if
-             write(*,*)'iCell, iCell_II(:,i), weight=', &
+             write(*,*)'iCell, iCell_DI(:,i), weight=', &
                   nCell, iBlock, iCell_D(1:nDim), Weight, &
                   Xyz_DGB(1:nDim,i,j,k,iBlock)
           else
              Weight_I(nCell)   = Weight
-             iCell_II(0,nCell) = iBlock
-             iCell_II(1:nDim,nCell) = iCell_D(1:nDim)
+             iCell_DI(0,nCell) = iBlock
+             iCell_DI(1:nDim,nCell) = iCell_D(1:nDim)
           end if
           if(DoTest)write(*,*) NameSub,' nCell, CoordCell, Weight=', &
                nCell, CoordCell_D(1:nDim), Weight
@@ -1601,14 +1601,14 @@ contains
   end subroutine interpolate_grid
   !============================================================================
 
-  subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_II, Weight_I, &
+  subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I, &
        IsSecondOrder)
 
     use BATL_interpolate_amr, ONLY:interpolate_amr
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
     ! Using second order accurate AMR interpolateion procedure 
     ! that is continuous across resolution changes 
@@ -1617,7 +1617,7 @@ contains
 
     real,    intent(in) :: XyzIn_D(MaxDim)
     integer, intent(out):: nCell
-    integer, intent(out):: iCell_II(0:nDim,2**nDim)
+    integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
 
     logical, optional, intent(out):: IsSecondOrder
@@ -1627,7 +1627,7 @@ contains
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
-       call interpolate_grid(XyzIn_D, nCell, iCell_II, Weight_I)
+       call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
        RETURN
     end if
@@ -1641,24 +1641,24 @@ contains
 
     ! call the wrapper for the shared AMR interpolation procedure,
     call interpolate_amr(Coord_D, &
-         nCell, iCell_II, Weight_I, IsSecondOrder)
+         nCell, iCell_DI, Weight_I, IsSecondOrder)
 
   end subroutine interpolate_grid_amr
   !============================================================================
 
   subroutine interpolate_grid_amr_gc(XyzIn_D, &
-       nCell, iCell_II, Weight_I, IsSecondOrder)
+       nCell, iCell_DI, Weight_I, IsSecondOrder)
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated.
     ! 
     ! Interpolation is performed using cells (including ghost) of single block
 
     real,    intent(in)   :: XyzIn_D(MaxDim)
     integer, intent(out)  :: nCell
-    integer, intent(out)  :: iCell_II(0:nDim,2**nDim)
+    integer, intent(out)  :: iCell_DI(0:nDim,2**nDim)
     real,    intent(out)  :: Weight_I(2**nDim)
 
     logical, optional, intent(out):: IsSecondOrder
@@ -1668,7 +1668,7 @@ contains
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
-       call interpolate_grid(XyzIn_D, nCell, iCell_II, Weight_I)
+       call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
        RETURN
     end if
@@ -1685,19 +1685,19 @@ contains
     end if
 
     call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockOut, &
-         nCell, iCell_II, Weight_I, IsSecondOrder)
+         nCell, iCell_DI, Weight_I, IsSecondOrder)
 
   end subroutine interpolate_grid_amr_gc
 
   !============================================================================
   subroutine interpolate_grid_amr_gc_iblock(XyzIn_D, iBlock, &
-       nCell, iCell_II, Weight_I, IsSecondOrder)
+       nCell, iCell_DI, Weight_I, IsSecondOrder)
 
     use ModInterpolateAMR, ONLY: interpolate_amr_gc
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
     ! Interpolation is performed using cells (including ghost) of single block
 
@@ -1709,7 +1709,7 @@ contains
     real,    intent(in) :: XyzIn_D(MaxDim)
     integer, intent(in) :: iBlock
     integer, intent(out):: nCell
-    integer, intent(out):: iCell_II(0:nDim,2**nDim)
+    integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
 
     logical, optional, intent(out):: IsSecondOrder
@@ -1722,7 +1722,7 @@ contains
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
     if(nDimAmr <= 1)then
-       call interpolate_grid(XyzIn_D, nCell, iCell_II, Weight_I)
+       call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
        RETURN
     end if
@@ -1793,10 +1793,10 @@ contains
     call interpolate_amr_gc(&
          nDim, Coord_D(1:nDim), CoordBlock_D(1:nDim),&
          DCoord_D(1:nDim), nIJK_D(1:nDim), DiLevelNei_III, &
-         nCell, iCell_II(1:nDim,:), Weight_I, IsSecondOrder)
+         nCell, iCell_DI(1:nDim,:), Weight_I, IsSecondOrder)
 
     ! return block number as well
-    iCell_II(0,:) = iBlock
+    iCell_DI(0,:) = iBlock
 
   end subroutine interpolate_grid_amr_gc_iblock
   !============================================================================
@@ -2187,9 +2187,10 @@ contains
     !
     ! Interpolation stencil
     !
-    integer :: nCell, iCell_II(0:nDim,2**nDim)
+    integer :: nCell, iCell_DI(0:nDim,2**nDim), iCell_D(MaxDim)
     real    :: Weight_I(2**nDim)
 
+    
     character(LEN=*), parameter :: NameSub = 'interpolate_state_vector'
     !--------------------------------------------------------------------------
     State_V = 0.0; Xyz_D = XyzIn_D
@@ -2204,11 +2205,11 @@ contains
     end if
     if(iProc==iProcFound)then
        call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockFound, &
-            nCell, iCell_II, Weight_I)
+            nCell, iCell_DI, Weight_I)
        do iCell = 1, nCell
+          iCell_D(1:nDim) = iCell_DI(1:nDim,iCell)
           State_V = State_V + Weight_I(iCell)*&
-               State_VGB(:, iCell_II(1, iCell), iCell_II(2, iCell),&
-               iCell_II(3, iCell), iBlockFound)
+               State_VGB(:, iCell_D(1), iCell_D(2), iCell_D(3), iBlockFound)
        end do
     end if
     call MPI_bcast(State_V, nVar, MPI_Real, iProcFound, iComm, iError)
