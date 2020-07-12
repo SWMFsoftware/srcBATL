@@ -2196,7 +2196,7 @@ contains
     call check_interpolate_amr_gc(Xyz_D, 1, iProcFound, iBlockFound)
     if(iProcFound==Unset_)then
        if(present(IsFound))then
-          IsFound = .true.
+          IsFound = .false.
           RETURN
        else
           !Add a stop statement
