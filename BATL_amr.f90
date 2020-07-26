@@ -401,6 +401,10 @@ contains
 
       ! Find and assign the block index
       iBlock = iBlockAvailable_P(iProcRecv)
+
+      if(iBlock < 1) call CON_stop(NameSub//&
+           ': not enough blocks; increase MaxBlock!')
+      
       iTree_IA(Block_,iNodeRecv) = iBlock
 
       ! Return the block index
