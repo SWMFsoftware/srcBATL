@@ -800,7 +800,7 @@ contains
        ! The lowest priority corresponds to the first element.
        ! Remove blocks starting from the lowest priority until the
        ! number of blocks in the new grid will not exceed the maximum.
-       LOOPREMOVE: do iRank = nNodeSort - nDesiredRefine, nNodeSort
+       LOOPREMOVE: do iRank = nNodeSort - nDesiredRefine + 1, nNodeSort
           iNode = iRank_A(iRank)
 
           ! if a block has reached the max level, it has no impact
