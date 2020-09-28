@@ -96,12 +96,13 @@ module BATL_lib
   public:: IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis
   public:: x_, y_, z_, r_, Phi_, Theta_, Lon_, Lat_
   public:: IsLogRadius, IsGenRadius, nRgen, LogRgen_I
-  public:: IsPeriodic_D, IsPeriodicCoord_D, IsNodeBasedGrid
+  public:: IsPeriodic_D, IsPeriodicCoord_D
   public:: Xi_, Eta_, Zeta_
   public:: UseHighFDGeometry
   public:: rRound0, rRound1, IsRoundCube, SqrtNDim
 
   ! Inherited from BATL_grid
+  public:: IsNodeBasedGrid
   public:: CoordMin_D, CoordMax_D, DomainSize_D
   public:: CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot
   public:: Xyz_DGB, Xyz_DNB
