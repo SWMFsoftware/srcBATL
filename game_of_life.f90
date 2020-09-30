@@ -115,4 +115,3 @@ contains
 end program game_of_life
 !==============================================================================
 
-include 'external_routines.f90'
