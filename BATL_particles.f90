@@ -59,6 +59,7 @@ module BATL_particles
   end type ParticleType
 
   type(ParticleType):: Particle_I(nKindParticle)
+  !$acc declare create(Particle_I)
 
   ! offset for particle data in the send BufferSend_I
   ! NOTE: offest values start with 0

@@ -199,6 +199,19 @@ module BATL_tree
   ! Function generalizing the DiLevelNei_IIIB array for time levels
   public:: di_level_nei
 
+  !$acc declare create(MaxNode, nNode, nNodeUsed, nRoot_D, nRoot)
+  !$acc declare create(MaxLevel, nLevelMin, nLevelMax, MaxCoord_I)
+  !$acc declare create(Unused_B, Unused_BP, Used_GB)
+  !$acc declare create(iNode_B, iMortonNode_A, iNodeMorton_I)
+  !$acc declare create(DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P)
+  !$acc declare create(iStatusNew_A, Refine_, Coarsen_, Unset_)
+  !$acc declare create(iTree_IA, Status_,  Level_, MinLevel_, MaxLevel_, Block_, Proc_)
+  !$acc declare create(Coord0_, Coord1_, Coord2_, Coord3_, Used_)
+  !$acc declare create(UseTimeLevel, nTimeLevel, iTimeLevel_A)
+  !$acc declare create(IsNewDecomposition, IsNewTree)
+  !$acc declare create(iAmrChange_B)
+  !$acc declare create(AmrRemoved_, AmrUnchanged_, AmrMoved_, AmrRefined_, AmrCoarsened_)
+
   ! Local variables -----------------------------------------------
 
   integer :: iNodeNew = 0

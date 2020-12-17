@@ -73,6 +73,14 @@ module BATL_grid
   ! If true, cell faces are assumed to be flat polygons formed by the nodes
   logical, public:: IsNodeBasedGrid = .true.
 
+  !$acc declare create(CoordMin_D, CoordMax_D, DomainSize_D)
+  !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
+  !$acc declare create(Xyz_DGB, Xyz_DNB)
+  !$acc declare create(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
+  !$acc declare create(CellVolume_B, CellVolume_GB)
+  !$acc declare create(CellMetrice_DDG, CellCoef_DDGB)
+  !$acc declare create(IsNodeBasedGrid)
+
   ! Local variables
 
   logical :: DoInitializeGrid = .true.
@@ -610,6 +618,12 @@ contains
        if(allocated(dCosTheta_I)) deallocate(dCosTheta_I)
        if(allocated(Xyz_DN))      deallocate(Xyz_DN)
     end if
+
+    !hyzhou: find a place to update variables on device
+    !$acc update device(CellVolume_GB)
+    !$acc update device(Xyz_DGB)
+    !$acc update device(CellFace_DB)
+    !$acc update device(CellSize_DB)
 
   contains
     !==========================================================================

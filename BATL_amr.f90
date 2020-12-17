@@ -19,6 +19,7 @@ module BATL_amr
 
   ! Parameter of slope limiter used by prolongation
   real, public:: BetaProlong = 1.0
+  !$acc declare create(BetaProlong)
 
   ! For non-Cartesian grids refinement can be fully conservative or simple
   ! The current conservative algorithm works well for the BATL advection

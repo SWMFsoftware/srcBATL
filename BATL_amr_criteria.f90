@@ -152,6 +152,8 @@ module BATL_amr_criteria
   ! For usecellsize
   logical :: UseCellSize = .false.
 
+  !$acc declare create(AmrCrit_IB, nAmrCrit, DoCritAmr, DoAutoAmr, DoStrictAmr)
+
 contains
   !============================================================================
 

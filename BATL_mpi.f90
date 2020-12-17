@@ -20,6 +20,7 @@ module BATL_mpi
   integer, public:: iProc = 0   ! processor rank from 0 to nProc-1
   integer, public:: nThread = 1 ! number of threads per MPI process
   integer, public:: iThread = 0 ! thread rank from 0 to nThread-1
+  !$acc declare create(iComm, nProc, iProc, nThread, iThread)
 
 contains
   !============================================================================

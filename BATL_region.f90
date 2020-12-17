@@ -73,7 +73,8 @@ module BATL_region
   ! The number of levels is public so that BATSRUS can do the
   ! initial refinement loop.
   integer, public :: nInitialAmrLevel = 0
-  
+  !$acc declare create(nInitialAmrLevel)
+
   ! Local variables
   real            :: InitialResolution = -1.0
   
@@ -96,7 +97,7 @@ module BATL_region
   !$omp threadprivate( ValueOld_I, Xyz_DI, Coord_DI )
   !$omp threadprivate( Norm_DI )
   !$omp threadprivate( Corner_DI, CornerNorm_DI )
-  
+
 contains
   !============================================================================
   subroutine init_region

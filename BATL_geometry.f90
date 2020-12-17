@@ -85,6 +85,17 @@ module BATL_geometry
   ! This is needed for the roundcube geometry
   real, public, parameter:: SqrtNDim = sqrt(real(nDim))
 
+  !$acc declare create(TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry)
+  !$acc declare create(IsRotatedCartesian, GridRot_DD)
+  !$acc declare create(IsSpherical, IsRLonLat, IsCylindrical)
+  !$acc declare create(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis)
+  !$acc declare create(x_, y_, z_, r_, Phi_, Theta_, Lon_, Lat_)
+  !$acc declare create(IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
+  !$acc declare create(IsPeriodic_D, IsPeriodicCoord_D)
+  !$acc declare create(Xi_, Eta_, Zeta_)
+  !$acc declare create(UseHighFDGeometry)
+  !$acc declare create(rRound0, rRound1, IsRoundCube, SqrtNDim)
+
 contains
   !============================================================================
 

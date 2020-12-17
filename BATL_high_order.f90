@@ -40,6 +40,7 @@ contains
   !============================================================================
 
   real function correct_face_value(FaceValue, CellValue_I)
+  !$acc routine seq
 
     ! FaceValue is at cell face. CellValue_I are cell centered.
     ! Return 6th order approximation
