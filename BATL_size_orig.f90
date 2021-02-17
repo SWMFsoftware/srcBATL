@@ -130,5 +130,8 @@ module BATL_size
   ! Number of different kinds of particles
   integer, parameter:: nKindParticle = 8
 
+  ! Number of OpenACC gangs. It is always without OpenAcc.
+  integer:: nGang = 1
+  
 end module BATL_size
 !==============================================================================
