@@ -57,7 +57,7 @@ module BATL_geometry
   logical, public:: IsNegativePhiMin  = .false. ! PhiMin < 0 domain boundary
 
   ! Use geometry transform desighed for 5th order accuracy FD method.
-  logical, public:: UseHighFDGeometry
+  logical, public:: UseHighFDGeometry = .false.
 
   ! Periodicity of the domain per dimension
   logical, public:: IsPeriodic_D(MaxDim) = .false.
