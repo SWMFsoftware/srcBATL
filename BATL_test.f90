@@ -47,6 +47,7 @@ module BATL_test
   integer, public:: iVarTest = 1                       ! variable index to test
   character(len=20), public:: NameVarTest = ''         ! variable name to test
 
+  !$acc declare create(StringTest, iTest, jTest, kTest, iBlockTest, iVarTest)
 contains
   !============================================================================
 
@@ -231,7 +232,8 @@ contains
   !============================================================================
 
   subroutine test_start(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
-
+    !$acc routine seq
+    
     ! If optional block index iBlock is present, restrict all actions
     ! to the test block(s) only. If optional indexes i, j, or k are
     ! present, check against the index(es) of the test cell(s).
@@ -254,10 +256,13 @@ contains
 
     ! Start value for early returns
     !--------------------------------------------------------------------------
+    
     DoTest = .false.
+#ifndef OPENACC    
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
+    
     ! Check block index if present
     if(present(iBlock))then
        if(  (iProc /= iProcTest  .or. iBlock /= iBlockTest) .and. &
@@ -312,11 +317,12 @@ contains
           write(*,*) NameSub,' is starting'
        end if
     end if
-
+#endif
   end subroutine test_start
   !============================================================================
   subroutine test_stop(NameSub, DoTest, iBlock, i, j, k)
-
+    !$acc routine seq
+    
     ! If optional block index iBlock is present, restrict all actions
     ! to the test block(s) only.
     ! Write out a "finished" message if DoTest is true
@@ -326,6 +332,8 @@ contains
     integer, optional, intent(in):: iBlock
     integer, optional, intent(in):: i, j, k
     !--------------------------------------------------------------------------
+#ifndef OPENACC
+    
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
@@ -372,7 +380,7 @@ contains
           write(*,*) NameSub,' is finished'
        end if
     end if
-
+#endif
   end subroutine test_stop
   !============================================================================
 
