@@ -120,7 +120,7 @@ contains
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
        DoResChangeOnlyIn, UseHighResChangeIn, DefaultState_V,&
-       iLevelMin, iLevelMax)
+       iLevelMin, iLevelMax, UseOpenACCIn)
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
@@ -147,6 +147,7 @@ contains
     logical, optional, intent(in) :: UseHighResChangeIn
     real,    optional, intent(in) :: DefaultState_V(nVar)
     logical, optional, intent(in) :: DoTestIn
+    logical, optional, intent(in) :: UseOpenACCIn 
 
     ! Fill in the nVar variables in the ghost cells of State_VGB.
     !
@@ -360,7 +361,7 @@ contains
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                  .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                  .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
           end do ! iBlockSend
           !$omp end parallel do
 
@@ -809,7 +810,7 @@ contains
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
        DoResChangeOnlyIn, UseHighResChangeIn, DefaultState_V,&
-       iLevelMin, iLevelMax)
+       iLevelMin, iLevelMax, UseOpenACCIn)
 
     ! Message pass real array with nVar variables and BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
@@ -832,6 +833,7 @@ contains
     logical, optional, intent(in) :: UseHighResChangeIn
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
+    logical, optional, intent(in) :: UseOpenACCIn
     character(len=*), optional,intent(in) :: NameOperatorIn
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_real'
@@ -844,7 +846,7 @@ contains
          NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn, &
          UseHighResChangeIn=UseHighResChangeIn, &
          DefaultState_V=DefaultState_V,&
-         iLevelMin=iLevelMin, iLevelMax=iLevelMax)
+         iLevelMin=iLevelMin, iLevelMax=iLevelMax, UseOpenACCIn = UseOpenACCIn)
 
   end subroutine message_pass_ng_real
   !============================================================================
@@ -976,7 +978,7 @@ contains
   !============================================================================
 
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-       DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax)
+       DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
 
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
@@ -1005,9 +1007,12 @@ contains
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
     integer, intent(in),optional:: iLevelMin, iLevelMax
+    logical, intent(in),optional:: UseOpenACCIn
 
     ! Local variables
 
+    logical :: UseOpenACC 
+    
     integer :: iNodeSend
     integer :: iDir, jDir, kDir
 
@@ -1040,6 +1045,9 @@ contains
        if(iLevelSend > iLevelMax) RETURN
     end if
 
+    UseOpenACC = .false.
+    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
+    
     IsAxisNode = .false.
     UseTime = .false.
 
@@ -1564,6 +1572,7 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
+      integer:: is, js, ks, ir, jr, kr
       !------------------------------------------------------------------------
 
       DiR = 1; DjR = 1; DkR = 1
@@ -1657,9 +1666,20 @@ contains
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
          else
-            State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
-                 iBlockRecv)= &
-                 State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
+            if(UseOpenACC) then
+               !$acc parallel loop gang vector collapse(3) copyin(iBlockRecv, iBlockSend) present(State_VGB)
+               do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
+                  ir = iRMin + DiR*(is-iSMin)
+                  jr = jRMin + DjR*(js-jSMin)
+                  kr = kRMin + DkR*(ks-kSMin)
+                  State_VGB(:,ir,jr,kr,iBlockRecv) = &
+                       State_VGB(:,is,js,ks,iBlockSend)
+               end do; end do; end do 
+            else
+               State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
+                    iBlockRecv)= &
+                    State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
+            endif
          end if
       else
          ! Put data into the send buffer
