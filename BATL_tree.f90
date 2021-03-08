@@ -1850,9 +1850,8 @@ contains
     end do
     ! Now that we removed children of coarsened blocks, compact the tree
     call compact_tree(iTypeNode_A)
-    !\
+
     ! Inintialize list of neighboring processors:
-    !/
     IsNeighbor_P = .false.
     ! Set neighbor info
     do iBlock = 1, nBlock

@@ -7,13 +7,13 @@ module BATL_unit_test
   ! public entities not passed to BATL_lib
   use BATL_tree, ONLY: di_level_nei, Child1_, iProcNew_A
   use BATL_amr,  ONLY: do_amr, init_amr
-  
+
   ! Other things
   use ModNumConst, ONLY: cPi, cTwoPi, cHalfPi
   use ModUtilities, ONLY: CON_stop
   use ModRandomNumber, ONLY: random_real
   use ModMpi
-  
+
   implicit none
 
   private ! except
@@ -32,6 +32,7 @@ module BATL_unit_test
   real, allocatable:: ExtraData_IB(:, :)
 
 contains
+  !============================================================================
   subroutine test_tree ! unit test
 
     integer, parameter:: MaxBlockTest = 50
@@ -1975,7 +1976,7 @@ contains
 
     !--------------------------------------------------------------------------
   end subroutine test_amr_criteria
-  !=============================================================================
+  !============================================================================
   subroutine test_pass_cell
 
     integer, parameter:: MaxBlockTest = 200
@@ -3120,8 +3121,8 @@ contains
     !==========================================================================
 
   end subroutine test_pass_face
+  !============================================================================
 
-  !=============================================================================
   subroutine test_amr
 
     integer, parameter:: MaxBlockTest = 100
@@ -3691,3 +3692,4 @@ contains
   !============================================================================
 
 end module BATL_unit_test
+!==============================================================================

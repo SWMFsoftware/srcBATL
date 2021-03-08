@@ -62,8 +62,8 @@ program advect
 
   ! Size of the computational domain
   real :: &
-       DomainMax_D(3) = (/ +10.0, +5.0, +5.0 /), &
-       DomainMin_D(3) = (/ -10.0, -5.0, -5.0 /)
+       DomainMax_D(3) = [ +10.0, +5.0, +5.0 ], &
+       DomainMin_D(3) = [ -10.0, -5.0, -5.0 ]
 
   ! Periodicity
   logical:: IsPeriodicGrid_D(MaxDim) = .true.
@@ -302,7 +302,7 @@ contains
 
     character(len=100):: StringLine, NameCommand
 
-    integer:: nRoot_D(MaxDim) = (/4,4,2/)
+    integer:: nRoot_D(MaxDim) = [4,4,2]
     logical, allocatable:: DoRefine_B(:)
     real :: BlobRadius, Rgen_I(3)
     integer :: iDim, i, j, k, iBlock, iLevel
@@ -394,8 +394,8 @@ contains
 
     ! Setup generalized radius array
     if(index(TypeGeometry,'genr') > 0) Rgen_I = &
-         (/ DomainMin_D(1), (DomainMin_D(1)**3*DomainMax_D(1))**0.25, &
-         DomainMax_D(1) /)
+         [ DomainMin_D(1), (DomainMin_D(1)**3*DomainMax_D(1))**0.25, &
+         DomainMax_D(1) ]
 
     ! Note that the periodicity will be fixed based on TypeGeometry
     call init_batl( &
@@ -578,7 +578,7 @@ contains
 
     ! Swap theta and phi to conform the r-lon-lat grid used in PostIDL
     if(IsSpherical) &
-         CellSizeMinAll_D = CellSizeMinAll_D( (/1,3,2/) )
+         CellSizeMinAll_D = CellSizeMinAll_D( [1,3,2] )
 
     ! Set plot sizes
     CellSizePlot_D = CellSizeMinAll_D
@@ -648,7 +648,7 @@ contains
                    write(UnitTmp_) CellSize_DB(1,iBlock), &
                         Xyz_DGB(:,i,j,k,iBlock), &
                         CoordMin_DB(:,iBlock) &
-                        + ((/i,j,k/)-0.5)*CellSize_DB(:,iBlock), &
+                        + ([i,j,k]-0.5)*CellSize_DB(:,iBlock), &
                         State_VGB(:,i,j,k,iBlock), &
                         exact_v(Xyz_DGB(:,i,j,k,iBlock), Time), &
                         CellVolume_GB(i,j,k,iBlock), real(iNode_B(iBlock)), &

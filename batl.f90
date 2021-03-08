@@ -1,7 +1,7 @@
 program batl
 
   ! A simple program running BATL unit tests
-  
+
   use BATL_lib, ONLY: init_mpi, clean_mpi
   use BATL_unit_test
 
@@ -23,4 +23,5 @@ program batl
   call clean_mpi
 
 end program batl
+!==============================================================================
 

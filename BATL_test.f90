@@ -68,7 +68,7 @@ contains
        call              read_var('xTest',       xTest)
        if(nDim > 1)call  read_var('yTest',       yTest)
        if(nDim > 2)call  read_var('zTest',       zTest)
-       XyzTestCell_D = (/ xTest, yTest, zTest /)
+       XyzTestCell_D = [ xTest, yTest, zTest ]
     case("#TESTIJK")
        UseTestXyz = .false.
        call              read_var('iTest',       iTest)
@@ -88,7 +88,7 @@ contains
        call              read_var('xTest2',      xTest2)
        if(nDim > 1) call read_var('yTest2',      yTest2)
        if(nDim > 2) call read_var('zTest2',      zTest2)
-       XyzTestCell2_D = (/ xTest2, yTest2, zTest2 /)
+       XyzTestCell2_D = [ xTest2, yTest2, zTest2 ]
     case("#TEST2IJK")
        UseTest2Xyz = .false.
        call              read_var('iTest2',      iTest2)
@@ -133,7 +133,7 @@ contains
     if(UseTestXyz)then
 
        ! Find grid cell based on position provided in #TESTXYZ
-       XyzTestCell_D = (/ xTest, yTest, zTest /)
+       XyzTestCell_D = [ xTest, yTest, zTest ]
        call find_grid_block(XyzTestCell_D, iProcTest, iBlockTest, iTest_D)
        if(iProcTest < 0)then
           if(iProc == 0) write(*,*) NameSub,' WARNING test point at ', &
@@ -180,7 +180,7 @@ contains
     if(UseTest2Xyz)then
 
        ! Find grid cell based on position provided in #TEST2XYZ
-       XyzTestCell2_D = (/ xTest2, yTest2, zTest2 /)
+       XyzTestCell2_D = [ xTest2, yTest2, zTest2 ]
        call find_grid_block(XyzTestCell2_D, iProcTest2, iBlockTest2, iTest_D)
        if(iProcTest2 < 0)then
           if(iProc == 0) write(*,*) NameSub,' WARNING 2nd test point at ', &
@@ -233,7 +233,7 @@ contains
 
   subroutine test_start(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
     !$acc routine seq
-    
+
     ! If optional block index iBlock is present, restrict all actions
     ! to the test block(s) only. If optional indexes i, j, or k are
     ! present, check against the index(es) of the test cell(s).
@@ -255,14 +255,13 @@ contains
     logical, optional, intent(in) :: DoTestAll ! test on all processors
 
     ! Start value for early returns
+
     !--------------------------------------------------------------------------
-    
     DoTest = .false.
-#ifndef OPENACC    
+#ifndef OPENACC
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
-    
     ! Check block index if present
     if(present(iBlock))then
        if(  (iProc /= iProcTest  .or. iBlock /= iBlockTest) .and. &
@@ -322,7 +321,7 @@ contains
   !============================================================================
   subroutine test_stop(NameSub, DoTest, iBlock, i, j, k)
     !$acc routine seq
-    
+
     ! If optional block index iBlock is present, restrict all actions
     ! to the test block(s) only.
     ! Write out a "finished" message if DoTest is true
@@ -333,7 +332,7 @@ contains
     integer, optional, intent(in):: i, j, k
     !--------------------------------------------------------------------------
 #ifndef OPENACC
-    
+
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 

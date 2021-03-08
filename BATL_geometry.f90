@@ -314,7 +314,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'coord_to_xyz'
     !--------------------------------------------------------------------------
-
     if(IsCartesianGrid)then
        XyzOut_D = CoordIn_D
        RETURN

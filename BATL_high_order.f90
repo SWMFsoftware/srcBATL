@@ -70,8 +70,6 @@ contains
     real:: FaceL, FaceR
     real:: CorrectedFaceL, CorrectedFaceR
     integer, parameter:: i = 4
-    ! ----------------------------------------------------------------------
-
     !--------------------------------------------------------------------------
     Dx = 1.0
     if(present(DxIn)) Dx = DxIn
@@ -95,7 +93,7 @@ contains
     real, parameter:: c3over256 = 3./256, c25over256 = 25./256, &
          c150over256 = 150./256
     real:: FaceValue
-    real:: Distance_I(4) = (/-1.5, -0.5, 0.5, 1.5/)
+    real:: Distance_I(4) = [-1.5, -0.5, 0.5, 1.5]
     !--------------------------------------------------------------------------
 
     DoLimit = .false.
@@ -224,9 +222,9 @@ contains
     ! In 2D there is only 1 cell in the K direction
     integer, parameter:: k6_ = min(nK, 6), j6_ = min(nJ,6)
 
-    real, intent(in) :: CoarseCell              ! value of coarse neighbor cell
-    real, intent(in) :: FineCell_III(:,:,:) ! value of local fine cells, size (8,j6_,k6_)
-    real, intent(out):: Ghost_I(3)              ! coarse ghost cells for neighbor
+    real, intent(in) :: CoarseCell          ! value of coarse neighbor cell
+    real, intent(in) :: FineCell_III(:,:,:) ! local fine cells: (8,j6_,k6_)
+    real, intent(out):: Ghost_I(3)          ! coarse ghost cells for neighbor
     logical, optional, intent(in) :: DoSymInterpIn, IsPositiveIn
 
     ! Local variables
@@ -236,8 +234,8 @@ contains
     logical:: DoSymInterp, IsPositive
 
     ! Distances of coarse neighbor and fine cells from 1st ghost cell
-    real:: Distance_I(4)=(/-4,-1,1,3/)
-    real:: Distance1_I(4) = (/-3,-1,1,3/)
+    real:: Distance_I(4)=[-4,-1,1,3]
+    real:: Distance1_I(4) = [-3,-1,1,3]
 
     ! Interpolation coefficients for G1
     real, parameter:: c1=-1./63, c2=5./12, c3 = 3./4, c4=-5./28, c5=1./36
@@ -250,7 +248,9 @@ contains
 
     character(len=*), parameter:: NameSub = 'restriction_high_order_reschange'
     !--------------------------------------------------------------------------
-    DoSymInterp = .true. ! use f3...f8 to interpolate G3.
+
+    ! use f3...f8 to interpolate G3.
+    DoSymInterp = .true.
     if(present(DoSymInterpIn)) DoSymInterp = DoSymInterpIn
 
     IsPositive = .false.
@@ -503,7 +503,7 @@ contains
     real, parameter:: c1over4 = 0.25, c3over4 = 0.75, c6=0.6
 
     integer, parameter:: Ip3_=0, Ipp_=1, Ip_=2, I_=3, Im_=4, Imm_=5
-    real:: Temp, Distance_I(4)=(/-7,-3,1,5/)
+    real:: Temp, Distance_I(4)=[-7,-3,1,5]
     logical :: IsCell1Accurate, IsCell4Accurate
     !--------------------------------------------------------------------------
 
@@ -573,7 +573,7 @@ contains
     real, parameter:: c1over4 = 0.25, c3over4 = 0.75, c6=0.6
 
     integer, parameter:: Ipp_=1, Ip_=2, I_=3, Im_=4, Imm_=5
-    real:: Temp, Distance_I(4)=(/-7,-3,1,5/)
+    real:: Temp, Distance_I(4)=[-7,-3,1,5]
 
     !--------------------------------------------------------------------------
     DoLimit = .true.
@@ -711,8 +711,7 @@ contains
     ! be overwritten by remote prolongation (iSendStage == 3).
     logical:: Use4thOrder
 
-    character(len=*), parameter:: &
-         NameSub = 'prolongation_high_order_for_face_ghost'
+    character(len=*), parameter:: NameSub = 'prolongation_high_order_for_face_ghost'
     !--------------------------------------------------------------------------
     IsPositive_V = .false.
     if(present(IsPositiveIn_V)) IsPositive_V = IsPositiveIn_V
@@ -1476,7 +1475,7 @@ contains
 
     real:: Coef1_I(4) = ([-1./6, 2./3, 2./3, -1./6])
 
-    real, parameter::  Distance_I(4) = (/-2, -1, 1, 2/)
+    real, parameter::  Distance_I(4) = [-2, -1, 1, 2]
 
     integer:: iDir, jDir, kDir, iDir1, jDir1, kDir1, nDir1, iDir2, jDir2, kDir2
     integer:: jBegin, jEnd, iBegin, iEnd, kBegin, kEnd
@@ -1968,7 +1967,7 @@ contains
     logical:: IsPositive, DoTest
     real:: Cell_I(5), Cell_II(5,5)
     integer:: i, j, k
-    real:: Temp, Distance_I(4)=(/-7,-3,1,5/)
+    real:: Temp, Distance_I(4)=[-7,-3,1,5]
     real:: CellLimit_I(4)
     character(len=*), parameter:: NameSub = 'prolongation_high_order_amr'
     !--------------------------------------------------------------------------

@@ -25,23 +25,21 @@ module BATL_particles
   public:: put_particles
   public:: trace_particles
   SAVE
-  !\
+
   ! Use the pair RSend + IRecv or ISend + IRecv
-  !/
   logical, parameter, private:: DoRSend = .true.
 
   type ParticleType
-     !\
+
      ! The number of parameters which characterize the 'state' of
      ! the particles
-     !/
      integer:: nVar   ! # of real    parameters
      integer:: nIndex ! # of integer parameters
-     !\
+
      ! The current number of particles at a given processor and
      ! the maximum allowed number of particles
      integer:: nParticle, nParticleMax
-     !\
+
      ! nVar*nParticleMax array. The second index numerates 'particles'.
      ! First nDim components are the cartesian coordinates the other
      ! can be are velocities, the momentum components, gyrokinetic
@@ -50,7 +48,7 @@ module BATL_particles
      ! fluid particle along the magnetic field line in application to
      ! M-FLAMPA
      real,    pointer  :: State_VI(:,:)
-     !\
+
      ! (nIndex+1)*nParticleMax array with the indices enumerating
      ! particles. It ALWAYS stores the number of block (0th index)
      ! which posesses an information, sufficient to interpolate
@@ -78,7 +76,7 @@ contains
 
   subroutine allocate_particles()
     integer:: iKindParticle, iKindFirst, iKindLast
-    !\
+
     ! Misc
     integer :: nVar, nIndex, nParticleMax
     character(len=*), parameter:: NameSub = 'allocate_particles'
@@ -186,7 +184,7 @@ contains
     integer          :: nParticleMax   ! max # of particles of this kind on PE
     integer          :: nUnset         ! # of particles with undefined block
     !--------------------------------------------------------------------------
-    !\
+
     ! Return, if no particles on the given Proc
     if(Particle_I(iKindParticle)%nParticle < 1)RETURN
 
@@ -194,10 +192,10 @@ contains
          State_VI, iIndex_II, nVar, nIndex, nParticle, nParticleMax)
 
     nUnset = count(iIndex_II(0,1:nParticle)<0)
-    !\
+
     ! Return, if there is no undefined particle
     if(nUnset==0) RETURN
-    !\
+
     ! Set nParticle to 0 and return if all particles are undefined
     if(nParticle == nUNset)then
        call clean_particle_arr(iKindParticle, 1, nParticle)
@@ -234,9 +232,8 @@ contains
     !--------------------------------------------------------------------------
     Xyz_D = 0
     if(Particle_I(iKindParticle)%iIndex_II(0, iParticle)<0)then
-       !\
+
        ! Particle is already marked as undefined
-       !/
        if(present(IsGone))IsGone = .true.
        if(present(DoMove))  DoMove = .false.
        RETURN
@@ -253,10 +250,9 @@ contains
        call mark_undefined(iKindParticle, iParticle)
        if(present(DoMove))  DoMove = .false.
     else
-       !\
+
        ! For periodic boundary conditions the coordinates may be
        ! changed by check_interpolate routine
-       !/
        Particle_I(iKindParticle)%State_VI(1:nDim, iParticle) &
             = Xyz_D(1:nDim)
        ! change the block
@@ -327,14 +323,13 @@ contains
       integer:: nParticleNew ! # of particles after message pass
       logical:: IsOut        ! particle is out of domain
       integer:: iTag, iError, iRequest, iRequest_I(2*nProc)
-      !------------------------------------------------------------------------
       ! reset parameters of the message_pass for this kind of particles
+      !------------------------------------------------------------------------
       nSend_P       = 0; nRecv_P = 0
       iSendOffset_I(1:nParticle) =-1
       iProcTo_I(    1:nParticle) = iProc
-      !\
+
       ! Number of data to send-receive, per particle
-      !/
       nData = nVar + nIndex + 1
       ! cycle through particles & find which should be passed to other procs
       do iParticle = 1, nParticle
@@ -348,7 +343,7 @@ contains
       end do
 
       if(nProc==1)then
-         !\
+
          ! Remove undefined particles
          call remove_undefined_particles(iKindParticle)
          nParticle = Particle_I(iKindParticle)%nParticle
@@ -357,7 +352,7 @@ contains
       ! send size of messages
       iRequest = 0
       do iProcFrom = 0, nProc - 1
-         if(iProc==iProcFrom) CYCLE ! skip this proc           
+         if(iProc==iProcFrom) CYCLE ! skip this proc
          iTag = iProc
          iRequest = iRequest + 1
          call MPI_Irecv(&
@@ -407,10 +402,9 @@ contains
       do iParticle = 1, nParticle
          if(iProcTo_I(iParticle) == iProc)then
             if(iIndex_II(0, iParticle)<0) then
-               !\
+
                ! Remove undefined particles
-               !/
-               nUnset = nUnset +1 
+               nUnset = nUnset +1
                CYCLE
             end if
             ! particle stays on this proc
@@ -503,24 +497,20 @@ contains
     integer,optional,intent(in)  :: iIndexIn_II(:,:)
     logical, optional,intent(in) :: UseInputInGenCoord, DoReplace
     integer,optional,intent(out) :: nParticlePE
-    !\
+
     ! Data pointers for particles of a given sort
-    !/
     real,                pointer :: State_VI(:,:)
     integer,             pointer :: iIndex_II(:,:)
-    !\
+
     ! Size of data pointers
-    !/
     integer  :: nVar, nIndex, nParticleOld, nParticleMax
-    !\
+
     ! Size of input arrays
-    !/
     integer  :: nVarIn, nParticleIn, nIndexIn, nU_I(2)
-    !\
+
     ! Used if there is no input index array. In this case the particle
     ! Id, if desired, is formed as the order # of particle in the input
     ! array(s) + iLastId
-    !/
     integer  :: iLastId
     ! Output parameters for check_interpolate routine:
     integer :: iProcOut, iBlockOut
@@ -620,15 +610,14 @@ contains
          integer, intent(in) :: iParticle
          logical, intent(out):: IsEndOfSegment
          !---------------
-         !\
+
          ! IsEndOfSegment should be set to .true. if one of the
          ! following is true:
          ! (1) check_interpolate in the displaced location of the
          ! particle shows that the particle left the computational
          ! domain. Such particle MUST be marked as "undefined":
-         !\
+
          ! call mark_undefined(iKind, iParticle)
-         !/
 
          ! (2) check_interpolate in the displaced location of the
          ! particle shows that the particle location can no longer
@@ -639,45 +628,41 @@ contains
          ! trajectory of a given particle (it reaches the internal
          ! or "soft" boundary). Such particle MUST be
          ! marked as "undefined":
-         !\
+
          ! call mark_undefined(iKind, iParticle)
-         !/
        end subroutine displace_particle
        !--------------------------------------------------------------------
        subroutine check_done(Done)
          implicit none
          logical, intent(out):: Done
          !---------------
-         !\
+
          ! tracing may need to be performed not to the full exhaustion
          ! of particle in the domain, but until a certain criteria is met,
          ! e.g. all particles were moved one full time step;
          ! this subroutine alllows propagating these criteria to this module
-         !/
        end subroutine check_done
     end interface
 
     optional:: check_done
-    !\
+
     ! Conditions for exiting a loop or the whole routine
     logical :: IsEndOfSegment, Done
-    !\
+
     ! Loop variable
     integer :: iParticle
     !--------------------------------------------------------------------------
-    !\
+
     ! CYCLE till all particles leave the domain or
     ! check_done gives Done=.true. on all processors
-    !/
     do
-       !\
+
        ! For all particles at this PE
-       !/
        do iParticle = 1, Particle_I(iKindParticle)%nParticle
           ! Displace while the particle is at the PE domain
           SEGMENT:do
              call displace_particle(iParticle,IsEndOfSegment)
-             !\
+
              ! The end of segment is achieved if the particle
              ! (1) reaches the computational domain boundary.
              !     These particles should be marked using
@@ -688,17 +673,15 @@ contains
              if(IsEndOfSegment)EXIT SEGMENT
           end do SEGMENT
        end do
-       !\
+
        ! Particles of the (1) kind are removed
-       !\
+
        ! Particles of (2) kind are sent to proper processor
-       !/
        call message_pass_particles(iKindParticle)
        if(is_for_all_pe(Particle_I(iKindParticle)%nParticle == 0))&
             RETURN
-       !\
+
        ! If all particles are of (3) kind
-       !/
        if(present(check_done))then
           call check_done(Done)
           if(is_for_all_pe(Done))RETURN

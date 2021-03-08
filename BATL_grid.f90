@@ -32,8 +32,8 @@ module BATL_grid
   public :: interpolate_grid_amr ! only used in test?
   public :: interpolate_grid_amr_gc
   public :: check_interpolate_amr_gc
-  public :: interpolate_state_vector !Interpolate state vactor to a given loc,
-                                     !Need all ghost cells with ProlongOrder=1
+  public :: interpolate_state_vector ! Interpolate state vactor to a given loc,
+                                     ! Need all ghost cells with ProlongOrder=1
 
   public :: show_grid_cell      ! provide information about grid cell
   public :: show_grid_proc      ! only used in test?
@@ -41,7 +41,7 @@ module BATL_grid
   interface interpolate_grid_amr_gc
 
      ! Uses a single block with at least one layer
-     ! of ghost cells filled without prolongation. 
+     ! of ghost cells filled without prolongation.
      ! The index of the block suitable for interpolation
      ! is a required input parameter.
      module procedure interpolate_grid_amr_gc_iblock
@@ -287,12 +287,12 @@ contains
 
        do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
           Xyz_DGB(:,i,j,k,iBlock) = CoordMin_DB(:,iBlock) + &
-               ( (/i, j, k/) - 0.5 ) * CellSize_DB(:,iBlock)
+               ( [i, j, k] - 0.5 ) * CellSize_DB(:,iBlock)
        end do; end do; end do
 
        do k = 1, nKNode; do j = 1, nJNode; do i = 1, nINode
           Xyz_DNB(:,i,j,k,iBlock) = CoordMin_DB(:,iBlock) + &
-               ( (/i, j, k/) - 1 ) * CellSize_DB(:,iBlock)
+               ( [i, j, k] - 1 ) * CellSize_DB(:,iBlock)
        end do; end do; end do
 
        if(IsRzGeometry)then
@@ -365,7 +365,7 @@ contains
           ! Cell center positions based on generalized coordinates
           do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
              Coord_D = CoordMin_DB(:,iBlock) + &
-                  ( (/i, j, k/) - 0.5 ) * CellSize_DB(:,iBlock)
+                  ( [i, j, k] - 0.5 ) * CellSize_DB(:,iBlock)
              call coord_to_xyz(Coord_D, Xyz_DGB(:,i,j,k,iBlock))
           end do; end do; end do
        end if
@@ -380,7 +380,7 @@ contains
              if(nDim == 2 .and. k /= 1) CYCLE
              do j = MinJ, MaxJ+1; do i = MinI, MaxI+1
                 Coord_D = CoordMin_DB(:,iBlock) + &
-                     ( (/i, j, k/) - 1 ) * CellSize_DB(:,iBlock)
+                     ( [i, j, k] - 1 ) * CellSize_DB(:,iBlock)
                 call coord_to_xyz(Coord_D, Xyz_DN(:,i,j,k) )
              end do; end do
           end do
@@ -398,7 +398,7 @@ contains
                 if(nDim == 2 .and. k /= 1) CYCLE
                 do j = 1, nJNode; do i = 1, nINode
                    Coord_D = CoordMin_DB(:,iBlock) + &
-                        ( (/i, j, k/) - 1 ) * CellSize_DB(:,iBlock)
+                        ( [i, j, k] - 1 ) * CellSize_DB(:,iBlock)
                    call coord_to_xyz(Coord_D, Xyz_DN(:,i,j,k) )
                 end do; end do
              end do
@@ -619,7 +619,7 @@ contains
        if(allocated(Xyz_DN))      deallocate(Xyz_DN)
     end if
 
-    !hyzhou: find a place to update variables on device
+    ! hyzhou: find a place to update variables on device
     !$acc update device(CellVolume_GB)
     !$acc update device(Xyz_DGB)
     !$acc update device(CellFace_DB)
@@ -1291,7 +1291,7 @@ contains
           do k=1,nK; do j=1,nJ; do i=1,nI
              if(.not.Used_GB(i,j,k,iBlock)) CYCLE
              if(Var_GB(i,j,k,iBlock) == VarMin)then
-                iLoc_I = (/i, j, k, iBlock, iProc/)
+                iLoc_I = [i, j, k, iBlock, iProc]
                 EXIT BLOCKLOOP
              end if
           enddo; enddo; enddo;
@@ -1355,7 +1355,7 @@ contains
           do k=1,nK; do j=1,nJ; do i=1,nI
              if(.not.Used_GB(i,j,k,iBlock)) CYCLE
              if(Var_GB(i,j,k,iBlock) == VarMax)then
-                iLoc_I = (/i, j, k, iBlock, iProc/)
+                iLoc_I = [i, j, k, iBlock, iProc]
                 EXIT BLOCKLOOP
              end if
           enddo; enddo; enddo;
@@ -1567,7 +1567,7 @@ contains
 
        ! Calculate the weights and store it together with index information
        do k = kLo, kHi; do j = jLo, jHi; do i = iLo, iHi
-          iCell_D = (/ i, j, k /)
+          iCell_D = [ i, j, k ]
 
           CoordCell_D = CoordMin_DB(1:nDim,iBlock) &
                + ( iCell_D(1:nDim) - 0.5 )*CellSize_D
@@ -1624,8 +1624,8 @@ contains
     ! nCell returns the number of cells found on the processor.
     ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
-    ! Using second order accurate AMR interpolateion procedure 
-    ! that is continuous across resolution changes 
+    ! Using second order accurate AMR interpolateion procedure
+    ! that is continuous across resolution changes
     !
     ! See Borovikov et al. JCP 2015, doi:10.1016/j.jcp.2015.05.038
 
@@ -1637,9 +1637,9 @@ contains
     logical, optional, intent(out):: IsSecondOrder
 
     real   :: Coord_D(MaxDim)
-    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
+    !--------------------------------------------------------------------------
     if(nDimAmr <= 1)then
        call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
@@ -1667,7 +1667,7 @@ contains
     ! nCell returns the number of cells found on the processor.
     ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated.
-    ! 
+    !
     ! Interpolation is performed using cells (including ghost) of single block
 
     real,    intent(in)   :: XyzIn_D(MaxDim)
@@ -1678,9 +1678,9 @@ contains
     logical, optional, intent(out):: IsSecondOrder
     real   :: Xyz_D(MaxDim)
     integer:: iBlockOut, iProcOut
-    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
+    !--------------------------------------------------------------------------
     if(nDimAmr <= 1)then
        call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
@@ -1702,8 +1702,8 @@ contains
          nCell, iCell_DI, Weight_I, IsSecondOrder)
 
   end subroutine interpolate_grid_amr_gc
-
   !============================================================================
+
   subroutine interpolate_grid_amr_gc_iblock(XyzIn_D, iBlock, &
        nCell, iCell_DI, Weight_I, IsSecondOrder)
 
@@ -1732,9 +1732,9 @@ contains
     integer:: iDim ! loop variable
     real   :: Coord_D(MaxDim), DCoord_D(MaxDim), CoordBlock_D(MaxDim)
 
-    !--------------------------------------------------------------------------
     ! check number of AMR dimensions:
     ! if it is 0 or 1 => call a simpler interpolation function
+    !--------------------------------------------------------------------------
     if(nDimAmr <= 1)then
        call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
        if(present(IsSecondOrder)) IsSecondOrder = .true.
@@ -1835,12 +1835,12 @@ contains
     logical :: DoSearch ! If .true. find iPeOut and iBlockOut via tree search
 
     ! Shifts to subgrids from the lower left corner
-    integer, parameter:: iShift_DI(3,8) = reshape((/&
+    integer, parameter:: iShift_DI(3,8) = reshape([&
          0,0,0, 1,0,0, 0,1,0, 1,1,0, &
-         0,0,1, 1,0,1, 0,1,1, 1,1,1/),(/3,8/))
+         0,0,1, 1,0,1, 0,1,1, 1,1,1],[3,8])
 
     ! Powers of 2
-    integer, parameter:: iPowerOf2_D(3) = (/1,2,4/)
+    integer, parameter:: iPowerOf2_D(3) = [1,2,4]
 
     ! For a search throughout the tree
     real:: CoordTree_D(MaxDim)
@@ -2178,10 +2178,10 @@ contains
   subroutine interpolate_state_vector(&
        XyzIn_D, nVar, State_VGB,    State_V, IsFound)
     !
-    !Interpolate state vactor to a given loc,
-    !Need all ghost cells with ProlongOrder=1
-    !If needed, use before
-    !call message_pass_cell(nVar, State_VGB, ProlongOrderIn=1)
+    ! Interpolate state vactor to a given loc,
+    ! Need all ghost cells with ProlongOrder=1
+    ! If needed, use before
+    ! call message_pass_cell(nVar, State_VGB, ProlongOrderIn=1)
     !
     use ModMpi
     !INPUTS:
@@ -2196,7 +2196,7 @@ contains
     ! Block and PE number at which to interpolate
     integer :: iProcFound, iBlockFound
     ! Misc:
-    integer :: iError, iCell 
+    integer :: iError, iCell
     real    :: Xyz_D(MaxDim)
     !
     ! Interpolation stencil
@@ -2204,8 +2204,7 @@ contains
     integer :: nCell, iCell_DI(0:nDim,2**nDim), iCell_D(MaxDim)
     real    :: Weight_I(2**nDim)
 
-    
-    character(LEN=*), parameter :: NameSub = 'interpolate_state_vector'
+    character(len=*), parameter:: NameSub = 'interpolate_state_vector'
     !--------------------------------------------------------------------------
     State_V = 0.0; Xyz_D = XyzIn_D
     call check_interpolate_amr_gc(Xyz_D, 1, iProcFound, iBlockFound)
@@ -2214,7 +2213,7 @@ contains
           IsFound = .false.
           RETURN
        else
-          !Add a stop statement
+          ! Add a stop statement
        end if
     end if
     if(iProc==iProcFound)then
@@ -2232,7 +2231,7 @@ contains
        IsFound = nCell > 0
     end if
   end subroutine interpolate_state_vector
- !============================================================================
+  !============================================================================
   subroutine calc_face_normal(iBlock)
 
     ! Interpolate dx3/dx1 to the face, where x3=hat(Xi,Eta,Zeta), x1=x,y,z.

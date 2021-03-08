@@ -113,8 +113,8 @@ module BATL_lib
   public:: check_interpolate_amr_gc
   public:: create_grid, show_grid_cell
   public:: integrate_grid, minval_grid, maxval_grid
-  public:: interpolate_state_vector !Interpolate state vactor to a given loc,
-                                    !Need all ghost cells with ProlongOrder=1
+  public:: interpolate_state_vector ! Interpolate state vactor to a given loc,
+                                    ! Need all ghost cells with ProlongOrder=1
 
   !--------------------
   ! Functions inherited
@@ -245,7 +245,7 @@ contains
     ! are initialized, the root blocks are distributed and their coordinates
     ! cell volumes, face areas, etc. are all set.
     !
-    !-------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     if(IsBatlInitialized) RETURN
 
     call init_tree(MaxBlockIn)
@@ -274,7 +274,7 @@ contains
   !============================================================================
   subroutine clean_batl
 
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     ! Free up memory
     call clean_amr_criteria
     call clean_grid
@@ -297,8 +297,8 @@ contains
     ! (cell volume, face areas, etc.) are all set.
 
     integer:: iBlock
-    !------------------------------------------------------------------------
 
+    !--------------------------------------------------------------------------
     if(present(DoRefine_B))then
        do iBlock = 1, nBlock
           if(Unused_B(iBlock)) CYCLE
@@ -328,7 +328,7 @@ contains
     logical, intent(in), optional:: DoRefine_B(MaxBlock)  ! request to refine
     logical, intent(in), optional:: DoCoarsen_B(MaxBlock) ! request to coarsen
     logical, intent(in), optional:: DoBalanceEachLevelIn  ! balance per level?
-    integer,intent(in),  optional:: iTypeBalance_A(MaxNode)!balance by types
+    integer,intent(in),  optional:: iTypeBalance_A(MaxNode)! balance by types
     integer,intent(inout),optional::iTypeNode_A(MaxNode)  ! adapt node types
     logical, intent(in), optional:: &
          Used_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock)  ! used cells
@@ -500,3 +500,4 @@ contains
   end subroutine regrid_batl
   !============================================================================
 end module BATL_lib
+!==============================================================================

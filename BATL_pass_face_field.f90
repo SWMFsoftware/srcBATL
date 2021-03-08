@@ -21,20 +21,17 @@ module BATL_pass_face_field
   SAVE
 
   private ! except
-  !\
+
   ! PUBLIC MEMBERS
-  !/
-  !\
+
   ! Fills in ghost face values for the face-centered staggered
   ! (electric) field (in Particle-In-Cell code)
-  !/
   public message_pass_field
-  !\
+
   ! Add ghost face values of face-centered staggered vector
   ! variables (such as the electric current components in PIC, which
   ! are created by the particles close to the block boundary)
   ! to all physical faces
-  !/
   public add_ghost_face_field
   public add_ghost_cell_field
   ! Fast lookup tables for index ranges per dimension
@@ -47,9 +44,8 @@ module BATL_pass_face_field
 
   real,    allocatable:: BufferR_I(:), BufferS_I(:)
   integer :: MaxBufferS = -1, MaxBufferR = -1
-  !\
+
   ! Counter of currents through the physical faces
-  !/
   real, allocatable :: Counter_FDB(:,:,:,:,:)
   integer:: nBlockMax = -1
 
@@ -89,10 +85,10 @@ contains
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
     !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-    !       _! _!x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-    !       _! _!x!x               _!_!_!_                  Ey (:,nY+2,:)
-    !       _! _!_!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x!_!_        Ex(0,1,1),Ex(nI,1,1)...
+    !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
+    !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
+    !       _! _! _!                x!x!_!_        Phys Face Values:
+    !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
     !       -2                             Ghost values: Ex(-1,1,1),Ey(0,1,1)..
     real, intent(inout) :: Field_FDB(1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,&
          1-nG*kDim_:nK+nG*kDim_,MaxDim,MaxBlock)
@@ -145,7 +141,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       !call timing_start('local_pass')
+       ! call timing_start('local_pass')
 
        if(nProc>1)then
           if(DoCountOnly)then
@@ -177,7 +173,7 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       !call timing_stop('local_pass')
+       ! call timing_stop('local_pass')
 
     end do ! iCountOnly
 
@@ -186,7 +182,7 @@ contains
        RETURN
     end if
 
-    !call timing_start('recv_pass')
+    ! call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -202,15 +198,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    !call timing_stop('recv_pass')
+    ! call timing_stop('recv_pass')
 
     if(UseRSend) then
-       !call timing_start('barrier_pass')
+       ! call timing_start('barrier_pass')
        call barrier_mpi
-       !call timing_stop('barrier_pass')
+       ! call timing_stop('barrier_pass')
     end if
 
-    !call timing_start('send_pass')
+    ! call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -230,9 +226,9 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    !call timing_stop('send_pass')
+    ! call timing_stop('send_pass')
 
-    !call timing_start('wait_pass')
+    ! call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
          call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
@@ -240,11 +236,11 @@ contains
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
          call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
-    !call timing_stop('wait_pass')
+    ! call timing_stop('wait_pass')
 
-    !call timing_start('buffer_to_state')
+    ! call timing_start('buffer_to_state')
     call buffer_to_state
-    !call timing_stop('buffer_to_state')
+    ! call timing_stop('buffer_to_state')
 
     call timing_stop(NameSub)
 
@@ -305,9 +301,8 @@ contains
       if(DoCountOnly)then
          ! No need to count data for local copy
          if(iProc == iProcRecv) RETURN
-         !\
+
          ! Number of integers to be send/received
-         !/
          nSize = 1 + 2*nDim*MaxDim
          do iDim = 1,MaxDim
             iRMin = iR_DIID(1,iDir,Min_,iDim)
@@ -389,41 +384,36 @@ contains
       ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
       !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _!x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _!x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _!_!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x!_!_        Ex(0,1,1),Ex(nI,1,1)...
+      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
+      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
+      !       _! _! _!                x!x!_!_        Phys Face Values:
+      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! negative displcement with respect to the sending one
-      !/
-      !\
+
       ! 1. Send faces 1:nWidth
-      !/
       iS_DIID(:,-1,Min_,:) = 1
       iS_DIID(:,-1,Max_,:) = nWidth
       do iDim = 1,MaxDim
-         !\
+
          ! 2. Receive faces nIjk_D + 1:nIjk_D + nWidth
-         !/
          iR_DIID(:,-1,Min_,iDim) = nIjk_D + 1
          iR_DIID(:,-1,Max_,iDim) = nIjk_D + nWidth
-         !\
+
          ! ! EXCEPT!!
          ! nIJK+nWidth face at which the iDim component is assigned
          ! is not used. Specifiaclly for nWidth=1 this face is not sent.
          iS_DIID(iDim,-1,Max_,iDim) = iS_DIID(iDim,-1,Max_,iDim) - 1
          iR_DIID(iDim,-1,Max_,iDim) = iR_DIID(iDim,-1,Max_,iDim) - 1
       end do
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! zero displcement with respect to the sending one
-      !/
-      !\
+
       ! 1. Send and receive faces are from 1 to nIJK_D
-      !/
       iS_DIID(:, 0,Min_,:) = 1
       iR_DIID(:, 0,Min_,:) = 1
       do iDim = 1,MaxDim
@@ -431,32 +421,27 @@ contains
          iR_DIID(:, 0,Max_,iDim) = nIjk_D
       end do
       do iDim = 1,nDim
-         !\
+
          ! ! EXCEPT!!! For the iDim component of the field
          ! Send and receive faces are from 0 to nIJK_D
-         !/
          iS_DIID(iDim,0,Min_,iDim) = 0
          iR_DIID(iDim,0,Min_,iDim) = 0
       end do
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! positive displcement with respect to the sending one
-      !/
-      !\
+
       ! 1. Recv  faces are from 1-nWidth to 0
-      !/
       iR_DIID(:, 1,Min_,:) = 1 - nWidth
       iR_DIID(:, 1,Max_,:) = 0
       do iDim = 1,MaxDim
-         !\
+
          ! Send faces are from nIjk_D + 1 - nWidth to nIjk_D
-         !/
          iS_DIID(:, 1,Min_,iDim) = nIjk_D + 1 - nWidth
          iS_DIID(:, 1,Max_,iDim) = nIjk_D
-         !\
+
          ! ! EXCEPT!!! For the iDim component of the field
          ! Recv faces are up to -1 (0 face is physical)
-         !/
          iS_DIID(iDim,1,Max_,iDim) = nIjk_D(iDim) - 1
          iR_DIID(iDim,1,Max_,iDim) =  - 1
       end do
@@ -475,10 +460,10 @@ contains
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
     !  Left corner        Right corner n+2                 Jz (:,:,nZ+2)
-    !       _! _!x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
-    !       _! _!x!x               _!_!_!_                  Jy (:,nY+2,:)
-    !       _! _!_!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x!_!_        Jx(0,1,1),Jx(nI,1,1)...
+    !       _! _! x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
+    !       _! _! x!x               _!_!_!_                  Jy (:,nY+2,:)
+    !       _! _! _!                x!x!_!_        Phys Face Values:
+    !    -2  ! ! !                x! x! _!_        Jx(0,1,1),Jx(nI,1,1)...
     !       -2                           Ghost values: Jx(-1,1,1),Jy(0,1,1)..
     !------------------------------------------------------------------------
     ! Optional arguments
@@ -512,10 +497,9 @@ contains
     !--------------------------------------------------------------------------
     call timing_start(NameSub)
 
-    !call timing_start('init_pass')
-    !\
+    ! call timing_start('init_pass')
+
     ! Allocate block-based counter for currents through hysical phases
-    !/
     if(nBlock>nBlockMax)then
        if(allocated(Counter_FDB))deallocate(Counter_FDB)
        allocate(Counter_FDB(0:nI, 1-jDim_:nJ, 1-kDim_:nK, MaxDim, nBlock))
@@ -533,13 +517,11 @@ contains
     call set_range
 
     if(nProc > 1)call allocate_pe_arrays
-    !\
+
     ! Nullify counter
-    !/
     Counter_FDB = 0.0
-    !\
+
     ! Fill in physical faces of the Counter:
-    !/
     do iBlockSend = 1, nBlock
        if(Unused_B(iBlockSend)) CYCLE
        Counter_FDB(0:nI, 1:nJ, 1:nK, 1, iBlockSend) = &
@@ -550,7 +532,7 @@ contains
             Current_FDB(1:nI, 1:nJ, 1-kDim_:nK, 3, iBlockSend)
     end do
 
-    !call timing_stop('init_pass')
+    ! call timing_stop('init_pass')
 
     do iCountOnly = 1, 2
        DoCountOnly = iCountOnly == 1
@@ -558,7 +540,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       !call timing_start('local_pass')
+       ! call timing_start('local_pass')
 
        ! Second order prolongation needs two stages:
        ! first stage fills in equal and coarser ghost cells
@@ -594,7 +576,7 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       !call timing_stop('local_pass')
+       ! call timing_stop('local_pass')
 
     end do ! iCountOnly
 
@@ -613,7 +595,7 @@ contains
        RETURN
     end if
 
-    !call timing_start('recv_pass')
+    ! call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -629,15 +611,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    !call timing_stop('recv_pass')
+    ! call timing_stop('recv_pass')
 
     if(UseRSend) then
-       !call timing_start('barrier_pass')
+       ! call timing_start('barrier_pass')
        call barrier_mpi
-       !call timing_stop('barrier_pass')
+       ! call timing_stop('barrier_pass')
     end if
 
-    !call timing_start('send_pass')
+    ! call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -657,9 +639,9 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    !call timing_stop('send_pass')
+    ! call timing_stop('send_pass')
 
-    !call timing_start('wait_pass')
+    ! call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
          call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
@@ -667,11 +649,11 @@ contains
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
          call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
-    !call timing_stop('wait_pass')
+    ! call timing_stop('wait_pass')
 
-    !call timing_start('buffer_to_state')
+    ! call timing_start('buffer_to_state')
     call buffer_to_state
-    !call timing_stop('buffer_to_state')
+    ! call timing_stop('buffer_to_state')
     do iBlockSend = 1, nBlock
        if(Unused_B(iBlockSend)) CYCLE
        Current_FDB(:, :, :, :, iBlockSend) = 0.0
@@ -743,9 +725,8 @@ contains
       if(DoCountOnly)then
          ! No need to count data for local copy
          if(iProc == iProcRecv) RETURN
-         !\
+
          ! Number of integers to be send/received
-         !/
          nSize = 1 + 2*nDim*MaxDim
          do iDim = 1,MaxDim
             iRMin = iR_DIID(1,iDir,Min_,iDim)
@@ -829,13 +810,13 @@ contains
             ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
       !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _!x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _!x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _!_!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x!_!_        Ex(0,1,1),Ex(nI,1,1)...
+      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
+      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
+      !       _! _! _!                x!x!_!_        Phys Face Values:
+      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! negative displcement with respect to the sending one
       iS_DIID(:,-1,Min_,:) = 1 - nWidth
@@ -844,9 +825,8 @@ contains
          iR_DIID(:,-1,Min_,iDim) = nIjk_D + 1 -nWidth
          iR_DIID(:,-1,Max_,iDim) = nIjk_D
       end do
-      !\
+
       ! Zero displacement
-      !/
       iS_DIID(:, 0,Min_,:) = 1
       iR_DIID(:, 0,Min_,:) = 1
       do iDim = 1,MaxDim
@@ -883,10 +863,10 @@ contains
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
     !  Left corner        Right corner n+2                 Jz (:,:,nZ+2)
-    !       _! _!x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
-    !       _! _!x!x               _!_!_!_                  Jy (:,nY+2,:)
-    !       _! _!_!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x!_!_        Jx(0,1,1),Jx(nI,1,1)...
+    !       _! _! x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
+    !       _! _! x!x               _!_!_!_                  Jy (:,nY+2,:)
+    !       _! _! _!                x!x!_!_        Phys Face Values:
+    !    -2  ! ! !                x! x! _!_        Jx(0,1,1),Jx(nI,1,1)...
     !       -2                           Ghost values: Jx(-1,1,1),Jy(0,1,1)..
     !------------------------------------------------------------------------
 
@@ -925,7 +905,7 @@ contains
     !--------------------------------------------------------------------------
     call timing_start(NameSub)
 
-    !call timing_start('init_pass')
+    ! call timing_start('init_pass')
 
     ! Set values or defaults for optional arguments
     nWidth = nG
@@ -938,7 +918,7 @@ contains
 
     if(nProc > 1)call allocate_pe_arrays
 
-    !call timing_stop('init_pass')
+    ! call timing_stop('init_pass')
 
     do iCountOnly = 1, 2
        DoCountOnly = iCountOnly == 1
@@ -946,7 +926,7 @@ contains
        ! No need to count data for send/recv in serial runs
        if(nProc == 1 .and. DoCountOnly) CYCLE
 
-       !call timing_start('local_pass')
+       ! call timing_start('local_pass')
 
        ! Second order prolongation needs two stages:
        ! first stage fills in equal and coarser ghost cells
@@ -982,7 +962,7 @@ contains
           end do ! kDir
        end do ! iBlockSend
 
-       !call timing_stop('local_pass')
+       ! call timing_stop('local_pass')
 
     end do ! iCountOnly
 
@@ -991,7 +971,7 @@ contains
        RETURN
     end if
 
-    !call timing_start('recv_pass')
+    ! call timing_start('recv_pass')
 
     ! post requests
     iRequestR = 0
@@ -1007,15 +987,15 @@ contains
        iBufferR  = iBufferR  + nBufferR_P(iProcSend)
     end do
 
-    !call timing_stop('recv_pass')
+    ! call timing_stop('recv_pass')
 
     if(UseRSend) then
-       !call timing_start('barrier_pass')
+       ! call timing_start('barrier_pass')
        call barrier_mpi
-       !call timing_stop('barrier_pass')
+       ! call timing_stop('barrier_pass')
     end if
 
-    !call timing_start('send_pass')
+    ! call timing_start('send_pass')
 
     ! post sends
     iRequestS = 0
@@ -1035,9 +1015,9 @@ contains
 
        iBufferS  = iBufferS  + nBufferS_P(iProcRecv)
     end do
-    !call timing_stop('send_pass')
+    ! call timing_stop('send_pass')
 
-    !call timing_start('wait_pass')
+    ! call timing_start('wait_pass')
     ! wait for all requests to be completed
     if(iRequestR > 0) &
          call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
@@ -1045,11 +1025,11 @@ contains
     ! wait for all sends to be completed
     if(.not.UseRSend .and. iRequestS > 0) &
          call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
-    !call timing_stop('wait_pass')
+    ! call timing_stop('wait_pass')
 
-    !call timing_start('buffer_to_state')
+    ! call timing_start('buffer_to_state')
     call buffer_to_state
-    !call timing_stop('buffer_to_state')
+    ! call timing_stop('buffer_to_state')
 
     call timing_stop(NameSub)
 
@@ -1115,9 +1095,8 @@ contains
       if(DoCountOnly)then
          ! No need not to count data for local copy
          if(iProc == iProcRecv) RETURN
-         !\
+
          ! Number of integers to be send/received
-         !/
          nSize = 1 + 2*nDim
 
          ! Number of reals to send to and received from the other processor
@@ -1137,9 +1116,8 @@ contains
          State_VGB(:,iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iBlockRecv) =    &
               State_VGB(:,iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iBlockRecv) &
               + State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-         !\
+
          ! Nullify the send values to avoid double counting
-         !/
          State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend) = 0.0
 
       else
@@ -1159,9 +1137,8 @@ contains
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
             BufferS_I(iBufferS+1:iBufferS+nVar) = &
                  State_VGB(:,i,j,k,iBlockSend)
-            !\
+
             ! Nullify the send values to avoid double counting
-            !/
             State_VGB(:,i,j,k,iBlockSend) = 0.0
             iBufferS = iBufferS + nVar
          end do; end do; end do
@@ -1176,31 +1153,28 @@ contains
             ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
       !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _!x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _!x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _!_!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x!_!_        Ex(0,1,1),Ex(nI,1,1)...
+      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
+      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
+      !       _! _! _!                x!x!_!_        Phys Face Values:
+      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! negative displcement with respect to the sending one
-      !/
       iS_DIID(:,-1,Min_,1) = 1 - nWidth
       iS_DIID(:,-1,Max_,1) = 0
       iR_DIID(:,-1,Min_,1) = nIjk_D + 1 -nWidth
       iR_DIID(:,-1,Max_,1) = nIjk_D
-      !\
+
       ! Zero displacement
-      !/
       iS_DIID(:, 0,Min_,1) = 1
       iR_DIID(:, 0,Min_,1) = 1
       iS_DIID(:, 0,Max_,1) = nIjk_D
       iR_DIID(:, 0,Max_,1) = nIjk_D
-      !\
+
       ! For x_, y_, z_ direction (the first index), the receiving block is at
       ! positive displcement with respect to the sending one
-      !/
       iR_DIID(:, 1,Min_,1) = 1
       iR_DIID(:, 1,Max_,1) = nWidth
       iS_DIID(:, 1,Min_,1) = nIjk_D + 1

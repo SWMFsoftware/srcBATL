@@ -55,7 +55,6 @@ module BATL_pass_cell
           message_pass_ng_int1      ! Integer scalar with nG ghost cells
   end interface message_pass_cell
 
-
   ! local variables corresponding to optional arguments
   logical :: UseMin, UseMax  ! logicals for min and max operators
 
@@ -147,7 +146,7 @@ contains
     logical, optional, intent(in) :: UseHighResChangeIn
     real,    optional, intent(in) :: DefaultState_V(nVar)
     logical, optional, intent(in) :: DoTestIn
-    logical, optional, intent(in) :: UseOpenACCIn 
+    logical, optional, intent(in) :: UseOpenACCIn
 
     ! Fill in the nVar variables in the ghost cells of State_VGB.
     !
@@ -421,7 +420,6 @@ contains
                 end do
              end if
 
-
              ! Prepare the buffer for remote message passing
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
@@ -635,8 +633,8 @@ contains
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-
       !------------------------------------------------------------------------
+
       jRMin = 1; jRMax = 1
       kRMin = 1; kRMax = 1
 
@@ -838,7 +836,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_real'
     !--------------------------------------------------------------------------
-
     call message_pass_real(nVar, nG, State_VGB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
@@ -1011,8 +1008,8 @@ contains
 
     ! Local variables
 
-    logical :: UseOpenACC 
-    
+    logical :: UseOpenACC
+
     integer :: iNodeSend
     integer :: iDir, jDir, kDir
 
@@ -1047,7 +1044,7 @@ contains
 
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
-    
+
     IsAxisNode = .false.
     UseTime = .false.
 
@@ -1674,7 +1671,7 @@ contains
                   kr = kRMin + DkR*(ks-kSMin)
                   State_VGB(:,ir,jr,kr,iBlockRecv) = &
                        State_VGB(:,is,js,ks,iBlockSend)
-               end do; end do; end do 
+               end do; end do; end do
             else
                State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
                     iBlockRecv)= &
@@ -2090,8 +2087,7 @@ contains
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-
-      !---------------------------------------------------------------------
+      !------------------------------------------------------------------------
 
       DiR = 1; DjR = 1; DkR = 1
 
@@ -2600,9 +2596,9 @@ contains
       real:: Orig, Orig1, Orig2, Orig3, Res1, Res2, Res3
       integer:: nResChange, nEdge, nCorrect, iGhost, iCalTime
       real:: Weight1, Weight2
+
       character(len=*), parameter:: NameSub = 'calc_accurate_coarsened_block'
       !------------------------------------------------------------------------
-
       Cell1_I = 0; Cell2_I = 0; Cell3_I = 0
 
       if(DoSixthCorrect) then
@@ -3747,7 +3743,7 @@ contains
     !==========================================================================
 
   end subroutine message_pass_block
-  !==========================================================================
+  !============================================================================
 
   logical function is_only_corner_fine(iNode, iDir0, jDir0, kDir0, &
        iDirCorner, jDirCorner, kDirCorner)
@@ -3763,7 +3759,7 @@ contains
     integer:: DiDir, DjDir, DkDir
     integer:: nRefinedEdge
     logical:: IsOnlyCornerFine
-    !------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
 
     call find_neighbor_for_anynode(iNode,DiLevelNei_III)
 
@@ -3842,6 +3838,7 @@ contains
     endif
     is_only_corner_fine = IsOnlyCornerFine
   end function is_only_corner_fine
-  !==========================================================================
+  !============================================================================
 
 end module BATL_pass_cell
+!==============================================================================

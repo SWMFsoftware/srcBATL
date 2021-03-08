@@ -91,7 +91,7 @@ module BATL_size
   ! Indexes of AMR dimensions.
   ! The magic formulas should be correct from 1 to nDimAmr.
   integer, parameter, private :: iDimAmrTmp_D(MaxDim) = &
-       (/ 1 + (2-iRatio)*(3-jRatio), 6-iRatio-jRatio, 3 /)
+       [ 1 + (2-iRatio)*(3-jRatio), 6-iRatio-jRatio, 3 ]
 
   integer, parameter :: iDimAmr_D(nDimAmr) = iDimAmrTmp_D(1:nDimAmr)
 
@@ -105,15 +105,15 @@ module BATL_size
   integer, parameter:: nIJKNode = nINode*nJNode*nKNode
 
   ! Arrays for block size
-  integer, parameter:: nIJK_D(MaxDim) = (/ nI, nJ, nK /)
-  integer, parameter:: MinIJK_D(MaxDim) = (/MinI, MinJ, MinK/)
-  integer, parameter:: MaxIJK_D(MaxDim) = (/MaxI, MaxJ, MaxK/)
+  integer, parameter:: nIJK_D(MaxDim) = [ nI, nJ, nK ]
+  integer, parameter:: MinIJK_D(MaxDim) = [MinI, MinJ, MinK]
+  integer, parameter:: MaxIJK_D(MaxDim) = [MaxI, MaxJ, MaxK]
 
   ! Array for block size
-  integer, parameter:: nIJKNode_D(MaxDim) = (/ nINode, nJNode, nKNode /)
+  integer, parameter:: nIJKNode_D(MaxDim) = [ nINode, nJNode, nKNode ]
 
   ! Array of refinement ratios
-  integer, parameter:: iRatio_D(MaxDim) = (/ iRatio, jRatio, kRatio /)
+  integer, parameter:: iRatio_D(MaxDim) = [ iRatio, jRatio, kRatio ]
 
   ! Ratio of cells in coarsening and prolongation
   integer, parameter:: IjkRatio = iRatio*jRatio*kRatio
@@ -132,6 +132,6 @@ module BATL_size
 
   ! Number of OpenACC gangs. It is always without OpenAcc.
   integer:: nGang = 1
-  
+
 end module BATL_size
 !==============================================================================

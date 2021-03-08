@@ -1596,7 +1596,7 @@ contains
     end if
 
     AmrCrit_IB(nAmrCrit-nGeoCrit+1:nAmrCrit,iBlock) = &
-         (/ MaxLength, -real(iTree_IA(Level_,iNode_B(iBlock))) /)
+         [ MaxLength, -real(iTree_IA(Level_,iNode_B(iBlock))) ]
 
   end subroutine set_block_dx_level
   !============================================================================

@@ -35,16 +35,15 @@ module BATL_interpolate_amr
   ! iOrder_I = (/1, 2, 3/) for iDimNoAmr = 3
   ! iOrder_I = (/1, 2, 3/) for nDimAmr = nDim
   ! MIN and MAX are added in order to keep value in range 1 to nDim
-  integer, parameter:: iOrder_I(MaxDim) = (/&
+  integer, parameter:: iOrder_I(MaxDim) = [&
        3 - iRatio, &
        min(6 - iRatio - jRatio, nDim),  &
-       max(-3 + 2*iRatio + jRatio, 1) /)
+       max(-3 + 2*iRatio + jRatio, 1) ]
 
   ! point's coordinate in non-AMR dimensions
   real   :: CoordNoAmr, DisplacedCoordTreeNoAmr
   logical:: IsNearBlockBoundaryNoAmr
 
-  !\
   ! variables to keep track of nodes in the case of non-AMR direction
   !-------------------------------------------------------------------------
   ! number of nodes found so far
@@ -127,9 +126,7 @@ contains
        RETURN
     end if
 
-    !\
     ! Handle the non-AMR direction
-    !/
     ! store indexes and restore shape along non-AMR direction
     iCell_II(  nDim,         1:  nGridOut) = iCellNoAmr_I(1)
 
@@ -147,9 +144,8 @@ contains
     end if
 
     if(.not.IsNearBlockBoundaryNoAmr)then
-       !\
+
        ! the other half of the stencil is in the same block:
-       !/
        ! local node ids & cell indexes along AMR directions
        ! are the same for cells iCell and nGridOut+iCell
        iCell_II(0:nDimAmr,nGridOut+1:2*nGridOut)=iCell_II(0:nDimAmr,1:nGridOut)
@@ -166,10 +162,9 @@ contains
        ! number of cells has doubled
        nGridOut = 2*nGridOut
     else
-       !\
+
        ! the point is far from domain's boundary =>
        ! the other part of the stencil exists and is in a different block(s)
-       !/
        ! change coordinate along non-AMR direction to the displaced one:
        ! now restored full coordinates will fall in the appropriate block(s)
        CoordNoAmr = CoordMin_D(iDimNoAmr) + &
@@ -239,61 +234,51 @@ contains
          IsCylindricalAxis
     real,intent(inout) :: CoordTree_D(MaxDim)  ! Normalized gen coords
     !--------------------------------------------------------------------------
-    !\
+
     ! For periodic boundary conditions fix the input coordinate if
     ! beyond the tree bounadaries
-    !/
     where(IsPeriodic_D)CoordTree_D = modulo(CoordTree_D, 1.0)
-    !\
+
     ! Check specific boundary conditions for particular geometries
-    !/
     if(IsLatitudeAxis)then
-       !\
+
        ! spherical: r, lon, lat coordinates
-       !/
        if(CoordTree_D(3) > 1.0)then
-          !\
+
           ! reflect third coordinate,
           ! add half of full range to the second one.
-          !/
           CoordTree_D(3) = 2.0 - CoordTree_D(3)
           CoordTree_D(2) = modulo(CoordTree_D(2) + 0.50, 1.0)
        elseif(CoordTree_D(3) < 0.0)then
-          !\
+
           ! reflect third coordinate,
           ! add half of full range to the second one.
-          !/
           CoordTree_D(3) = -CoordTree_D(3)
           CoordTree_D(2) = modulo(CoordTree_D(2) + 0.50, 1.0)
        end if
     elseif(IsSphericalAxis)then
-       !\
+
        ! spherical: r, theta, phi
-       !/
        if(CoordTree_D(2) > 1.0)then
-          !\
+
           ! reflect second coordinate,
           ! add half of full range to the third one.
-          !/
           CoordTree_D(2) = 2.0 - CoordTree_D(2)
           CoordTree_D(3) = modulo(CoordTree_D(3) + 0.50, 1.0)
        elseif(CoordTree_D(2) < 0.0)then
-          !\
+
           ! reflect second coordinate,
           ! add half of full range to the third one.
-          !/
           CoordTree_D(2) = -CoordTree_D(2)
           CoordTree_D(3) = modulo(CoordTree_D(3) + 0.50, 1.0)
        end if
     elseif(IsCylindricalAxis)then
-       !\
+
        ! cylindrical: r, phi, z
-       !/
        if(CoordTree_D(1) < 0.0)then
-          !\
+
           ! reflect first coordinate,
           ! add half of full range to the second one.
-          !/
           CoordTree_D(1) = -CoordTree_D(1)
           CoordTree_D(2) = modulo(CoordTree_D(2) + 0.50, 1.0)
        end if
@@ -303,7 +288,7 @@ contains
   subroutine find(nDimIn, Coord_D, &
        iProc, iBlock, CoordCorner_D, dCoord_D, IsOut)
     integer, intent(in) :: nDimIn
-    !\
+
     ! "In"- the coordinates of the point, "out" the coordinates of the
     ! point with respect to the block corner. In the most cases
     ! CoordOut_D = CoordIn_D - CoordCorner_D, the important distinction,
@@ -312,10 +297,9 @@ contains
     ! we added the "out" intent. The coordinates for the stencil
     ! and input point are calculated and recalculated below with
     ! respect to the block corner.
-    !/
     real,  intent(inout):: Coord_D(nDimIn)
     integer, intent(out):: iProc, iBlock ! processor and block number
-    !\
+
     ! Block left corner coordinates and the grid size:
     !
     real,    intent(out):: CoordCorner_D(nDimIn), dCoord_D(nDimIn)
@@ -337,27 +321,22 @@ contains
        CoordFull_D(iOrder_I(1:nDimAmr)) = Coord_D
        CoordFull_D(iDimNoAmr) = CoordNoAmr
     end if
-    !\
+
     ! Calculate normalized (to DomainSize_D) coordinates for tree search
-    !/
     CoordTree_D = (CoordFull_D - CoordMin_D)/DomainSize_D
     call fix_tree_coord(CoordTree_D)
     IsOut = any(CoordTree_D < 0.0 .or. CoordTree_D >= 1.0)
     if(IsOut)RETURN
-    !\
+
     ! call internal BATL find subroutine
-    !/
     call find_tree_node(CoordIn_D=CoordTree_D, iNode=iNode)
 
-    !\
     ! Check if the block is found
-    !/
     if(iNode<=0)then
        call CON_stop('Failure in BATL_interpolate_amr:find')
     end if
-    !\
+
     ! position has been found
-    !/
     iBlock = iTree_IA(Block_,iNode)
     iProc  = iTree_IA(Proc_, iNode)
     call get_tree_position(iNode=iNode,                &
@@ -379,10 +358,8 @@ contains
     ! if there is no non-AMR direction => no need to do extra work
     if(nDimAmr == nDim) RETURN ! NOTE: nDimIn = nDimAmr
 
-    !\
     ! take care of the non-AMR direction:
     ! store in global variables weight along the direction and cell indexes
-    !/
     if(nNodeFound == 0)then
        ! compute both once in the beginning
        WeightNoAmr = 0.5 + nIJK_D(iDimNoAmr)*&

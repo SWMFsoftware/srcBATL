@@ -15,7 +15,7 @@ module BATL_region
        nINode, nJNode, nKNode
   use ModUtilities, ONLY: CON_stop
   use omp_lib
-  
+
   implicit none
 
   SAVE
@@ -30,7 +30,7 @@ module BATL_region
   public:: block_inside_regions
   public:: points_inside_region
   public:: is_point_inside_regions
-  
+
   ! Maximum number of geometric areas
   integer, public, parameter :: MaxArea = 100
 
@@ -77,17 +77,17 @@ module BATL_region
 
   ! Local variables
   real            :: InitialResolution = -1.0
-  
+
   ! Name of shape being processed
   character(lNameArea) :: NameShape
   !$omp threadprivate( NameShape )
-  
+
   ! index for the parallel and one or two perpendicular directions
   integer:: iPar
   integer, allocatable:: iPerp_I(:)
   real,    allocatable:: SlopePerp_D(:)
   !$omp threadprivate( iPar, iPerp_I, SlopePerp_D )
-  
+
   ! Allocatable storage
   logical, allocatable:: IsInsideOld_I(:)
   real,    allocatable:: ValueOld_I(:), Xyz_DI(:,:), Coord_DI(:,:)
@@ -351,7 +351,7 @@ contains
     real    :: yRotateArea   = 0.0
     real    :: zRotateArea   = 0.0
     logical :: DoTaperArea   = .false.
-    logical :: DoReadWeight   = .false. 
+    logical :: DoReadWeight   = .false.
     logical :: DoStretch     = .false.
 
     character(lNameRegion):: NameRegion
@@ -361,9 +361,9 @@ contains
     integer :: nLevelArea = 0
 
     logical, parameter:: DoTest = .false.
+
     character(len=*), parameter:: NameSub = 'read_region_param'
     !--------------------------------------------------------------------------
-
     UseStrict = .true.
     if(present(UseStrictIn)) UseStrict = UseStrictIn
 
@@ -456,7 +456,6 @@ contains
     i = index(StringShape,'weight')
     DoReadWeight = i > 0
     if(i > 0) StringShape = StringShape(:i-1)//StringShape(i+6:)
-
 
     ! Extract character '0' from the name
     i = index(StringShape,'0')
@@ -622,7 +621,7 @@ contains
     real:: Xyz_DI(nDim, 1)
 
     logical:: DoTest = .false.
-    character(len=*), parameter:: NameSub = 'point_inside_regions'
+    character(len=*), parameter:: NameSub = 'is_point_inside_regions'
     !--------------------------------------------------------------------------
 
     nRegion = size(iRegion_I)
@@ -662,7 +661,7 @@ contains
 
   end function is_point_inside_regions
   !============================================================================
-  
+
   subroutine block_inside_regions(iRegion_I, iBlock, nValue, StringLocation, &
        IsInside, IsInside_I, Value_I, WeightDefaultIn, user_specify_region)
 
@@ -685,7 +684,7 @@ contains
     ! and outside all of the -regions.
     ! If IsInside is also present, it is set to IsInside = any(IsInside_I).
     !
-    ! If Value_I is present, then it is set to Weight inside any of the 
+    ! If Value_I is present, then it is set to Weight inside any of the
     ! +region(s) and outside all of the -regions(s). In the tapering region the
     ! value gradually decreases to 0 and the rest is set to 0 value.
     ! This is done for each point of the block defined by StringLocation.
@@ -725,7 +724,7 @@ contains
 
        end subroutine user_specify_region
     end interface
-    
+
     real:: WeightDefault, Weight
 
     integer:: iRegion, nRegion, iArea, iSign, iPoint
@@ -752,7 +751,7 @@ contains
 
     if(.not.(DoBlock .or. DoMask .or. DoValue)) call CON_stop(NameSub// &
          ': no output argument is present')
-    
+
     nRegion = size(iRegion_I)
     if(nRegion < 1) call CON_stop(NameSub//': empty region index array')
 
@@ -907,8 +906,8 @@ contains
       real:: Coord_D(3), CellSize_D(3), CoordMinBlock_D(3)
       real:: CoordFace1, CoordFace2, CoordFace3
       real:: CoordCell1, CoordCell2, CoordCell3
-      !------------------------------------------------------------------------
       ! Allocate Coord array if new or size changed
+      !------------------------------------------------------------------------
       if(allocated(Coord_DI))then
          if(size(Coord_DI) /= nDim*nPoint) deallocate(Coord_DI)
       end if
@@ -1010,17 +1009,17 @@ contains
                   CoordCell1 = CoordMinBlock_D(1) + (min(i,nI)-0.5)*CellSize_D(1)
 
                   n = n + 1
-                  Coord_D = (/ CoordFace1, CoordCell2, CoordCell3 /)
+                  Coord_D = [ CoordFace1, CoordCell2, CoordCell3 ]
                   Coord_DI(:,n) = Coord_D(1:nDim)
 
                   if(nDim == 1) CYCLE
                   n = n + 1
-                  Coord_D = (/ CoordCell1, CoordFace2, CoordCell3 /)
+                  Coord_D = [ CoordCell1, CoordFace2, CoordCell3 ]
                   Coord_DI(:,n) = Coord_D(1:nDim)
 
                   if(nDim == 2) CYCLE
                   n = n + 1
-                  Coord_D = (/ CoordCell1, CoordCell2, CoordFace3 /)
+                  Coord_D = [ CoordCell1, CoordCell2, CoordFace3 ]
                   Coord_DI(:,n) = Coord_D(1:nDim)
                end do
             end do
@@ -1058,8 +1057,8 @@ contains
       use BATL_grid, ONLY: Xyz_DGB, Xyz_DNB
 
       integer:: i, j, k, iC, jC, kC, n
-      !------------------------------------------------------------------------
       ! Allocate Xyz array if new or size changed
+      !------------------------------------------------------------------------
       if(allocated(Xyz_DI))then
          if(size(Xyz_DI) /= nDim*nPoint) deallocate(Xyz_DI)
       end if
@@ -1071,13 +1070,13 @@ contains
               ': incorrect number of points for cell centers')
 
          Xyz_DI = reshape(Xyz_DGB(1:nDim,1:nI,1:nJ,1:nK,iBlock), &
-              (/nDim, nPoint/))
+              [nDim, nPoint])
 
       case('g')
          if(nPoint /= MaxIJK) call CON_stop(NameSub// &
               ': incorrect number of points for cell centers with ghosts')
 
-         Xyz_DI = reshape(Xyz_DGB(1:nDim,:,:,:,iBlock), (/nDim, nPoint/))
+         Xyz_DI = reshape(Xyz_DGB(1:nDim,:,:,:,iBlock), [nDim, nPoint])
 
       case('x')
          if(nPoint /= (nI+1)*nJ*nK) call CON_stop(NameSub// &
@@ -1085,7 +1084,7 @@ contains
 
          Xyz_DI = reshape( &
               0.5*(Xyz_DGB(1:nDim,0:nI  ,1:nJ,1:nK,iBlock) &
-              +    Xyz_DGB(1:nDim,1:nI+1,1:nJ,1:nK,iBlock)), (/nDim, nPoint/))
+              +    Xyz_DGB(1:nDim,1:nI+1,1:nJ,1:nK,iBlock)), [nDim, nPoint])
 
       case('y')
          if(nPoint /= nI*(nJ+1)*nK) call CON_stop(NameSub// &
@@ -1093,7 +1092,7 @@ contains
 
          Xyz_DI = reshape( &
               0.5*(Xyz_DGB(1:nDim,1:nI,j0_:nJ, 1:nK,iBlock) &
-              +    Xyz_DGB(1:nDim,1:nI,1:nJp1_,1:nK,iBlock)), (/nDim, nPoint/))
+              +    Xyz_DGB(1:nDim,1:nI,1:nJp1_,1:nK,iBlock)), [nDim, nPoint])
 
       case('z')
          if(nPoint /= nI*nJ*(nK+1)) call CON_stop(NameSub// &
@@ -1101,7 +1100,7 @@ contains
 
          Xyz_DI = reshape( &
               0.5*(Xyz_DGB(1:nDim,1:nI,1:nJ,k0_:nK ,iBlock) &
-              +    Xyz_DGB(1:nDim,1:nI,1:nJ,1:nKp1_,iBlock)), (/nDim, nPoint/))
+              +    Xyz_DGB(1:nDim,1:nI,1:nJ,1:nKp1_,iBlock)), [nDim, nPoint])
 
       case('f')
          if(nPoint /= nDim*nINode*nJNode*nKNode) call CON_stop(NameSub// &
@@ -1131,7 +1130,7 @@ contains
          if(nPoint /= nINode*nJNode*nKNode) call CON_stop(NameSub// &
               ': incorrect number of points for nodes')
 
-         Xyz_DI = reshape(Xyz_DNB(1:nDim,:,:,:,iBlock), (/nDim, nPoint/))
+         Xyz_DI = reshape(Xyz_DNB(1:nDim,:,:,:,iBlock), [nDim, nPoint])
 
       case default
          write(*,*) NameSub,': StringLocation=', StringLocation
@@ -1182,21 +1181,21 @@ contains
        Corner_DI(:,1)       = CoordMin_DB(1:nDim,iBlock)
        Corner_DI(:,nCorner) = CoordMax_DB(1:nDim,iBlock)
        if(nDim==2)then
-          Corner_DI(:,2) = (/ CoordMax_DB(1,iBlock), CoordMin_DB(2,iBlock) /)
-          Corner_DI(:,3) = (/ CoordMin_DB(1,iBlock), CoordMax_DB(2,iBlock) /)
+          Corner_DI(:,2) = [ CoordMax_DB(1,iBlock), CoordMin_DB(2,iBlock) ]
+          Corner_DI(:,3) = [ CoordMin_DB(1,iBlock), CoordMax_DB(2,iBlock) ]
        else if(nDim == 3)then
-          Corner_DI(:,2) = (/ CoordMax_DB(1,iBlock), &
-               CoordMin_DB(2,iBlock), CoordMin_DB(3,iBlock) /)
-          Corner_DI(:,3) = (/ CoordMin_DB(1,iBlock), &
-               CoordMax_DB(2,iBlock), CoordMin_DB(3,iBlock) /)
-          Corner_DI(:,4) = (/ CoordMax_DB(1,iBlock), &
-               CoordMax_DB(2,iBlock), CoordMin_DB(3,iBlock) /)
-          Corner_DI(:,5) = (/ CoordMin_DB(1,iBlock), &
-               CoordMin_DB(2,iBlock), CoordMax_DB(3,iBlock) /)
-          Corner_DI(:,6) = (/ CoordMax_DB(1,iBlock), &
-               CoordMin_DB(2,iBlock), CoordMax_DB(3,iBlock) /)
-          Corner_DI(:,7) = (/ CoordMin_DB(1,iBlock), &
-               CoordMax_DB(2,iBlock), CoordMax_DB(3,iBlock) /)
+          Corner_DI(:,2) = [ CoordMax_DB(1,iBlock), &
+               CoordMin_DB(2,iBlock), CoordMin_DB(3,iBlock) ]
+          Corner_DI(:,3) = [ CoordMin_DB(1,iBlock), &
+               CoordMax_DB(2,iBlock), CoordMin_DB(3,iBlock) ]
+          Corner_DI(:,4) = [ CoordMax_DB(1,iBlock), &
+               CoordMax_DB(2,iBlock), CoordMin_DB(3,iBlock) ]
+          Corner_DI(:,5) = [ CoordMin_DB(1,iBlock), &
+               CoordMin_DB(2,iBlock), CoordMax_DB(3,iBlock) ]
+          Corner_DI(:,6) = [ CoordMax_DB(1,iBlock), &
+               CoordMin_DB(2,iBlock), CoordMax_DB(3,iBlock) ]
+          Corner_DI(:,7) = [ CoordMin_DB(1,iBlock), &
+               CoordMax_DB(2,iBlock), CoordMax_DB(3,iBlock) ]
        end if
     end if
 
