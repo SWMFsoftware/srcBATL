@@ -634,7 +634,6 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
-
       jRMin = 1; jRMax = 1
       kRMin = 1; kRMax = 1
 
@@ -703,7 +702,6 @@ contains
 
       integer:: nWidthProlongS_D(MaxDim), iDim
       !------------------------------------------------------------------------
-
       !$omp parallel
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iEqualS_DII(:,-1,Min_) = 1
@@ -875,7 +873,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_real1'
     !--------------------------------------------------------------------------
-
     call message_pass_real(1, nG, State_GB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
@@ -914,7 +911,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'message_pass_real1'
     !--------------------------------------------------------------------------
-
     call message_pass_real(1, nG, State_GB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
@@ -955,7 +951,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_int1'
     !--------------------------------------------------------------------------
-
     if(.not.allocated(Scalar_VGB)) &
          allocate(Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
 
@@ -1029,7 +1024,6 @@ contains
     logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
          (nK==1 .or. nK>7)
     !--------------------------------------------------------------------------
-
     iNodeSend = iNode_B(iBlockSend)
 
     ! Skip if the sending block level is not in the level range
@@ -1137,7 +1131,6 @@ contains
       integer:: iSend,jSend,kSend
       integer:: iNodeRecv
       !------------------------------------------------------------------------
-
       nDir = abs(iDir) + abs(jDir) + abs(kDir)
 
       if(nDir > nDim-1) RETURN
@@ -1571,7 +1564,6 @@ contains
 
       integer:: is, js, ks, ir, jr, kr
       !------------------------------------------------------------------------
-
       DiR = 1; DjR = 1; DkR = 1
 
       iSend = (3*iDir + 3)/2
@@ -1728,7 +1720,6 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
-
       DiR = 1; DjR = 1; DkR = 1
 
       ! For sideways communication from a fine to a coarser block
@@ -2088,7 +2079,6 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
-
       DiR = 1; DjR = 1; DkR = 1
 
       UseSimpleWeights = nDim == 1 .or. nDimAmr < nDim &
@@ -3760,7 +3750,6 @@ contains
     integer:: nRefinedEdge
     logical:: IsOnlyCornerFine
     !--------------------------------------------------------------------------
-
     call find_neighbor_for_anynode(iNode,DiLevelNei_III)
 
     IsOnlyCornerFine = .false.
