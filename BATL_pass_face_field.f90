@@ -84,11 +84,11 @@ contains
     integer, intent(in) :: nG    ! number of ghost cells for 1..nDim
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
-    !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-    !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-    !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
-    !       _! _! _!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
+    !  Left corner        Right corner n+2                Ez (:,:,nZ+2)
+    !       _|_|x|x              _|_|_|_n+2     Not used: Ex (nX+2,:,:)
+    !       _|_|x|x              _|_|_|_                  Ey (:,nY+2,:)
+    !       _|_|_|               x|x|_|_        Phys Face Values:
+    !    -2  ! ! !               x|x|_|_        Ex(0,1,1),Ex(nI,1,1)...
     !       -2                             Ghost values: Ex(-1,1,1),Ey(0,1,1)..
     real, intent(inout) :: Field_FDB(1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,&
          1-nG*kDim_:nK+nG*kDim_,MaxDim,MaxBlock)
@@ -383,11 +383,11 @@ contains
       integer:: iDim
       ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
-      !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _! _!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
+      !  Left corner        Right corner n+2               Ez (:,:,nZ+2)
+      !       _|_|x|x             _|_|_|_n+2     Not used: Ex (nX+2,:,:)
+      !       _|_|x|x             _|_|_|_                  Ey (:,nY+2,:)
+      !       _|_|_|              x|x|_|_        Phys Face Values:
+      !    -2  ! ! !              x|x|_|_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
 
@@ -459,11 +459,11 @@ contains
          1-nG*kDim_:nK+nG*kDim_,MaxDim,MaxBlock):: Current_FDB
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
-    !  Left corner        Right corner n+2                 Jz (:,:,nZ+2)
-    !       _! _! x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
-    !       _! _! x!x               _!_!_!_                  Jy (:,nY+2,:)
-    !       _! _! _!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x! _!_        Jx(0,1,1),Jx(nI,1,1)...
+    !  Left corner        Right corner n+2               Jz (:,:,nZ+2)
+    !       _|_|x|x             _|_|_|_n+2     Not used: Jx (nX+2,:,:)
+    !       _|_|x|x             _|_|_|_                  Jy (:,nY+2,:)
+    !       _|_|_|              x|x|_|_        Phys Face Values:
+    !    -2  ! ! !              x|x|_|_        Jx(0,1,1),Jx(nI,1,1)...
     !       -2                           Ghost values: Jx(-1,1,1),Jy(0,1,1)..
     !------------------------------------------------------------------------
     ! Optional arguments
@@ -809,11 +809,11 @@ contains
 
             ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
-      !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _! _!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
+      !  Left corner        Right corner n+2               Ez (:,:,nZ+2)
+      !       _|_|x|x             _|_|_|_n+2     Not used: Ex (nX+2,:,:)
+      !       _|_|x|x             _|_|_|_                  Ey (:,nY+2,:)
+      !       _|_|_|              x|x|_|_        Phys Face Values:
+      !    -2  ! ! !              x|x|_|_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
 
@@ -862,11 +862,11 @@ contains
          1-nG*kDim_:nK+nG*kDim_,MaxBlock):: State_VGB
     ! Array index is the coordinate of the gridpoint with +1/2 being
     ! approximated as 1. By x the physical cells are marked below
-    !  Left corner        Right corner n+2                 Jz (:,:,nZ+2)
-    !       _! _! x!x               _!_!_!_n+2     Not used: Jx (nX+2,:,:)
-    !       _! _! x!x               _!_!_!_                  Jy (:,nY+2,:)
-    !       _! _! _!                x!x!_!_        Phys Face Values:
-    !    -2  ! ! !                x! x! _!_        Jx(0,1,1),Jx(nI,1,1)...
+    !  Left corner        Right corner n+2               Jz (:,:,nZ+2)
+    !       _|_|x|x             _|_|_|_n+2     Not used: Jx (nX+2,:,:)
+    !       _|_|x|x             _|_|_|_                  Jy (:,nY+2,:)
+    !       _|_|_|              x|x|_|_        Phys Face Values:
+    !    -2  ! ! !              x|x|_|_        Jx(0,1,1),Jx(nI,1,1)...
     !       -2                           Ghost values: Jx(-1,1,1),Jy(0,1,1)..
     !------------------------------------------------------------------------
 
@@ -1152,11 +1152,11 @@ contains
 
             ! Array index is the coordinate of the gridpoint with +1/2 being
       ! approximated as 1. By x the physical cells are marked below
-      !  Left corner        Right corner n+2                 Ez (:,:,nZ+2)
-      !       _! _! x!x               _!_!_!_n+2     Not used: Ex (nX+2,:,:)
-      !       _! _! x!x               _!_!_!_                  Ey (:,nY+2,:)
-      !       _! _! _!                x!x!_!_        Phys Face Values:
-      !    -2  ! ! !                x! x! _!_        Ex(0,1,1),Ex(nI,1,1)...
+      !  Left corner        Right corner n+2               Ez (:,:,nZ+2)
+      !       _|_|x|x             _|_|_|_n+2     Not used: Ex (nX+2,:,:)
+      !       _|_|x|x             _|_|_|_                  Ey (:,nY+2,:)
+      !       _|_|_|              x|x|_|_        Phys Face Values:
+      !    -2  ! ! !              x|x|_|_        Ex(0,1,1),Ex(nI,1,1)...
       !       -2                           Ghost values: Ex(-1,1,1),Ey(0,1,1)..
       !------------------------------------------------------------------------
 
