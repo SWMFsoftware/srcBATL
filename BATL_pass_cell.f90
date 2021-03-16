@@ -67,6 +67,7 @@ module BATL_pass_cell
   logical :: DoResChangeOnly
   logical :: UseHighResChange
   character(len=3) :: NameOperator
+  !$acc declare create(DoSendCorner, DoResChangeOnly)
 
   ! Variables for coarsened block.
   real, allocatable:: State_VIIIB(:,:,:,:,:)
@@ -81,6 +82,10 @@ module BATL_pass_cell
   integer :: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
   integer :: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
   !$omp threadprivate( iEqualS_DII, iEqualR_DII )
+
+  ! It seems these two arrays do not have to be private for
+  ! 2nd and 1st order schemes. 
+  !$acc declare create(iEqualS_DII, iEqualR_DII)
 
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
@@ -103,14 +108,17 @@ module BATL_pass_cell
 
   ! counting vs. sendrecv stages
   logical :: DoCountOnly
+  !$acc declare create(DoCountOnly)
+  
   ! Stage indexes
-
   ! indexes for multiple stages
   integer :: iSendStage, iSubStage
-
+  !$acc declare create(iSendStage)
+  
   ! local variables corresponding to optional arguments
   logical :: UseTime        ! true if time interpolation is to be done
   !$omp threadprivate( UseTime )
+  !$acc declare create(UseTime)
 
 contains
   !============================================================================
@@ -124,7 +132,7 @@ contains
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
     use BATL_mpi,  ONLY: iComm, nProc
-    use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B
+    use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B, iTree_IA, iNodeNei_IIIB, Unused_BP
 
     ! Arguments
     integer, intent(in) :: nVar  ! number of variables
@@ -191,6 +199,8 @@ contains
     integer :: nSendStage
     integer :: iBlock
 
+    logical :: UseOpenACC
+
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
@@ -223,6 +233,9 @@ contains
     UseHighResChange = .false.
     if(present(UseHighResChangeIn)) UseHighResChange = UseHighResChangeIn
 
+    UseOpenACC = .false.
+    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
+    
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -355,14 +368,26 @@ contains
 
           call timing_start('single_pass')
 
-          ! Loop through all blocks that may send a message
-          !$omp parallel do
-          do iBlockSend = 1, nBlock
-             if(Unused_B(iBlockSend)) CYCLE
-             call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                  .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
-          end do ! iBlockSend
-          !$omp end parallel do
+          if(UseOpenACC) then             
+             ! Loop through all blocks that may send a message
+             !$acc update device(DoSendCorner, DoResChangeOnly, MaxBlock)
+             !$acc update device(iSendStage, UseTime, DoCountOnly)
+             !$acc parallel loop gang present(State_VGB)
+             do iBlockSend = 1, nBlock
+                if(Unused_B(iBlockSend)) CYCLE
+                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
+             end do ! iBlockSend
+          else
+             ! Loop through all blocks that may send a message
+             !$omp parallel do
+             do iBlockSend = 1, nBlock
+                if(Unused_B(iBlockSend)) CYCLE
+                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
+             end do ! iBlockSend
+             !$omp end parallel do
+          endif
 
           call timing_stop('single_pass')
 
@@ -799,6 +824,7 @@ contains
          end do
       end if
 
+      !$acc update device(iEqualS_DII, iEqualR_DII)
     end subroutine set_range
     !==========================================================================
 
@@ -976,7 +1002,8 @@ contains
 
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
-
+    !$acc routine vector
+    
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
          MaxDim, nDim, jDim_, kDim_, &
@@ -1110,16 +1137,24 @@ contains
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
                 if(iSendStage == 3) then
+#ifndef OPENACC                   
                    call corrected_do_equal
+#endif                   
                 else
-                   if(.not.DoResChangeOnly) call do_equal
+                   if(.not.DoResChangeOnly) call do_equal(iDir, jDir, kDir,&
+                        iNodeSend, iBlockSend, nVar, nG, State_VGB, &
+                        DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
                 endif
              elseif(DiLevel == 1)then
+#ifndef OPENACC                
                 ! Send restricted data to coarser neighbor
                 call do_restrict
+#endif                
              elseif(DiLevel == -1)then
+#ifndef OPENACC                
                 ! Send prolonged data to finer neighbor
                 call do_prolong
+#endif                
              endif
           end do ! iDir
        end do ! jDir
@@ -1167,7 +1202,9 @@ contains
                      iEqualR_DII(2,0,Min_) = nJ + 1
                      iEqualR_DII(2,0,Max_) = nJ + nWidth
                   endif
-                  call do_equal
+                  call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                       nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                       iLevelMIn, Time_B, TimeOld_B)
                   iEqualS_DII = iEqualSOrig_DII
                   iEqualR_DII = iEqualROrig_DII
                endif
@@ -1194,7 +1231,9 @@ contains
                      iEqualR_DII(1,0,Min_) = nI + 1
                      iEqualR_DII(1,0,Max_) = nI + nWidth
                   endif
-                  call do_equal
+                  call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                       nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                       iLevelMIn, Time_B, TimeOld_B)
                   iEqualR_DII = iEqualROrig_DII
                endif
             enddo ! iDir1
@@ -1246,7 +1285,9 @@ contains
                         iEqualR_DII(1,0,Min_) = nI + 1
                         iEqualR_DII(1,0,Max_) = nI + nWidth
                      endif
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend,&
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMIn, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1293,7 +1334,9 @@ contains
                         iEqualR_DII(2,0,Max_) = nJ + nWidth
                      endif
 
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn,&
+                          Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1339,7 +1382,9 @@ contains
                         iEqualR_DII(3,0,Max_) = nK + nWidth
                      endif
 
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMIn, Time_B, TimeOld_B)
 
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
@@ -1409,7 +1454,9 @@ contains
                         iEqualR_DII(2,0,Min_) = nJ + 1
                         iEqualR_DII(2,0,Max_) = nJ + nWidth
                      endif
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
+                          Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1476,7 +1523,9 @@ contains
                         iEqualR_DII(1,0,Max_) = nI + nWidth
                      endif
 
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMIn, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1544,7 +1593,9 @@ contains
                         iEqualR_DII(1,0,Max_) = nI + nWidth
                      endif
 
-                     call do_equal
+                     call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMIn, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1556,7 +1607,19 @@ contains
     end subroutine corrected_do_equal
     !==========================================================================
 
-    subroutine do_equal
+    subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
+         State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
+      !$acc routine vector
+      use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
+
+      integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
+      real, intent(inout):: State_VGB(nVar,&
+           1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
+
+      logical, intent(in):: DoRemote, IsAxisNode
+      integer, optional, intent(in):: iLevelMin
+      real,    optional, intent(in):: Time_B(MaxBlock)
+      real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
       integer :: iBufferS, i, j, k, nSize, nWithin
       real    :: WeightOld, WeightNew
@@ -1605,6 +1668,8 @@ contains
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
 
+      ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.       
+#ifndef OPENACC      
       if(iSendStage == 3) then
          ! Only edge/corner cells need to be overwritten.
          nWithin = 0
@@ -1613,7 +1678,10 @@ contains
          if(.not.(kRMin >= 0 .and. kRMin <= nK)) nWithin = nWithin + 1
          if(nWithin < 1) RETURN
       endif
+#endif
 
+      ! OpenAcc: For local copy, DoCountOnly is always false. 
+#ifndef OPENACC      
       if(DoCountOnly)then
          ! Number of reals to send to and received from the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -1623,7 +1691,10 @@ contains
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
       end if
+#endif      
 
+      ! OpenACC: Do not support IsAxisNode so far. 
+#ifndef OPENACC      
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
             kRMin = iEqualR_DII(3,-kDir,Max_)
@@ -1636,7 +1707,7 @@ contains
             iRMax = iEqualR_DII(1,1,Min_)
          end if
       end if
-
+#endif
       iSMin = iEqualS_DII(1,iDir,Min_)
       iSMax = iEqualS_DII(1,iDir,Max_)
       jSMin = iEqualS_DII(2,jDir,Min_)
@@ -1653,6 +1724,7 @@ contains
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
          if(UseTime)then
+#ifndef OPENACC            
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -1662,23 +1734,25 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
+#endif            
          else
-            if(UseOpenACC) then
-               !$acc parallel loop gang vector collapse(3) copyin(iBlockRecv, iBlockSend) present(State_VGB)
-               do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
-                  ir = iRMin + DiR*(is-iSMin)
-                  jr = jRMin + DjR*(js-jSMin)
-                  kr = kRMin + DkR*(ks-kSMin)
-                  State_VGB(:,ir,jr,kr,iBlockRecv) = &
-                       State_VGB(:,is,js,ks,iBlockSend)
-               end do; end do; end do
-            else
-               State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
-                    iBlockRecv)= &
-                    State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-            endif
+#ifdef OPENACC
+            !$acc loop vector collapse(3) 
+            do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
+               ir = iRMin + DiR*(is-iSMin)
+               jr = jRMin + DjR*(js-jSMin)
+               kr = kRMin + DkR*(ks-kSMin)
+               State_VGB(:,ir,jr,kr,iBlockRecv) = &
+                    State_VGB(:,is,js,ks,iBlockSend)
+            end do; end do; end do
+#else
+            State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
+                 iBlockRecv)= &
+                 State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
+#endif               
          end if
       else
+#ifndef OPENACC         
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
@@ -1703,9 +1777,8 @@ contains
          end do; end do; end do
 
          iBufferS_P(iProcRecv) = iBufferS
-
+#endif
       end if
-
     end subroutine do_equal
     !==========================================================================
     subroutine do_restrict

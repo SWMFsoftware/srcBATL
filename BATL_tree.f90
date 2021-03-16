@@ -1460,6 +1460,8 @@ contains
        end do; end do; end do
     end if
 
+    !$acc update device(iNodeNei_IIIB, DiLevelNei_IIIB)
+    
   end subroutine find_neighbor
   !============================================================================
 
@@ -1789,6 +1791,8 @@ contains
 
     if(DoMove) call move_tree(iTypeNode_A)
 
+    !$acc update device(iTree_IA)
+    !$acc update device(Unused_BP)
   end subroutine distribute_tree
   !============================================================================
 
@@ -2078,6 +2082,7 @@ contains
        end if
     end do
 
+    !$acc update device(DiLevelNei_IIIB)
   end subroutine set_tree_periodic
   !============================================================================
 
