@@ -84,7 +84,7 @@ module BATL_pass_cell
   !$omp threadprivate( iEqualS_DII, iEqualR_DII )
 
   ! It seems these two arrays do not have to be private for
-  ! 2nd and 1st order schemes. 
+  ! 2nd and 1st order schemes.
   !$acc declare create(iEqualS_DII, iEqualR_DII)
 
   ! Variables related to recv and send buffers
@@ -109,12 +109,12 @@ module BATL_pass_cell
   ! counting vs. sendrecv stages
   logical :: DoCountOnly
   !$acc declare create(DoCountOnly)
-  
+
   ! Stage indexes
   ! indexes for multiple stages
   integer :: iSendStage, iSubStage
   !$acc declare create(iSendStage)
-  
+
   ! local variables corresponding to optional arguments
   logical :: UseTime        ! true if time interpolation is to be done
   !$omp threadprivate( UseTime )
@@ -235,7 +235,7 @@ contains
 
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
-    
+
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -368,7 +368,7 @@ contains
 
           call timing_start('single_pass')
 
-          if(UseOpenACC) then             
+          if(UseOpenACC) then
              ! Loop through all blocks that may send a message
              !$acc update device(DoSendCorner, DoResChangeOnly, MaxBlock)
              !$acc update device(iSendStage, UseTime, DoCountOnly)
@@ -998,7 +998,7 @@ contains
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
     !$acc routine vector
-    
+
     use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
          MaxDim, nDim, jDim_, kDim_, &
@@ -1131,24 +1131,24 @@ contains
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
                 if(iSendStage == 3) then
-#ifndef OPENACC                   
+#ifndef OPENACC
                    call corrected_do_equal
-#endif                   
+#endif
                 else
                    if(.not.DoResChangeOnly) call do_equal(iDir, jDir, kDir,&
                         iNodeSend, iBlockSend, nVar, nG, State_VGB, &
                         DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
                 endif
              elseif(DiLevel == 1)then
-#ifndef OPENACC                
+#ifndef OPENACC
                 ! Send restricted data to coarser neighbor
                 call do_restrict
-#endif                
+#endif
              elseif(DiLevel == -1)then
-#ifndef OPENACC                
+#ifndef OPENACC
                 ! Send prolonged data to finer neighbor
                 call do_prolong
-#endif                
+#endif
              endif
           end do ! iDir
        end do ! jDir
@@ -1660,8 +1660,8 @@ contains
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
 
-      ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.       
-#ifndef OPENACC      
+      ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
+#ifndef OPENACC
       if(iSendStage == 3) then
          ! Only edge/corner cells need to be overwritten.
          nWithin = 0
@@ -1672,8 +1672,8 @@ contains
       endif
 #endif
 
-      ! OpenAcc: For local copy, DoCountOnly is always false. 
-#ifndef OPENACC      
+      ! OpenAcc: For local copy, DoCountOnly is always false.
+#ifndef OPENACC
       if(DoCountOnly)then
          ! Number of reals to send to and received from the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -1683,10 +1683,10 @@ contains
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
       end if
-#endif      
+#endif
 
-      ! OpenACC: Do not support IsAxisNode so far. 
-#ifndef OPENACC      
+      ! OpenACC: Do not support IsAxisNode so far.
+#ifndef OPENACC
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
             kRMin = iEqualR_DII(3,-kDir,Max_)
@@ -1716,7 +1716,7 @@ contains
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
          if(UseTime)then
-#ifndef OPENACC            
+#ifndef OPENACC
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -1726,10 +1726,10 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-#endif            
+#endif
          else
 #ifdef OPENACC
-            !$acc loop vector collapse(3) 
+            !$acc loop vector collapse(3)
             do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
                ir = iRMin + DiR*(is-iSMin)
                jr = jRMin + DjR*(js-jSMin)
@@ -1741,10 +1741,10 @@ contains
             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
                  iBlockRecv)= &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-#endif               
+#endif
          end if
       else
-#ifndef OPENACC         
+#ifndef OPENACC
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 

@@ -124,7 +124,7 @@ module BATL_size
   ! Maximum number of blocks per processor is set dynamically
   integer :: MaxBlock = 400
   !$acc declare create(MaxBlock)
-  
+
   ! Largest used block index on a processor at any given time
   integer :: nBlock = 0
 

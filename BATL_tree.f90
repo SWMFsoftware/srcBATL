@@ -1461,7 +1461,7 @@ contains
     end if
 
     !$acc update device(iNodeNei_IIIB, DiLevelNei_IIIB)
-    
+
   end subroutine find_neighbor
   !============================================================================
 
