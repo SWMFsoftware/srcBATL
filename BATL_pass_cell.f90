@@ -312,7 +312,6 @@ contains
     nSendStage = nProlongOrder
 
     if(UseHighResChange) then
-       ! WARNING!!!!!!!!!!!!!!!!!!!
        ! HighResChange has an issue with boundary conditions so far. One
        ! boundary block's corner/edge neighbors may be not defined (like
        ! reflect boundary) and the ghost cell values are not accurate (the
