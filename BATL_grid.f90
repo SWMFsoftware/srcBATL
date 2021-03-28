@@ -620,7 +620,7 @@ contains
     end if
 
     ! hyzhou: find a place to update variables on device
-    !$acc update device(CellVolume_GB)
+    !$acc update device(CellVolume_GB, CellVolume_B)
     !$acc update device(Xyz_DGB)
     !$acc update device(CellFace_DB)
     !$acc update device(CellSize_DB)
