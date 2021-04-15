@@ -459,7 +459,8 @@ contains
        call distribute_tree(DoMove=.false., &
             iTypeBalance_A=iTree_IA(Level_,:)+1)
     else
-       call distribute_tree(DoMove=.false., &
+       if(present(iTypeBalance_A).or.IsNewTree)&
+            call distribute_tree(DoMove=.false., &
             iTypeBalance_A=iTypeBalance_A)
     end if
 
