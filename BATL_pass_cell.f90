@@ -57,15 +57,19 @@ module BATL_pass_cell
 
   ! local variables corresponding to optional arguments
   logical :: UseMin, UseMax  ! logicals for min and max operators
-
+  !$acc declare create(UseMin, UseMax)
+  
   ! local variables corresponding to optional arguments
   integer :: nWidth
   integer :: nCoarseLayer
   integer :: nProlongOrder
+  !$acc declare create(nProlongOrder)
   logical :: DoSendCorner
   logical :: DoRestrictFace
+  !$acc declare create(DoRestrictFace)
   logical :: DoResChangeOnly
   logical :: UseHighResChange
+  !$acc declare create(UseHighResChange)
   character(len=3) :: NameOperator
   !$acc declare create(DoSendCorner, DoResChangeOnly)
 
@@ -77,8 +81,10 @@ module BATL_pass_cell
   integer, parameter:: Min_=1, Max_=2
   integer :: iRestrictS_DII(MaxDim,-1:1,Min_:Max_)
   integer :: iRestrictR_DII(MaxDim,0:3,Min_:Max_)
+  !$acc declare create(iRestrictS_DII,iRestrictR_DII)
   integer :: iProlongS_DII(MaxDim,0:3,Min_:Max_)
   integer :: iProlongR_DII(MaxDim,0:3,Min_:Max_)
+  !$acc declare create(iProlongS_DII, iProlongR_DII)
   integer :: iEqualS_DII(MaxDim,-1:1,Min_:Max_)
   integer :: iEqualR_DII(MaxDim,-1:1,Min_:Max_)
   !$omp threadprivate( iEqualS_DII, iEqualR_DII )
@@ -235,7 +241,9 @@ contains
 
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
-
+    
+    !$acc update device(nProlongOrder, DoRestrictFace, UseHighResChange)
+    
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -276,6 +284,7 @@ contains
           UseMax=.true.
        end select
     end if
+    !$acc update device(UseMin, UseMax)
 
     if(present(Time_B) .and. present(NameOperatorIn)) then
        call CON_stop(NameSub// &
@@ -821,6 +830,8 @@ contains
          end do
       end if
 
+      !$acc update device(iRestrictS_DII,iRestrictR_DII)
+      !$acc update device(iProlongS_DII, iProlongR_DII)
       !$acc update device(iEqualS_DII, iEqualR_DII)
     end subroutine set_range
     !==========================================================================
@@ -1139,10 +1150,10 @@ contains
                         DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
                 endif
              elseif(DiLevel == 1)then
-#ifndef OPENACC
                 ! Send restricted data to coarser neighbor
-                call do_restrict
-#endif
+                call do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                     nG, nVar, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
+                     Time_B, TimeOld_B)
              elseif(DiLevel == -1)then
 #ifndef OPENACC
                 ! Send prolonged data to finer neighbor
@@ -1772,7 +1783,20 @@ contains
       end if
     end subroutine do_equal
     !==========================================================================
-    subroutine do_restrict
+    subroutine do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
+         State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
+      !$acc routine vector
+      
+      use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
+
+      integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
+      real, intent(inout):: State_VGB(nVar,&
+           1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
+
+      logical, intent(in):: DoRemote, IsAxisNode
+      integer, optional, intent(in):: iLevelMin
+      real,    optional, intent(in):: Time_B(MaxBlock)
+      real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
       integer :: iR, jR, kR, iS1, jS1, kS1, iS2, jS2, kS2, iVar
       integer :: iRatioRestr, jRatioRestr, kRatioRestr
@@ -1830,8 +1854,10 @@ contains
 
       if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
+#ifndef OPENACC         
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
          if(.not.DoRecvFace) RETURN
+#endif         
       endif
 
       ! For part implicit and part steady schemes
@@ -1844,6 +1870,9 @@ contains
            (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
            (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
            then
+         ! This part is unused when nProc == 1         
+#ifndef OPENACC
+         
          ! For high resolution change, finer block only receives data
          ! when iSendStage = 1.
 
@@ -1862,6 +1891,7 @@ contains
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
+#endif         
       end if
 
       ! If this is the pure prolongation stage, all we did was counting
@@ -1888,12 +1918,16 @@ contains
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
       if(DoCountOnly)then
+         ! This part is unused when nProc == 1         
+#ifndef OPENACC 
+         
          ! Number of reals to send to the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
+#endif         
       end if
 
       if(IsAxisNode)then
@@ -1930,8 +1964,10 @@ contains
          InvIjkRatioRestr = 1.0/(iRatioRestr*jRatioRestr*kRatioRestr)
       end if
 
+#ifndef OPENACC      
       if(UseHighResChange .and. .not. allocated(Primitive_VIII)) &
            allocate(Primitive_VIII(nVar,8,6,min(6,nK)))
+#endif      
 
       if(iProc == iProcRecv)then
 
@@ -1979,11 +2015,14 @@ contains
          else
             ! No time interpolation/extrapolation is needed
             if(UseHighResChange) then
+#ifndef OPENACC               
                if(.not.IsAccurate_B(iBlockSend)) &
                     call calc_accurate_coarsened_block(iBlockSend)
+#endif               
             endif
 
             if(UseHighResChange) then
+#ifndef OPENACC               
                do kR = kRMin, kRMax, DkR
                   kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                   do jR = jRMin, jRMax, DjR
@@ -1998,6 +2037,7 @@ contains
                      enddo
                   enddo
                enddo
+#endif               
             else
                do kR = kRMin, kRMax, DkR
                   kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
@@ -2034,6 +2074,7 @@ contains
             end if ! UseHighResChange
          end if ! UseTime
       else ! iProc /= iProcRecv
+#ifndef OPENACC         
          if(UseHighResChange) then
             if(.not.IsAccurate_B(iBlockSend)) &
                  call calc_accurate_coarsened_block(iBlockSend)
@@ -2113,7 +2154,7 @@ contains
             end do
          end do
          iBufferS_P(iProcRecv) = iBufferS
-
+#endif
       end if
 
     end subroutine do_restrict
