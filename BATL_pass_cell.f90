@@ -1139,12 +1139,12 @@ contains
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
                 call do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, &
-                     nG, nVar, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
+                     nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                      Time_B, TimeOld_B)
              elseif(DiLevel == -1)then
                 ! Send prolonged data to finer neighbor
                 call do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, &
-                     nG, nVar, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
+                     nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                      Time_B, TimeOld_B)
              endif
           end do ! iDir
@@ -1791,8 +1791,9 @@ contains
       integer :: iBufferS, nSize
       real    :: WeightOld, WeightNew
 
-      real, allocatable:: Primitive_VIII(:,:,:,:)
+#ifndef OPENACC      
       real, allocatable:: State_VG(:,:,:,:)
+#endif      
 
       integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
       integer :: iBlockRecv,iProcRecv,iNodeRecv
@@ -1950,11 +1951,6 @@ contains
          if(kDir /= 0) kRatioRestr = 1
          InvIjkRatioRestr = 1.0/(iRatioRestr*jRatioRestr*kRatioRestr)
       end if
-
-#ifndef OPENACC      
-      if(UseHighResChange .and. .not. allocated(Primitive_VIII)) &
-           allocate(Primitive_VIII(nVar,8,6,min(6,nK)))
-#endif      
 
       if(iProc == iProcRecv)then
 

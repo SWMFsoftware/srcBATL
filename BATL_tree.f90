@@ -1791,7 +1791,6 @@ contains
 
     if(DoMove) call move_tree(iTypeNode_A)
 
-    !$acc update device(iTree_IA)
     !$acc update device(Unused_BP)
   end subroutine distribute_tree
   !============================================================================
@@ -1866,6 +1865,8 @@ contains
     if(UseUniformAxis) call find_axis_neighbor
     ! iProc is not a neighbor to itself
     IsNeighbor_P(iProc) = .false.
+
+    !$acc update device(iTree_IA, iNode_B)    
   end subroutine move_tree
   !============================================================================
   subroutine order_tree
