@@ -200,7 +200,7 @@ contains
     !$acc update device(UseHighFDGeometry)
     !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
     !$acc update device(rRound0, rRound1, IsRoundCube, SqrtNDim)
-    
+
   end subroutine init_geometry
   !============================================================================
 
@@ -314,9 +314,9 @@ contains
 
   subroutine coord_to_xyz(CoordIn_D, XyzOut_D)
     !$acc routine seq
-#ifndef OPENACC    
+#ifndef OPENACC
     use ModCoordTransform, ONLY: sph_to_xyz, rlonlat_to_xyz
-#endif    
+#endif
 
     real, intent(in) :: CoordIn_D(MaxDim)
     real, intent(out):: XyzOut_D(MaxDim)
@@ -337,9 +337,9 @@ contains
     if(IsLogRadius)then
        Coord_D(1) = exp(Coord_D(1))
     elseif(IsGenRadius)then
-#ifndef OPENACC       
+#ifndef OPENACC
        call gen_to_radius(Coord_D(1))
-#endif       
+#endif
     end if
 
     if(IsCylindrical)then
@@ -349,13 +349,13 @@ contains
        XyzOut_D(2) = r*sin(Phi)
        XyzOut_D(3) = Coord_D(3)
     elseif(IsSpherical)then
-#ifndef OPENACC              
+#ifndef OPENACC
        call sph_to_xyz(Coord_D, XyzOut_D)
-#endif       
+#endif
     elseif(IsRLonLat)then
-#ifndef OPENACC              
+#ifndef OPENACC
        call rlonlat_to_xyz(Coord_D, XyzOut_D)
-#endif       
+#endif
     elseif(IsRoundCube)then
        r2 = sum(CoordIn_D**2)
        ! L1 and L2 distances from origin
@@ -399,10 +399,10 @@ contains
           XyzOut_D = 0.0
        end if
     else
-#ifndef OPENACC       
+#ifndef OPENACC
        call CON_stop(NameSub// &
             ' not yet implemented for TypeGeometry='//TypeGeometry)
-#endif       
+#endif
     end if
 
   end subroutine coord_to_xyz

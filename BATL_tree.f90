@@ -1866,7 +1866,7 @@ contains
     ! iProc is not a neighbor to itself
     IsNeighbor_P(iProc) = .false.
 
-    !$acc update device(iTree_IA, iNode_B)    
+    !$acc update device(iTree_IA, iNode_B)
   end subroutine move_tree
   !============================================================================
   subroutine order_tree

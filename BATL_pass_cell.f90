@@ -58,7 +58,7 @@ module BATL_pass_cell
   ! local variables corresponding to optional arguments
   logical :: UseMin, UseMax  ! logicals for min and max operators
   !$acc declare create(UseMin, UseMax)
-  
+
   ! local variables corresponding to optional arguments
   integer :: nWidth
   !$acc declare create(nWidth)
@@ -217,7 +217,7 @@ contains
 
     ! Set values or defaults for optional arguments
     nWidth = nG
-    if(present(nWidthIn)) nWidth = nWidthIn    
+    if(present(nWidthIn)) nWidth = nWidthIn
 
     nProlongOrder = 2
     if(present(nProlongOrderIn)) nProlongOrder = nProlongOrderIn
@@ -239,10 +239,10 @@ contains
 
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
-    
+
     !$acc update device(nWidth, nProlongOrder, nCoarseLayer)
     !$acc update device(DoRestrictFace, UseHighResChange)
-    
+
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -1773,7 +1773,7 @@ contains
     subroutine do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
-      
+
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
 
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
@@ -1791,9 +1791,9 @@ contains
       integer :: iBufferS, nSize
       real    :: WeightOld, WeightNew
 
-#ifndef OPENACC      
+#ifndef OPENACC
       real, allocatable:: State_VG(:,:,:,:)
-#endif      
+#endif
 
       integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
       integer :: iBlockRecv,iProcRecv,iNodeRecv
@@ -1842,10 +1842,10 @@ contains
 
       if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
-#ifndef OPENACC         
+#ifndef OPENACC
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
          if(.not.DoRecvFace) RETURN
-#endif         
+#endif
       endif
 
       ! For part implicit and part steady schemes
@@ -1858,9 +1858,9 @@ contains
            (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
            (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
            then
-         ! This part is unused when nProc == 1         
+         ! This part is unused when nProc == 1
 #ifndef OPENACC
-         
+
          ! For high resolution change, finer block only receives data
          ! when iSendStage = 1.
 
@@ -1879,7 +1879,7 @@ contains
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
-#endif         
+#endif
       end if
 
       ! If this is the pure prolongation stage, all we did was counting
@@ -1906,16 +1906,16 @@ contains
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
       if(DoCountOnly)then
-         ! This part is unused when nProc == 1         
-#ifndef OPENACC 
-         
+         ! This part is unused when nProc == 1
+#ifndef OPENACC
+
          ! Number of reals to send to the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
-#endif         
+#endif
       end if
 
       if(IsAxisNode)then
@@ -1968,10 +1968,10 @@ contains
                   do iR = iRMin, iRMax, DiR
                      kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                      kS2 = kS1 + kRatioRestr - 1
-                     
+
                      jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
                      jS2 = jS1 + jRatioRestr - 1
-                     
+
                      iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
                      iS2 = iS1 + iRatioRestr - 1
                      if(UseMin) then
@@ -2001,14 +2001,14 @@ contains
          else
             ! No time interpolation/extrapolation is needed
             if(UseHighResChange) then
-#ifndef OPENACC               
+#ifndef OPENACC
                if(.not.IsAccurate_B(iBlockSend)) &
                     call calc_accurate_coarsened_block(iBlockSend)
-#endif               
+#endif
             endif
 
             if(UseHighResChange) then
-#ifndef OPENACC               
+#ifndef OPENACC
                do kR = kRMin, kRMax, DkR
                   kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                   do jR = jRMin, jRMax, DjR
@@ -2023,18 +2023,18 @@ contains
                      enddo
                   enddo
                enddo
-#endif               
+#endif
             else
-               !$acc loop vector collapse(3)               
+               !$acc loop vector collapse(3)
                do kR = kRMin, kRMax, DkR
                   do jR = jRMin, jRMax, DjR
                      do iR = iRMin, iRMax, DiR
                         kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                         kS2 = kS1 + kRatioRestr - 1
-                        
+
                         jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
                         jS2 = jS1 + jRatioRestr - 1
-                        
+
                         iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
                         iS2 = iS1 + iRatioRestr - 1
                         if(UseMin)then
@@ -2063,7 +2063,7 @@ contains
             end if ! UseHighResChange
          end if ! UseTime
       else ! iProc /= iProcRecv
-#ifndef OPENACC         
+#ifndef OPENACC
          if(UseHighResChange) then
             if(.not.IsAccurate_B(iBlockSend)) &
                  call calc_accurate_coarsened_block(iBlockSend)
@@ -2165,7 +2165,7 @@ contains
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
-      ! Slopes for 2nd order prolongation. 
+      ! Slopes for 2nd order prolongation.
       real :: Slope_VG(nVar,1-nWidth:nI+nWidth,&
            1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_)
 
@@ -2199,7 +2199,7 @@ contains
 
       UseSimpleWeights = nDim == 1 .or. nDimAmr < nDim &
            .or. IsCartesianGrid .or. IsRotatedCartesian .or. IsRoundCube
-      
+
       ! Loop through the subfaces or subedges
       do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio
          kSend = (3*kDir + 3 + kSide)/2
@@ -2227,12 +2227,12 @@ contains
 
                if(iSendStage == 4 .and. nK > 1 .and. &
                     abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
-#ifndef OPENACC                  
+#ifndef OPENACC
                   ! Do_prolongation for edge/corner ghost cells and for
                   ! some special face cells.
                   DoSendFace = is_only_corner_fine(iNodeRecv,-iDir,-jDir,-kDir)
                   if(.not. DoSendFace) CYCLE
-#endif                  
+#endif
                endif
 
                ! For part implicit and part steady schemes
@@ -2244,7 +2244,7 @@ contains
                if(DoCountOnly .and. (.not. UseHighResChange .and. &
                     iSendStage == 1 .or. &
                     (UseHighResChange .and. iSendStage == 2)))then
-#ifndef OPENACC                                      
+#ifndef OPENACC
                   ! This processor will receive a restricted buffer from
                   ! the other processor and the "recv" direction of the
                   ! restriction will be the same as the "send" direction for
@@ -2279,14 +2279,14 @@ contains
                kRMax = iProlongR_DII(3,kRecv,Max_)
 
                if(DoCountOnly)then
-#ifndef OPENACC                  
+#ifndef OPENACC
                   ! Number of reals to send to the other processor
                   nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
                        + 1 + 2*nDim
                   if(present(Time_B)) nSize = nSize + 1
                   nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
                   CYCLE
-#endif                  
+#endif
                end if
 
                if(IsAxisNode)then
@@ -2306,7 +2306,7 @@ contains
                if(nDim > 2) DjR = sign(1, jRMax - jRMin)
                if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
-#ifndef OPENACC               
+#ifndef OPENACC
                if(UseHighResChange .and. iSendStage == 4) then
                   ! The values set in set_range are used for iSendStage == 1,
                   ! Which is first order prolongtion. Now, for high order
@@ -2338,7 +2338,7 @@ contains
                      end do
                   end if
                endif
-#endif               
+#endif
 
                ! Sending range depends on iSend,jSend,kSend = 0..3
                iSMin = iProlongS_DII(1,iSend,Min_)
@@ -2365,13 +2365,13 @@ contains
                        = 0.0
 
                   if(.not.UseSimpleWeights .and. iProcRecv /= iProc)then
-#ifndef OPENACC                     
+#ifndef OPENACC
                      call get_tree_position(iNodeRecv, &
                           PositionMinR_D, PositionMaxR_D)
                      CoordMinR_D = CoordMin_D + DomainSize_D*PositionMinR_D
                      CoordMaxR_D = CoordMin_D + DomainSize_D*PositionMaxR_D
                      CellSizeR_D = (CoordMaxR_D - CoordMinR_D)/nIjk_D
-#endif                     
+#endif
                   end if
 
                   !$acc loop vector collapse(3)
@@ -2392,7 +2392,7 @@ contains
                            jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
                            if(jRatio == 1) jS1 = jS
                            if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
-                                                      
+
                            iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
                            if(iRatio == 1) iS1 = iS
                            if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
@@ -2512,10 +2512,10 @@ contains
                               ! shift
                               kS = kSMin + abs((kR+9)/kRatioRestr &
                                    -           (kRMin+9)/kRatioRestr)
-                              
+
                               jS = jSMin + abs((jR+9)/jRatioRestr &
                                    -           (jRMin+9)/jRatioRestr)
-                        
+
                               iS = iSMin + abs((iR+9)/iRatioRestr &
                                    -           (iRMin+9)/iRatioRestr)
                               State_VGB(:,iR,jR,kR,iBlockRecv) = &
@@ -2527,7 +2527,7 @@ contains
                      end do
                   else
                      if(UseHighResChange .and. iSendStage == 4) then
-#ifndef OPENACC                        
+#ifndef OPENACC
                         iDir1 = 0; jDir1 = 0; kDir1 = 0
                         i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 = max(5*Dk,1)
                         do kR = kRMin, kRMax, DkR
@@ -2567,7 +2567,7 @@ contains
                               end do ! iR
                            end do ! jR
                         end do ! kR
-#endif                        
+#endif
                      else
                         !$acc loop vector collapse(3)
                         do kR = kRMin, kRMax, DkR
@@ -2575,10 +2575,10 @@ contains
                               do iR = iRMin, iRMax, DiR
                                  kS = kSMin + abs((kR+9)/kRatioRestr &
                                       -           (kRMin+9)/kRatioRestr)
-                                 
+
                                  jS = jSMin + abs((jR+9)/jRatioRestr &
-                                      -           (jRMin+9)/jRatioRestr)                                 
-                           
+                                      -           (jRMin+9)/jRatioRestr)
+
                                  iS = iSMin + abs((iR+9)/iRatioRestr &
                                       -           (iRMin+9)/iRatioRestr)
 
@@ -2599,7 +2599,7 @@ contains
                      end if ! HighRes
                   end if ! UseTime
                else ! iProc /= iProcRecv
-#ifndef OPENACC                  
+#ifndef OPENACC
                   iBufferS = iBufferS_P(iProcRecv)
 
                   BufferS_I(            iBufferS+1) = iBlockRecv
