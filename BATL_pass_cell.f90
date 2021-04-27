@@ -240,9 +240,6 @@ contains
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
 
-    !$acc update device(nWidth, nProlongOrder, nCoarseLayer)
-    !$acc update device(DoRestrictFace, UseHighResChange)
-
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -283,7 +280,6 @@ contains
           UseMax=.true.
        end select
     end if
-    !$acc update device(UseMin, UseMax)
 
     if(present(Time_B) .and. present(NameOperatorIn)) then
        call CON_stop(NameSub// &
@@ -369,8 +365,13 @@ contains
 
           if(UseOpenACC) then
              ! Loop through all blocks that may send a message
-             !$acc update device(DoSendCorner, DoResChangeOnly, MaxBlock)
-             !$acc update device(iSendStage, UseTime, DoCountOnly)
+             !$acc update device(&
+             !$acc  DoSendCorner, DoResChangeOnly, MaxBlock, &
+             !$acc  iSendStage, UseTime, DoCountOnly, &
+             !$acc  nWidth, nProlongOrder, nCoarseLayer, &
+             !$acc  DoRestrictFace, UseHighResChange, &
+             !$acc  UseMin, UseMax)
+
              !$acc parallel loop gang present(State_VGB)
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
@@ -2357,12 +2358,18 @@ contains
                   if(kDir /= 0) kRatioRestr = 1
                end if
 
-               Slope_VG = 0.0
+               !$acc loop vector collapse(3)
+               do kR = kRMin, kRMax, DkR
+                  do jR = jRMin, jRMax, DjR
+                     do iR = iRMin, iRMax, DiR
+                        Slope_VG(:, iR, jR, kR) = 0.0
+                     end do
+                  end do
+               end do
+
                if(nProlongOrder == 2)then
                   ! Add up 2nd order corrections for all AMR dimensions
                   ! Use simple interpolation, should be OK for ghost cells
-                  Slope_VG(:,iRMin:iRmax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR)&
-                       = 0.0
 
                   if(.not.UseSimpleWeights .and. iProcRecv /= iProc)then
 #ifndef OPENACC
