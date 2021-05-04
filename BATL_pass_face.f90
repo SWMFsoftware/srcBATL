@@ -781,8 +781,7 @@ contains
 
   end subroutine correct_face_flux
   !============================================================================
-
-  subroutine apply_flux_correction(nVar, nFluid, State_VGB, Energy_GBI,&
+  subroutine apply_flux_correction(nVar, nFluid, State_VGB, &
        Flux_VXB, Flux_VYB, Flux_VZB, DoResChangeOnlyIn, iStageIn, DoTestIn)
 
     ! Correct State_VGB based on the flux differences stored in
@@ -796,8 +795,6 @@ contains
     integer, intent(in):: nVar, nFluid
     real, intent(inout):: &
          State_VGB(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock)
-    real, intent(inout), optional:: &
-         Energy_GBI(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock,nFluid)
     real, intent(inout), optional:: &
          Flux_VXB(nVar+nFluid,nJ,nK,2,MaxBlock), &
          Flux_VYB(nVar+nFluid,nI,nK,2,MaxBlock), &
@@ -854,25 +851,16 @@ contains
                CYCLE
        end if
 
-       if(present(Energy_GBI))then
-          call apply_flux_correction_block(iBlock, nVar, nFluid, nG, &
-               State_VGB(:,:,:,:,iBlock), &
-               Energy_GI=Energy_GBI(:,:,:,iBlock,:), &
-               Flux_VXB=Flux_VXB, Flux_VYB=Flux_VYB, Flux_VZB=Flux_VZB, &
-               DoResChangeOnlyIn=DoResChangeOnlyIn)
-       else
-          call apply_flux_correction_block(iBlock, nVar, nFluid, nG, &
-               State_VGB(:,:,:,:,iBlock), &
-               Flux_VXB=Flux_VXB, Flux_VYB=Flux_VYB, Flux_VZB=Flux_VZB, &
-               DoResChangeOnlyIn=DoResChangeOnlyIn)
-       end if
+       call apply_flux_correction_block(iBlock, nVar, nFluid, nG, &
+            State_VGB(:,:,:,:,iBlock), &
+            Flux_VXB=Flux_VXB, Flux_VYB=Flux_VYB, Flux_VZB=Flux_VZB, &
+            DoResChangeOnlyIn=DoResChangeOnlyIn)
     end do
 
   end subroutine apply_flux_correction
   !============================================================================
-
   subroutine apply_flux_correction_block(iBlock, nVar, nFluid, nG, &
-       State_VG, Energy_GI, Flux_VXB, Flux_VYB, Flux_VZB, DoResChangeOnlyIn)
+       State_VG, Flux_VXB, Flux_VYB, Flux_VZB, DoResChangeOnlyIn)
 
     ! Put Flux_VXB, Flux_VYB, Flux_VZB into State_VGB for the appropriate faces
 
@@ -885,8 +873,6 @@ contains
     ! The min and max functions are needed for 1D and 2D.
     real, intent(inout):: State_VG(nVar, 1-nG:nI+nG, &
          1-nG*jDim_:nJ+nG*jDim_, 1-nG*kDim_:nK+nG*kDim_)
-    real, intent(inout), optional:: Energy_GI(1-nG:nI+nG, &
-         1-nG*jDim_:nJ+nG*jDim_, 1-nG*kDim_:nK+nG*kDim_, nFluid)
     real, intent(inout), optional:: &
          Flux_VXB(nVar+nFluid,nJ,nK,2,MaxBlock), &
          Flux_VYB(nVar+nFluid,nI,nK,2,MaxBlock), &
@@ -911,8 +897,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(1,j,k,iBlock)
           State_VG(:,1,j,k) = State_VG(:,1,j,k) &
                - InvVolume*Flux_VXB(1:nVar,j,k,1,iBlock)
-          if(present(Energy_GI)) Energy_GI(1,j,k,:) = Energy_GI(1,j,k,:) &
-               - InvVolume*Flux_VXB(nVar+1:nFlux,j,k,1,iBlock)
        end do; end do
        Flux_VXB(:,:,:,1,iBlock) = 0.0
     end if
@@ -922,8 +906,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(nI,j,k,iBlock)
           State_VG(:,nI,j,k) = State_VG(:,nI,j,k) &
                + InvVolume*Flux_VXB(1:nVar,j,k,2,iBlock)
-          if(present(Energy_GI)) Energy_GI(nI,j,k,:) = Energy_GI(nI,j,k,:) &
-               + InvVolume*Flux_VXB(nVar+1:nFlux,j,k,2,iBlock)
        end do; end do
        Flux_VXB(:,:,:,2,iBlock) = 0.0
     end if
@@ -933,9 +915,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(i,1,k,iBlock)
           State_VG(:,i,1,k) = State_VG(:,i,1,k) &
                - InvVolume*Flux_VYB(1:nVar,i,k,1,iBlock)
-          if(present(Energy_GI)) Energy_GI(i,1,k,:) = Energy_GI(i,1,k,:) &
-               - InvVolume*Flux_VYB(nVar+1:nFlux,i,k,1,iBlock)
-
        end do; end do
        Flux_VYB(:,:,:,1,iBlock) = 0.0
     end if
@@ -945,8 +924,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(i,nJ,k,iBlock)
           State_VG(:,i,nJ,k) = State_VG(:,i,nJ,k) &
                + InvVolume*Flux_VYB(1:nVar,i,k,2,iBlock)
-          if(present(Energy_GI)) Energy_GI(i,nJ,k, :) = Energy_GI(i,nJ,k, :) &
-               + InvVolume*Flux_VYB(nVar+1:nFlux,i,k,2,iBlock)
        end do; end do
        Flux_VYB(:,:,:,2,iBlock) = 0.0
     end if
@@ -956,8 +933,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(i,j,1,iBlock)
           State_VG(:,i,j,1) = State_VG(:,i,j,1) &
                - InvVolume*Flux_VZB(1:nVar,i,j,1,iBlock)
-          if(present(Energy_GI)) Energy_GI(i,j,1, :) = Energy_GI(i,j,1, :) &
-               - InvVolume*Flux_VZB(nVar+1:nFlux,i,j,1,iBlock)
        end do; end do
        Flux_VZB(:,:,:,1,iBlock) = 0.0
     end if
@@ -967,8 +942,6 @@ contains
           if(.not.IsCartesian) InvVolume = 1.0/CellVolume_GB(i,j,nK,iBlock)
           State_VG(:,i,j,nK) = State_VG(:,i,j,nK) &
                + InvVolume*Flux_VZB(1:nVar,i,j,2,iBlock)
-          if(present(Energy_GI)) Energy_GI(i,j,nK, :) = Energy_GI(i,j,nK, :) &
-               + InvVolume*Flux_VZB(nVar+1:nFlux,i,j,2,iBlock)
        end do; end do
        Flux_VZB(:,:,:,2,iBlock) = 0.0
     end if
