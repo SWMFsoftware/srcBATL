@@ -110,6 +110,10 @@ module BATL_pass_cell
   ! High order resolution change
   logical, allocatable:: IsAccurateFace_GB(:,:,:,:)
 
+  ! Slopes for 2nd order prolongation.
+  real, allocatable :: Slope_VGB(:,:,:,:,:)
+  !$acc declare create(Slope_VGB)
+
   ! counting vs. sendrecv stages
   logical :: DoCountOnly
   !$acc declare create(DoCountOnly)
@@ -350,6 +354,10 @@ contains
        if(present(DefaultState_V)) IsPositive_V = DefaultState_V > 0
     end if
 
+    ! Allocate slope for prolongation. Size depends on nVar and nWidth
+    allocate(Slope_VGB(nVar,1-nWidth:nI+nWidth,&
+         1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_, nBlock))
+
     if(nProc == 1) then
 
        do iSendStage = 1, nSendStage
@@ -524,6 +532,8 @@ contains
 
     if(UseHighResChange) &
          deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
+
+    if(allocated(Slope_VGB)) deallocate(Slope_VGB)
 
     call timing_stop('batl_pass')
 
@@ -2166,10 +2176,6 @@ contains
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
-      ! Slopes for 2nd order prolongation.
-      real :: Slope_VG(nVar,1-nWidth:nI+nWidth,&
-           1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_)
-
       integer :: iR, jR, kR, iS, jS, kS, iS1, jS1, kS1
       integer :: iRatioRestr, jRatioRestr, kRatioRestr
       integer :: iBufferS, nSize
@@ -2362,7 +2368,7 @@ contains
                do kR = kRMin, kRMax, DkR
                   do jR = jRMin, jRMax, DjR
                      do iR = iRMin, iRMax, DiR
-                        Slope_VG(:, iR, jR, kR) = 0.0
+                        Slope_VGB(:, iR, jR, kR, iBlockRecv) = 0.0
                      end do
                   end do
                end do
@@ -2405,16 +2411,16 @@ contains
                            if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
 
                            if(UseMin)then
-                              ! Store min value of the stencil into Slope_VG
-                              Slope_VG(:,iR,jR,kR) = min( &
+                              ! Store min value of the stencil into Slope_VGB
+                              Slope_VGB(:,iR,jR,kR,iBlockRecv) = min( &
                                    State_VGB(:,iS,jS,kS,iBlockSend), &
                                    State_VGB(:,iS1,jS,kS,iBlockSend), &
                                    State_VGB(:,iS,jS1,kS,iBlockSend), &
                                    State_VGB(:,iS,jS,kS1,iBlockSend)  )
                               CYCLE
                            elseif(UseMax)then
-                              ! Store max value of the stencil into Slope_VG
-                              Slope_VG(:,iR,jR,kR) = max( &
+                              ! Store max value of the stencil into Slope_VGB
+                              Slope_VGB(:,iR,jR,kR,iBlockRecv) = max( &
                                    State_VGB(:,iS,jS,kS,iBlockSend), &
                                    State_VGB(:,iS1,jS,kS,iBlockSend), &
                                    State_VGB(:,iS,jS1,kS,iBlockSend), &
@@ -2480,18 +2486,18 @@ contains
                               end if
                            end if
 
-                           if(iRatio == 2) Slope_VG(:,iR,jR,kR) = &
-                                Slope_VG(:,iR,jR,kR) + WeightI* &
+                           if(iRatio == 2) Slope_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                Slope_VGB(:,iR,jR,kR,iBlockRecv) + WeightI* &
                                 ( State_VGB(:,iS1,jS,kS,iBlockSend) &
                                 - State_VGB(:,iS ,jS,kS,iBlockSend) )
 
-                           if(jRatio == 2) Slope_VG(:,iR,jR,kR) = &
-                                Slope_VG(:,iR,jR,kR) + WeightJ* &
+                           if(jRatio == 2) Slope_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                Slope_VGB(:,iR,jR,kR,iBlockRecv) + WeightJ* &
                                 ( State_VGB(:,iS,jS1,kS,iBlockSend) &
                                 - State_VGB(:,iS,jS ,kS,iBlockSend) )
 
-                           if(kRatio == 2) Slope_VG(:,iR,jR,kR) = &
-                                Slope_VG(:,iR,jR,kR) + WeightK* &
+                           if(kRatio == 2) Slope_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                Slope_VGB(:,iR,jR,kR,iBlockRecv) + WeightK* &
                                 ( State_VGB(:,iS,jS,kS1,iBlockSend) &
                                 - State_VGB(:,iS,jS,kS ,iBlockSend) )
 
@@ -2528,7 +2534,7 @@ contains
                               State_VGB(:,iR,jR,kR,iBlockRecv) = &
                                    WeightOld*State_VGB(:,iR,jR,kR,iBlockRecv)+&
                                    WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend)&
-                                   + Slope_VG(:,iR,jR,kR))
+                                   + Slope_VGB(:,iR,jR,kR,iBlockRecv))
                            end do
                         end do
                      end do
@@ -2591,13 +2597,13 @@ contains
 
                                  if(nProlongOrder==2 .and. &
                                       (UseMin .or. UseMax))then
-                                    ! Assign min/max value stored in Slope_VG
+                                    ! Assign min/max value stored in Slope_VGB
                                     State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                         Slope_VG(:,iR,jR,kR)
+                                         Slope_VGB(:,iR,jR,kR,iBlockRecv)
                                  else
                                     State_VGB(:,iR,jR,kR,iBlockRecv) = &
                                          State_VGB(:,iS,jS,kS,iBlockSend) &
-                                         + Slope_VG(:,iR,jR,kR)
+                                         + Slope_VGB(:,iR,jR,kR,iBlockRecv)
                                  end if
                               end do
                            end do
@@ -2672,13 +2678,13 @@ contains
                                    -           (iRMin+9)/iRatioRestr)
 
                               if(nProlongOrder==2 .and. (UseMin.or.UseMax))then
-                                 ! Assign min/max value stored in Slope_VG
+                                 ! Assign min/max value stored in Slope_VGB
                                  BufferS_I(iBufferS+1:iBufferS+nVar)= &
-                                      Slope_VG(:,iR,jR,kR)
+                                      Slope_VGB(:,iR,jR,kR,iBlockRecv)
                               else
                                  BufferS_I(iBufferS+1:iBufferS+nVar)= &
                                       State_VGB(:,iS,jS,kS,iBlockSend) &
-                                      + Slope_VG(:,iR,jR,kR)
+                                      + Slope_VGB(:,iR,jR,kR,iBlockRecv)
                               end if
                               iBufferS = iBufferS + nVar
                            end do
