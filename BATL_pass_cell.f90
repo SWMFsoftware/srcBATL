@@ -2206,11 +2206,11 @@ contains
 
       UseSimpleWeights = nDim == 1 .or. nDimAmr < nDim &
            .or. IsCartesianGrid .or. IsRotatedCartesian .or. IsRoundCube
-      
+
       iGang = 1
 #ifdef OPENACC
       iGang = iBlockSend
-#endif               
+#endif
 
       ! Loop through the subfaces or subedges
       do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio
@@ -2236,7 +2236,7 @@ contains
                if(iProc == iProcRecv .eqv. DoRemote) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
-               
+
                if(iSendStage == 4 .and. nK > 1 .and. &
                     abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
 #ifndef OPENACC
