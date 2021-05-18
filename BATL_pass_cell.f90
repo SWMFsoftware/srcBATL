@@ -112,6 +112,7 @@ module BATL_pass_cell
 
   ! Slopes for 2nd order prolongation.
   real, allocatable :: Slope_VGI(:,:,:,:,:)
+  !$omp threadprivate( Slope_VGI)
   !$acc declare create(Slope_VGI)
 
   ! counting vs. sendrecv stages
@@ -354,9 +355,11 @@ contains
        if(present(DefaultState_V)) IsPositive_V = DefaultState_V > 0
     end if
 
+    !$omp parallel
     ! Allocate slope for prolongation. Size depends on nVar and nWidth
     allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,&
          1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_, nGang))
+    !$omp end parallel
 
     if(nProc == 1) then
 
@@ -533,7 +536,9 @@ contains
     if(UseHighResChange) &
          deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
 
-    if(allocated(Slope_VGI)) deallocate(Slope_VGI)
+    !$omp parallel
+    deallocate(Slope_VGI)
+    !$omp end parallel
 
     call timing_stop('batl_pass')
 
