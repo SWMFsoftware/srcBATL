@@ -618,13 +618,6 @@ contains
        if(allocated(dCosTheta_I)) deallocate(dCosTheta_I)
        if(allocated(Xyz_DN))      deallocate(Xyz_DN)
     end if
-
-    ! hyzhou: find a place to update variables on device
-    !$acc update device(CellVolume_GB, CellVolume_B)
-    !$acc update device(Xyz_DGB)
-    !$acc update device(CellFace_DB)
-    !$acc update device(CellSize_DB)
-
   contains
     !==========================================================================
     subroutine calc_analytic_face
@@ -979,6 +972,12 @@ contains
           call create_grid_block(iBlock)
        end do
     end if
+
+    ! Update variables set by create_grid_block
+    !$acc update device(CellVolume_GB, CellVolume_B)
+    !$acc update device(Xyz_DGB)
+    !$acc update device(CellFace_DB)
+    !$acc update device(CellSize_DB)
 
   end subroutine create_grid
   !============================================================================

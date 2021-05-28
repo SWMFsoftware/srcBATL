@@ -1460,8 +1460,6 @@ contains
        end do; end do; end do
     end if
 
-    !$acc update device(iNodeNei_IIIB, DiLevelNei_IIIB)
-
   end subroutine find_neighbor
   !============================================================================
 
@@ -1867,6 +1865,7 @@ contains
     IsNeighbor_P(iProc) = .false.
 
     !$acc update device(iTree_IA, iNode_B)
+    !$acc update device(iNodeNei_IIIB, DiLevelNei_IIIB)
   end subroutine move_tree
   !============================================================================
   subroutine order_tree
