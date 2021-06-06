@@ -5,9 +5,8 @@ module BATL_pass_cell
 
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
   	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
-  	coord_to_xyz, init_geometry, z_, IsPeriodic_D, rot_to_cart, &
-  	xyz_to_coord, coord_to_xyz
-  use ModNumConst, ONLY: cPi, cHalfPi, cTwoPi
+  	coord_to_xyz
+  use ModNumConst, ONLY: cPi, cHalfPi
   use BATL_high_order, ONLY: restriction_high_order_reschange, &
   	prolongation_high_order_amr, &
   	prolongation_high_order_for_face_ghost, &
@@ -131,7 +130,6 @@ module BATL_pass_cell
 
 contains
   !============================================================================
-
   subroutine message_pass_real(nVar, nG, State_VGB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
@@ -141,7 +139,7 @@ contains
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
     use BATL_mpi,  ONLY: iComm, nProc
-    use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B, iTree_IA, iNodeNei_IIIB, Unused_BP
+    use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B
 
     ! Arguments
     integer, intent(in) :: nVar  ! number of variables
@@ -387,7 +385,8 @@ contains
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
+                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
+                     UseOpenACCIn)
              end do ! iBlockSend
           else
              ! Loop through all blocks that may send a message
@@ -395,7 +394,8 @@ contains
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax,UseOpenACCIn)
+                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
+                     UseOpenACCIn)
              end do ! iBlockSend
              !$omp end parallel do
           endif
@@ -460,7 +460,7 @@ contains
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                     .true.,TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                     .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
              end do ! iBlockSend
 
              call timing_stop('part1_pass')
@@ -510,12 +510,12 @@ contains
 
           ! wait for all requests to be completed
           call timing_start('wait_pass')
-          if(iRequestR > 0) &
-               call MPI_waitall(iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
+          if(iRequestR > 0) call MPI_waitall(iRequestR, iRequestR_I, &
+               MPI_STATUSES_IGNORE, iError)
 
           ! wait for all sends to be completed
-          if(iRequestS > 0) &
-               call MPI_waitall(iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
+          if(iRequestS > 0) call MPI_waitall(iRequestS, iRequestS_I, &
+               MPI_STATUSES_IGNORE, iError)
           call timing_stop('wait_pass')
 
           call timing_start('buffer_to_state')
@@ -544,7 +544,6 @@ contains
 
   contains
     !==========================================================================
-
     subroutine is_face_accurate(iBlock)
 
       integer, intent(in):: iBlock
@@ -622,7 +621,6 @@ contains
 
     end subroutine is_face_accurate
     !==========================================================================
-
     subroutine high_prolong_for_face_ghost(iBlock)
       ! High order prolongation for face ghost cells. It is done locally.
 
@@ -654,7 +652,6 @@ contains
 
     end subroutine high_prolong_for_face_ghost
     !==========================================================================
-
     subroutine buffer_to_state
 
       ! Copy buffer into recv block of State_VGB
@@ -733,7 +730,6 @@ contains
 
     end subroutine buffer_to_state
     !==========================================================================
-
     subroutine set_range
 
       integer:: nWidthProlongS_D(MaxDim), iDim
@@ -838,7 +834,6 @@ contains
       !$acc update device(iEqualS_DII, iEqualR_DII)
     end subroutine set_range
     !==========================================================================
-
   end subroutine message_pass_real
   !============================================================================
   subroutine message_pass_ng_real(nVar, State_VGB, &
@@ -884,7 +879,6 @@ contains
 
   end subroutine message_pass_ng_real
   !============================================================================
-
   subroutine message_pass_ng_real1(State_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
@@ -921,7 +915,6 @@ contains
 
   end subroutine message_pass_ng_real1
   !============================================================================
-
   subroutine message_pass_real1(nG, State_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
@@ -959,7 +952,6 @@ contains
 
   end subroutine message_pass_real1
   !============================================================================
-
   subroutine message_pass_ng_int1(Int_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
@@ -1007,7 +999,6 @@ contains
 
   end subroutine message_pass_ng_int1
   !============================================================================
-
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
     !$acc routine vector
@@ -1169,7 +1160,6 @@ contains
 
   contains
     !==========================================================================
-
     subroutine corrected_do_equal
 
       integer:: iEqualSOrig_DII(MaxDim,-1:1,Min_:Max_)
@@ -1341,8 +1331,8 @@ contains
                      endif
 
                      call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
-                          nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn,&
-                          Time_B, TimeOld_B)
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMin, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1390,7 +1380,7 @@ contains
 
                      call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
                           nVar, nG, State_VGB, DoRemote, IsAxisNode, &
-                          iLevelMIn, Time_B, TimeOld_B)
+                          iLevelMin, Time_B, TimeOld_B)
 
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
@@ -1461,8 +1451,8 @@ contains
                         iEqualR_DII(2,0,Max_) = nJ + nWidth
                      endif
                      call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
-                          nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
-                          Time_B, TimeOld_B)
+                          nVar, nG, State_VGB, DoRemote, IsAxisNode, &
+                          iLevelMin, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1531,7 +1521,7 @@ contains
 
                      call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
                           nVar, nG, State_VGB, DoRemote, IsAxisNode, &
-                          iLevelMIn, Time_B, TimeOld_B)
+                          iLevelMin, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1601,7 +1591,7 @@ contains
 
                      call do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, &
                           nVar, nG, State_VGB, DoRemote, IsAxisNode, &
-                          iLevelMIn, Time_B, TimeOld_B)
+                          iLevelMin, Time_B, TimeOld_B)
                      iEqualS_DII = iEqualSOrig_DII
                      iEqualR_DII = iEqualROrig_DII
                   endif
@@ -1612,7 +1602,6 @@ contains
 
     end subroutine corrected_do_equal
     !==========================================================================
-
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
@@ -1638,7 +1627,6 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
-      integer:: is, js, ks, ir, jr, kr
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
 
@@ -2164,7 +2152,6 @@ contains
 
     end subroutine do_restrict
     !==========================================================================
-
     subroutine do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
@@ -2711,7 +2698,6 @@ contains
 
     end subroutine do_prolong
     !==========================================================================
-
     subroutine calc_accurate_coarsened_block(iBlock)
 
       ! For nI*nJ*nK fine block, calculate its coarsened nI/2 * nJ/2 * nK/2
@@ -3888,10 +3874,8 @@ contains
 
     end subroutine calc_accurate_coarsened_block
     !==========================================================================
-
   end subroutine message_pass_block
   !============================================================================
-
   logical function is_only_corner_fine(iNode, iDir0, jDir0, kDir0, &
        iDirCorner, jDirCorner, kDirCorner)
 
@@ -3985,6 +3969,5 @@ contains
     is_only_corner_fine = IsOnlyCornerFine
   end function is_only_corner_fine
   !============================================================================
-
 end module BATL_pass_cell
 !==============================================================================
