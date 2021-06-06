@@ -1627,6 +1627,9 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
+#ifdef OPENACC
+      integer:: is, js, ks, ir, jr, kr
+#endif
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
 
