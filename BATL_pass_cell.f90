@@ -302,7 +302,7 @@ contains
        !$acc DoSendCorner, DoResChangeOnly, MaxBlock, UseTime,&
        !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
        !$acc UseHighResChange, UseMin, UseMax)
-       
+
        !$acc serial
        ! Set index ranges based on arguments
        call set_range
@@ -723,7 +723,7 @@ contains
     !==========================================================================
     subroutine set_range
       !$acc routine seq
-      
+
       integer:: nWidthProlongS_D(MaxDim), iDim
       !------------------------------------------------------------------------
       !$omp parallel
@@ -820,7 +820,7 @@ contains
             iProlongR_DII(iDim,2,Min_) = iProlongR_DII(iDim,2,Min_) - nWidth
          end do
       end if
-      
+
     end subroutine set_range
     !==========================================================================
   end subroutine message_pass_real
