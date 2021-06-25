@@ -297,13 +297,19 @@ contains
     ! Initialize logical for time interpolation/extrapolation
     UseTime = .false.
 
-    !$acc update device(&
-    !$acc DoSendCorner, DoResChangeOnly, MaxBlock, UseTime,&
-    !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
-    !$acc UseHighResChange, UseMin, UseMax)
-
-    ! Set index ranges based on arguments
-    call set_range
+    if(UseOpenACC) then
+       !$acc update device(&
+       !$acc DoSendCorner, DoResChangeOnly, MaxBlock, UseTime,&
+       !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
+       !$acc UseHighResChange, UseMin, UseMax)
+       
+       !$acc serial
+       ! Set index ranges based on arguments
+       call set_range
+       !$acc end serial
+    else
+       call set_range
+    endif
 
     if(nProc > 1)then
        ! Allocate fixed size communication arrays.
@@ -716,11 +722,10 @@ contains
     end subroutine buffer_to_state
     !==========================================================================
     subroutine set_range
-
+      !$acc routine seq
+      
       integer:: nWidthProlongS_D(MaxDim), iDim
       !------------------------------------------------------------------------
-      !$acc serial
-
       !$omp parallel
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iEqualS_DII(:,-1,Min_) = 1
@@ -815,8 +820,7 @@ contains
             iProlongR_DII(iDim,2,Min_) = iProlongR_DII(iDim,2,Min_) - nWidth
          end do
       end if
-
-      !$acc end serial
+      
     end subroutine set_range
     !==========================================================================
   end subroutine message_pass_real
