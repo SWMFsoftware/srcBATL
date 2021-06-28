@@ -42,7 +42,7 @@ module BATL_particles
 
      ! nVar*nParticleMax array. The second index numerates 'particles'.
      ! First nDim components are the cartesian coordinates the other
-     ! can be are velocities, the momentum components, gyrokinetic
+     ! can be velocities, the momentum components, gyrokinetic
      ! parameters or the physical particles, or, alternatively,
      ! the magnetic field line ID and the number of the Lagrangian
      ! fluid particle along the magnetic field line in application to
@@ -168,7 +168,7 @@ contains
     ! particle is considered undefined if its block number is negative,
     ! the absolute value is kept the same to retain information on its position
     Particle_I(iKind)%iIndex_II(0,iParticle) = &
-         - abs(Particle_I(iKind)%iIndex_II(0,iParticle))
+         - max(abs(Particle_I(iKind)%iIndex_II(0,iParticle)), 1)
     ! abs() is used to prevent making an undefined particle a defined one
   end subroutine mark_undefined
   !============================================================================
@@ -322,7 +322,10 @@ contains
       logical:: DoMove       ! whether need to pass current particle
       integer:: nParticleNew ! # of particles after message pass
       logical:: IsOut        ! particle is out of domain
-      integer:: iTag, iError, iRequest, iRequest_I(2*nProc)
+      integer:: iTag=0, iError, nRequestR, nRequestS
+      integer:: iStatusS_II(MPI_STATUS_SIZE,nProc)
+      integer:: iStatusR_II(MPI_STATUS_SIZE,nProc)
+      integer:: iRequestS_I(nProc), iRequestR_I(nProc)
       ! reset parameters of the message_pass for this kind of particles
       !------------------------------------------------------------------------
       nSend_P       = 0; nRecv_P = 0
@@ -350,16 +353,17 @@ contains
          RETURN
       end if
       ! send size of messages
-      iRequest = 0
+      nRequestR = 0
       do iProcFrom = 0, nProc - 1
          if(iProc==iProcFrom) CYCLE ! skip this proc
          iTag = iProc
-         iRequest = iRequest + 1
+         nRequestR = nRequestR + 1
          call MPI_Irecv(&
               nRecv_P(iProcFrom), 1, MPI_INTEGER, iProcFrom, iTag, iComm, &
-              iRequest_I(iRequest), iError)
+              iRequestR_I(nRequestR), iError)
       end do
-
+      ! post sends
+      nRequestS = 0
       if(DoRSend)then
          ! barrier: to guarantee that all recv's have been posted BEFORE Rsend
          call MPI_Barrier(iComm, iError)
@@ -375,15 +379,17 @@ contains
          do iProcTo = 0, nProc - 1
             if(iProc==iProcTo) CYCLE ! skip this proc
             iTag = iProcTo
-            iRequest = iRequest + 1
+            nRequestS = nRequestS + 1
             call MPI_Isend(&
                  nSend_P(iProcTo), 1, MPI_INTEGER, &
-                 iProcTo, iTag, iComm, iRequest_I(iRequest), iError)
+                 iProcTo, iTag, iComm, iRequestS_I(nRequestS), iError)
          end do
       end if
 
-      ! finalize transfer
-      call MPI_waitall(iRequest, iRequest_I, MPI_STATUSES_IGNORE, iError)
+      ! Finalize transfer
+      call MPI_waitall(nRequestR, iRequestR_I, iStatusR_II, iError)
+      if(.not.DoRSend)&
+           call MPI_waitall(nRequestS, iRequestS_I, iStatusS_II, iError)
 
       ! get offsets for procs in BufferSend_I & BufferRecv_I
       iSendOffset_P(0) = 0
@@ -422,16 +428,16 @@ contains
       end do
       nParticle = nParticle - nUnset
       ! transfer data
-      iRequest = 0
+      nRequestR = 0
       do iProcFrom = 0, nProc - 1
          if(iProcFrom == iProc) CYCLE ! skip this proc
          if(nRecv_P(iProcFrom) > 0)then
-            iRequest = iRequest + 1
+            nRequestR = nRequestR + 1
             iTag = iProc
             call MPI_Irecv(&
                  BufferRecv_I(iRecvOffset_P(iProcFrom)+1), &
                  nRecv_P(iProcFrom)*nData, MPI_REAL, &
-                 iProcFrom, iTag, iComm, iRequest_I(iRequest), iError)
+                 iProcFrom, iTag, iComm, iRequestR_I(nRequestR), iError)
          end if
       end do
 
@@ -450,19 +456,22 @@ contains
             end if
          end do
       else
+         nRequestS = 0
          do iProcTo = 0, nProc - 1
             if(nSend_P(iProcTo) > 0)then
                iTag = iProcTo
-               iRequest = iRequest + 1
+               nRequestS = nRequestS + 1
                call MPI_Isend(&
                     BufferSend_I(iSendOffset_P(iProcTo)+1), &
                     nSend_P(iProcTo)*nData, MPI_REAL, &
-                    iProcTo, iTag, iComm, iRequest_I(iRequest), iError)
+                    iProcTo, iTag, iComm, iRequestS_I(nRequestS), iError)
             end if
          end do
       end if
-      ! finalize transfer
-      call MPI_waitall(iRequest, iRequest_I, MPI_STATUSES_IGNORE, iError)
+      ! Finalize transfer
+      call MPI_waitall(nRequestR, iRequestR_I, iStatusR_II, iError)
+      if(.not.DoRSend)&
+           call MPI_waitall(nRequestS, iRequestS_I, iStatusS_II, iError)
 
       ! change total number of particles of this kind
       nParticleNew = nParticle - sum(nSend_P) + sum(nRecv_P)
