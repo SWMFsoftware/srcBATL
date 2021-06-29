@@ -27,7 +27,7 @@ module BATL_particles
   SAVE
 
   ! Use the pair RSend + IRecv or ISend + IRecv
-  logical, parameter, private:: DoRSend = .true.
+  logical, parameter:: DoRSend = .true.
 
   type ParticleType
 
@@ -62,20 +62,21 @@ module BATL_particles
   ! offset for particle data in the send BufferSend_I
   ! NOTE: offest values start with 0
   integer, allocatable:: iSendOffset_I(:)
-  integer, allocatable:: iProcTo_I(:)! proc id to which send this particle
+  integer, allocatable:: iProcTo_I(:)    ! proc id to which send this particle
 
-  real,    allocatable:: BufferSend_I(:)! buffer of data to be sent
-  real,    allocatable:: BufferRecv_I(:)! buffer of data to be recv'd
+  real,    allocatable:: BufferSend_I(:) ! buffer of data to be sent
+  real,    allocatable:: BufferRecv_I(:) ! buffer of data to be recv'd
   character(len=*),parameter  :: NameMod='BATL_particles'
-  character(len=120), private :: StringError
-  integer :: nU_I(2)
-
+  character(len=120) :: StringError
+  
   logical :: DoInit = .true.
 contains
   !============================================================================
-
   subroutine allocate_particles()
-    integer:: iKindParticle, iKindFirst, iKindLast
+    ! Allocate all particle arrays, nVar, nIndex and nParticle Max are
+    ! to be known for all nKindParticle sorts of particles, the parameter
+    ! nKindParticle should be properly set in in BATL_size
+    integer:: iKindParticle
 
     ! Misc
     integer :: nVar, nIndex, nParticleMax
@@ -119,7 +120,7 @@ contains
     ! nParticleMax as number of particles and allocate buffers accordingly
     nBuffer = 0; nParticleMax = 0
     do iKindParticle = 1, nKindParticle
-       ! size of the buffer is (nParticles)*(nVar+1) with last 1 for block id
+       ! size of the buffer is (nParticles)*(nVar+nIndex+1) last 1 for block id
        nBuffer = max(nBuffer, &
             (Particle_I(iKindParticle)%nVar+Particle_I(iKindParticle)%nIndex+&
             1)*Particle_I(iKindParticle)%nParticleMax)
@@ -665,7 +666,6 @@ contains
     ! CYCLE till all particles leave the domain or
     ! check_done gives Done=.true. on all processors
     do
-
        ! For all particles at this PE
        do iParticle = 1, Particle_I(iKindParticle)%nParticle
           ! Displace while the particle is at the PE domain
@@ -681,10 +681,9 @@ contains
              !     interval and the end of this interval is reached
              if(IsEndOfSegment)EXIT SEGMENT
           end do SEGMENT
-       end do
+       end do ! Loop over particles
 
        ! Particles of the (1) kind are removed
-
        ! Particles of (2) kind are sent to proper processor
        call message_pass_particles(iKindParticle)
        if(is_for_all_pe(Particle_I(iKindParticle)%nParticle == 0))&
