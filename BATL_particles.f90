@@ -68,7 +68,7 @@ module BATL_particles
   real,    allocatable:: BufferRecv_I(:) ! buffer of data to be recv'd
   character(len=*),parameter  :: NameMod='BATL_particles'
   character(len=120) :: StringError
-  
+
   logical :: DoInit = .true.
 contains
   !============================================================================
