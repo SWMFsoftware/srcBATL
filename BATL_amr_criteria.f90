@@ -1138,8 +1138,8 @@ contains
     integer,           optional, intent(inout) :: nCritInOut
     character(len=20), optional, intent(out)   :: NameCritOut_I(:)
     logical,           optional, intent(out)   :: ReadExtraOut
-    integer,           optional, intent(in):: nStateVarIn
-    character(len=*),  optional, dimension(:), intent(in):: NameStatVarIn_V
+    integer,           optional, intent(in)    :: nStateVarIn
+    character(len=*),  optional, intent(in)    :: NameStatVarIn_V(:)
 
     ! Max number of componets in TypeCriteia
     integer, parameter :: nMaxComponents=20
@@ -1149,9 +1149,6 @@ contains
     character(len=nChar) :: CritName
     character(len=20) :: NameStatVar
     logical :: IsLevel, IsRes
-    logical :: DoAmr
-    integer :: DnAmr
-    real    :: DtAmr
 
     logical :: IsUniqueCritName, UseErrorCrit, ReadExtra
 
@@ -1164,13 +1161,14 @@ contains
 
     DoSortAmrCrit = .not. DoStrictAmr
     select case(NameCommand)
-    case("#AMRCRITERIA", "#AMRCRITERIALEVEL", "#AMRCRITERIARESOLUTION", "#AMRCRITERIACELLSIZE")
+    case("#AMRCRITERIA", "#AMRCRITERIALEVEL", "#AMRCRITERIARESOLUTION", &
+         "#AMRCRITERIACELLSIZE")
 
        nCrit       = nCritInOut
        nAmrCrit    = nCrit
        iCritPhy = 0
-       ! 'dx' and 'level' will be stored as the last indexes the array
-       ! nCritDxLevel will give the number of geometric AMR agruments at the end
+       ! 'dx' and 'level' will be stored as the last indexes of the array
+       ! nCritDxLevel will give number of geometric AMR agruments at the end
        nCritDxLevel  =  0
        if(nCrit == 0) RETURN
 
@@ -1400,7 +1398,7 @@ contains
                write(*,*) " MaxLevelCritPhys_I  = ", MaxLevelCritPhys_I
           write(*,*) " AmrWavefilter       = ", cAmrWavefilter
        end if
-    case("#AMR") ! compatibilety with old system with BATSRUS amr options
+    case("#AMR") ! compatibility with old system with BATSRUS amr options
        call read_var('PercentCoarsen', PercentCoarsen)
        call read_var('PercentRefine',  PercentRefine)
        call read_var('MaxTotalBlock',  MaxTotalBlock)
@@ -1411,14 +1409,6 @@ contains
        call read_var('MaxTotalBlock',  MaxTotalBlock)
        call read_var('DiffCriteriaLevel',  DeltaCriteria)
        DoSortAmrCrit = PercentCoarsen > 0.0 .or. PercentRefine > 0.0
-    case("#DOAMR")
-       call read_var('DoAmr',DoAmr)
-       if(DoAmr) then
-          call read_var('DnAmr',DnAmr)
-          call read_var('DtAmr',DtAmr)
-          call read_var('IsStrictAmr'  ,DoStrictAmr)
-       end if
-       if(.not. DoStrictAmr) DoSortAmrCrit = .true.
     case default
        call CON_stop(NameSub//'incorrect PARAM.in!')
     end select
