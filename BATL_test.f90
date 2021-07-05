@@ -351,8 +351,6 @@ contains
     integer, optional, intent(in):: i, j, k
     !--------------------------------------------------------------------------
 #ifndef OPENACC
-    if (.not. acc_on_device(acc_device_host)) RETURN
-
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
