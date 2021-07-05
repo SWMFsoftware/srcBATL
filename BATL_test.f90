@@ -241,7 +241,7 @@ contains
     integer, optional, intent(in) :: iBlock    ! block index
     integer, optional, intent(in) :: i, j, k   ! cell index
     logical, optional, intent(in) :: DoTestAll ! test on all processors
-    !-------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     DoTest = .false.
 #ifdef OPENACC
     if (acc_on_device(acc_device_host)) then
