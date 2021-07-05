@@ -25,7 +25,6 @@ module BATL_pass_node
 
 contains
   !============================================================================
-
   subroutine message_pass_node(nVar, State_VNB, NameOperatorIn, &
        UsePeriodicCoordIn)
 
@@ -39,7 +38,7 @@ contains
     ! UsePeriodicCoordIn tells that nodes next to truly periodic boundaries
     ! should be combined.
 
-    use BATL_size, ONLY: MaxBlock, &
+    use BATL_size, ONLY: &
          nBlock, nIJK_D, &
          MaxDim, nDim, iRatio, jRatio, kRatio, iRatio_D,  &
          nI, nJ, nK, nBlock, nINode, nJNode, nKNode, nIJKNode_D
@@ -59,8 +58,7 @@ contains
 
     ! Arguments
     integer, intent(in) :: nVar
-    real, intent(inout) :: &
-         State_VNB(nVar,1:nI+1,1:nJ+1,1:nK+1,nBlock)
+    real, intent(inout) :: State_VNB(nVar,nI+1,nJ+1,nK+1,nBlock)
 
     ! Optional arguments
     character(len=*), optional, intent(in) :: NameOperatorIn
@@ -106,9 +104,7 @@ contains
 
     integer:: iRequestR, iRequestS, iError
 
-    ! On Pleiades the mpi-hpe/mpt.2.17r13 library fails with MPI_STATUSES_IGNORE
-    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:), &
-         iStatus_II(:,:)
+    integer, allocatable, save:: iRequestR_I(:), iRequestS_I(:)
 
     integer, allocatable :: nCount_NB(:,:,:,:)
 
@@ -161,7 +157,6 @@ contains
        allocate(iBufferS_P(0:nProc-1), nBufferS_P(0:nProc-1), &
             nBufferR_P(0:nProc-1))
        allocate(iRequestR_I(nProc), iRequestS_I(nProc))
-       allocate(iStatus_II(MPI_STATUS_SIZE,nProc))
     end if
 
     ! call timing_stop('init_pass_node')
@@ -298,12 +293,12 @@ contains
 
        ! wait for all requests to be completed
        ! call timing_start('wait_pass_node')
-       if(iRequestR > 0) &
-            call MPI_waitall(iRequestR, iRequestR_I, iStatus_II, iError)
+       if(iRequestR > 0) call MPI_waitall( &
+            iRequestR, iRequestR_I, MPI_STATUSES_IGNORE, iError)
 
        ! wait for all sends to be completed
-       if(.not.UseRSend .and. iRequestS > 0) &
-            call MPI_waitall(iRequestS, iRequestS_I, iStatus_II, iError)
+       if(.not.UseRSend .and. iRequestS > 0) call MPI_waitall( &
+            iRequestS, iRequestS_I, MPI_STATUSES_IGNORE, iError)
 
        ! call timing_stop('wait_pass_node')
     end if
@@ -321,14 +316,12 @@ contains
 
   contains
     !==========================================================================
-
     subroutine buffer_to_state
 
       ! Copy buffer into recv block of State_VNB
 
       integer:: iBufferR, i, j, k, iVar, iBlock
       integer:: nDx,nDy,nDz
-
       !------------------------------------------------------------------------
       jRMin = 1; jRMax = 1
       kRMin = 1; kRMax = 1
@@ -399,12 +392,10 @@ contains
 
     end subroutine buffer_to_state
     !==========================================================================
-
     subroutine do_equal
 
       integer :: iBufferS, i, j, k, nSize
       !------------------------------------------------------------------------
-
       iSend = (3*iDir + 3)/2
       jSend = (3*jDir + 3)/2
       kSend = (3*kDir + 3)/2
@@ -478,7 +469,6 @@ contains
 
     end subroutine do_equal
     !==========================================================================
-
     subroutine do_restrict
 
       integer :: iS, jS, kS, iVar
@@ -616,7 +606,6 @@ contains
 
     end subroutine do_restrict
     !==========================================================================
-
     subroutine do_prolong
 
       integer :: iS, jS, kS
@@ -751,14 +740,10 @@ contains
 
     end subroutine do_prolong
     !==========================================================================
-
     subroutine set_range
 
-      integer:: nWidthProlongS_D(MaxDim), iDim
-      ! integer:: nIjkNode_D(MaxDim)
+      integer:: iDim
       !------------------------------------------------------------------------
-      ! nIjkNode_D = nIjk_D + 1
-
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iEqualS_DII(:,-1,Min_) = 1
       iEqualS_DII(:,-1,Max_) = 1
@@ -784,7 +769,6 @@ contains
       iRestrictS_DII(:, 1,Min_) = nIJKNode_D
 
       ! Indexed by iRecv/jRecv/kRecv = 0..3
-
       iRestrictR_DII = 1
       iRestrictR_DII(:,0,Min_) = 1
       iRestrictR_DII(:,0,Max_) = 1
@@ -797,11 +781,6 @@ contains
       iRestrictR_DII(:,2,Max_) = nIJKNode_D
       iRestrictR_DII(:,3,Min_) = nIJKNode_D
       iRestrictR_DII(:,3,Max_) = nIJKNode_D
-
-      ! Number of ghost nodes sent from coarse block.
-      ! Divided by resolution ratio and rounded up.
-
-      nWidthProlongS_D(1:nDim) = 1
 
       ! Indexed by iSend/jSend,kSend = 0..3
       do iDim = 1, MaxDim
@@ -828,9 +807,7 @@ contains
 
     end subroutine set_range
     !==========================================================================
-
   end subroutine message_pass_node
   !============================================================================
-
 end module BATL_pass_node
 !==============================================================================
