@@ -7,8 +7,10 @@ module BATL_test
   use BATL_size, ONLY: nDim, MaxDim, nBlock, &
     MinI, MaxI, MinJ, MaxJ, MinK, MaxK
   use BATL_grid, ONLY: find_grid_block, show_grid_cell
-
   use ModUtilities, ONLY: CON_stop
+#ifdef OPENACC
+  use openacc
+#endif
 
   implicit none
 
@@ -230,9 +232,27 @@ contains
 
   end subroutine find_test_cell
   !============================================================================
-
   subroutine test_start(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
     !$acc routine seq
+
+    character(len=*),  intent(in) :: NameSub   ! method to be tested
+    logical,           intent(out):: DoTest    ! return true if testing is on
+
+    integer, optional, intent(in) :: iBlock    ! block index
+    integer, optional, intent(in) :: i, j, k   ! cell index
+    logical, optional, intent(in) :: DoTestAll ! test on all processors
+    !-------------------------------------------------------------------------
+    DoTest = .false.
+#ifdef OPENACC
+    if (acc_on_device(acc_device_host)) then
+#endif
+       call test_start_cpu(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
+#ifdef OPENACC
+    end if
+#endif
+  end subroutine test_start
+  !============================================================================
+  subroutine test_start_cpu(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
 
     ! If optional block index iBlock is present, restrict all actions
     ! to the test block(s) only. If optional indexes i, j, or k are
@@ -258,7 +278,6 @@ contains
 
     !--------------------------------------------------------------------------
     DoTest = .false.
-#ifndef OPENACC
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
@@ -316,8 +335,8 @@ contains
           write(*,*) NameSub,' is starting'
        end if
     end if
-#endif
-  end subroutine test_start
+
+  end subroutine test_start_cpu
   !============================================================================
   subroutine test_stop(NameSub, DoTest, iBlock, i, j, k)
     !$acc routine seq
@@ -332,6 +351,7 @@ contains
     integer, optional, intent(in):: i, j, k
     !--------------------------------------------------------------------------
 #ifndef OPENACC
+    if (.not. acc_on_device(acc_device_host)) RETURN
 
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
