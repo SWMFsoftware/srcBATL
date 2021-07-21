@@ -1124,7 +1124,7 @@ contains
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
                 if(iSendStage == 3) then
-#ifndef OPENACC
+#ifndef _OPENACC
                    call corrected_do_equal
 #endif
                 else
@@ -1616,7 +1616,7 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
-#ifdef OPENACC
+#ifdef _OPENACC
       integer:: is, js, ks, ir, jr, kr
 #endif
       !------------------------------------------------------------------------
@@ -1654,7 +1654,7 @@ contains
       kRMax = iEqualR_DII(3,kDir,Max_)
 
       ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
-#ifndef OPENACC
+#ifndef _OPENACC
       if(iSendStage == 3) then
          ! Only edge/corner cells need to be overwritten.
          nWithin = 0
@@ -1666,7 +1666,7 @@ contains
 #endif
 
       ! OpenAcc: For local copy, DoCountOnly is always false.
-#ifndef OPENACC
+#ifndef _OPENACC
       if(DoCountOnly)then
          ! Number of reals to send to and received from the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -1679,7 +1679,7 @@ contains
 #endif
 
       ! OpenACC: Do not support IsAxisNode so far.
-#ifndef OPENACC
+#ifndef _OPENACC
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
             kRMin = iEqualR_DII(3,-kDir,Max_)
@@ -1709,7 +1709,7 @@ contains
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
          if(UseTime)then
-#ifndef OPENACC
+#ifndef _OPENACC
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -1721,7 +1721,7 @@ contains
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
 #endif
          else
-#ifdef OPENACC
+#ifdef _OPENACC
             !$acc loop vector collapse(3)
             do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
                ir = iRMin + DiR*(is-iSMin)
@@ -1737,7 +1737,7 @@ contains
 #endif
          end if
       else
-#ifndef OPENACC
+#ifndef _OPENACC
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
@@ -1787,7 +1787,7 @@ contains
       integer :: iBufferS, nSize
       real    :: WeightOld, WeightNew
 
-#ifndef OPENACC
+#ifndef _OPENACC
       real, allocatable:: State_VG(:,:,:,:)
 #endif
 
@@ -1838,7 +1838,7 @@ contains
 
       if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
-#ifndef OPENACC
+#ifndef _OPENACC
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
          if(.not.DoRecvFace) RETURN
 #endif
@@ -1855,7 +1855,7 @@ contains
            (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
            then
          ! This part is unused when nProc == 1
-#ifndef OPENACC
+#ifndef _OPENACC
 
          ! For high resolution change, finer block only receives data
          ! when iSendStage = 1.
@@ -1903,7 +1903,7 @@ contains
 
       if(DoCountOnly)then
          ! This part is unused when nProc == 1
-#ifndef OPENACC
+#ifndef _OPENACC
 
          ! Number of reals to send to the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -1997,14 +1997,14 @@ contains
          else
             ! No time interpolation/extrapolation is needed
             if(UseHighResChange) then
-#ifndef OPENACC
+#ifndef _OPENACC
                if(.not.IsAccurate_B(iBlockSend)) &
                     call calc_accurate_coarsened_block(iBlockSend)
 #endif
             endif
 
             if(UseHighResChange) then
-#ifndef OPENACC
+#ifndef _OPENACC
                do kR = kRMin, kRMax, DkR
                   kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                   do jR = jRMin, jRMax, DjR
@@ -2059,7 +2059,7 @@ contains
             end if ! UseHighResChange
          end if ! UseTime
       else ! iProc /= iProcRecv
-#ifndef OPENACC
+#ifndef _OPENACC
          if(UseHighResChange) then
             if(.not.IsAccurate_B(iBlockSend)) &
                  call calc_accurate_coarsened_block(iBlockSend)
@@ -2169,7 +2169,7 @@ contains
            PositionMinR_D, PositionMaxR_D, CoordMinR_D, CoordMaxR_D, &
            CellSizeR_D, CoordR_D
 
-#ifndef OPENACC
+#ifndef _OPENACC
       ! Slopes for 2nd order prolongation.
       real :: Slope_VG(nVar,1-nWidth:nI+nWidth,&
            1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_)
@@ -2198,7 +2198,7 @@ contains
            .or. IsCartesianGrid .or. IsRotatedCartesian .or. IsRoundCube
 
       iGang = 1
-#ifdef OPENACC
+#ifdef _OPENACC
       iGang = iBlockSend
 #endif
 
@@ -2227,7 +2227,7 @@ contains
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
-#ifndef OPENACC
+#ifndef _OPENACC
                if(iSendStage == 4 .and. nK > 1 .and. &
                     abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
                   ! Do_prolongation for edge/corner ghost cells and for
@@ -2243,7 +2243,7 @@ contains
                ! No need to count data for local copy
                if(DoCountOnly .and. iProc == iProcRecv) CYCLE
 
-#ifndef OPENACC
+#ifndef _OPENACC
                if(DoCountOnly .and. (.not. UseHighResChange .and. &
                     iSendStage == 1 .or. &
                     (UseHighResChange .and. iSendStage == 2)))then
@@ -2280,7 +2280,7 @@ contains
                kRMin = iProlongR_DII(3,kRecv,Min_)
                kRMax = iProlongR_DII(3,kRecv,Max_)
 
-#ifndef OPENACC
+#ifndef _OPENACC
                if(DoCountOnly)then
                   ! Number of reals to send to the other processor
                   nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
@@ -2308,7 +2308,7 @@ contains
                if(nDim > 2) DjR = sign(1, jRMax - jRMin)
                if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
-#ifndef OPENACC
+#ifndef _OPENACC
                if(UseHighResChange .and. iSendStage == 4) then
                   ! The values set in set_range are used for iSendStage == 1,
                   ! Which is first order prolongtion. Now, for high order
@@ -2359,7 +2359,7 @@ contains
                   if(kDir /= 0) kRatioRestr = 1
                end if
 
-#ifdef OPENACC
+#ifdef _OPENACC
                !$acc loop vector collapse(3)
                do kR = kRMin, kRMax, DkR
                   do jR = jRMin, jRMax, DjR

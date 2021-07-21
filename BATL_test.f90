@@ -8,7 +8,7 @@ module BATL_test
     MinI, MaxI, MinJ, MaxJ, MinK, MaxK
   use BATL_grid, ONLY: find_grid_block, show_grid_cell
   use ModUtilities, ONLY: CON_stop
-#ifdef OPENACC
+#ifdef _OPENACC
   use openacc
 #endif
 
@@ -243,11 +243,11 @@ contains
     logical, optional, intent(in) :: DoTestAll ! test on all processors
     !--------------------------------------------------------------------------
     DoTest = .false.
-#ifdef OPENACC
+#ifdef _OPENACC
     if (acc_on_device(acc_device_host)) then
 #endif
        call test_start_cpu(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
-#ifdef OPENACC
+#ifdef _OPENACC
     end if
 #endif
   end subroutine test_start
@@ -350,7 +350,7 @@ contains
     integer, optional, intent(in):: iBlock
     integer, optional, intent(in):: i, j, k
     !--------------------------------------------------------------------------
-#ifndef OPENACC
+#ifndef _OPENACC
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
