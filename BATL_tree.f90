@@ -963,6 +963,7 @@ contains
   end subroutine adapt_tree
   !============================================================================
   subroutine get_tree_position(iNode, PositionMin_D, PositionMax_D)
+    !$acc routine seq
 
     integer, intent(in) :: iNode
     real,    intent(out):: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
@@ -987,6 +988,7 @@ contains
   !============================================================================
 
   subroutine find_tree_node(CoordIn_D, iNode)
+    !$acc routine seq
 
     ! Find the node that contains a point. The point coordinates should
     ! be given in generalized coordinates normalized to the domain size:
@@ -1037,6 +1039,7 @@ contains
 
   subroutine find_tree_cell(Coord_D, iNode, iCell_D, CellDistance_D, &
        UseGhostCell)
+    !$acc routine seq
 
     ! Find the node that contains a point. The point coordinates should
     ! be given in generalized coordinates normalized to the domain size:
