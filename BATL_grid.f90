@@ -73,7 +73,6 @@ module BATL_grid
   ! If true, cell faces are assumed to be flat polygons formed by the nodes
   logical, public:: IsNodeBasedGrid = .true.
 
-  !$acc declare create(CoordMin_D, CoordMax_D, DomainSize_D)
   !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
   !$acc declare create(Xyz_DGB, Xyz_DNB)
   !$acc declare create(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
@@ -1127,11 +1126,11 @@ contains
 
   end subroutine show_grid
   !============================================================================
-
   subroutine find_grid_block(XyzIn_D, &
        iProcOut, iBlockOut, iCellOut_D, DistOut_D, iNodeOut, &
        CoordMinBlockOut_D, CoordMaxBlockOut_D, CellSizeOut_D, &
        UseGhostCell)
+    !$acc routine seq
 
     ! Find the processor and block containing location XyzIn_D.
     ! If iCellOut_D is present and UseGhostCell is not present or false,
