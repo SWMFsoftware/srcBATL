@@ -34,6 +34,7 @@ module BATL_geometry
   real, public:: CoordMin_D(MaxDim)   = -0.5    ! Min gen. coords of domain
   real, public:: CoordMax_D(MaxDim)   =  0.5    ! Max gen. coords of domain
   real, public:: DomainSize_D(MaxDim) =  1.0    ! CoordMax - CoordMin
+  !$acc declare create(CoordMin_D, CoordMax_D, DomainSize_D)
 
   ! Cell size of the root blocks in either the first coordinate,
   ! or the Phi direction in degrees if IsLogRadius or IsGenRadius is true.
@@ -90,10 +91,10 @@ module BATL_geometry
   !$acc declare create(IsSpherical, IsRLonLat, IsCylindrical)
   !$acc declare create(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis)
   !$acc declare create(IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
-  !$acc declare create(IsPeriodic_D, IsPeriodicCoord_D)
+  !$acc declare create(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
   !$acc declare create(UseHighFDGeometry)
   !$acc declare create(r_, Phi_, Theta_, Lon_, Lat_)
-  !$acc declare create(rRound0, rRound1, IsRoundCube, SqrtNDim)
+  !$acc declare create(rRound0, rRound1, IsRoundCube)
 
 contains
   !============================================================================
@@ -180,9 +181,10 @@ contains
     nRgen = -1
     if(allocated(LogRgen_I)) deallocate(LogRgen_I)
     if(IsGenRadius)then
+#ifndef _OPENACC
        if(.not.present(RgenIn_I)) call CON_stop(NameSub// &
             ': RgenIn_I argument is missing for TypeGeometry=' //TypeGeometry)
-
+#endif
        ! Store general radial coordinate table
        nRgen = size(RgenIn_I)
        allocate(LogRgen_I(nRgen))
@@ -196,10 +198,10 @@ contains
     !$acc update device(IsSpherical, IsRLonLat, IsCylindrical)
     !$acc update device(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis)
     !$acc update device(IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
-    !$acc update device(IsPeriodic_D, IsPeriodicCoord_D)
+    !$acc update device(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
     !$acc update device(UseHighFDGeometry)
     !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
-    !$acc update device(rRound0, rRound1, IsRoundCube, SqrtNDim)
+    !$acc update device(rRound0, rRound1, IsRoundCube)
 
   end subroutine init_geometry
   !============================================================================
@@ -226,6 +228,7 @@ contains
   !============================================================================
 
   subroutine xyz_to_coord(XyzIn_D, CoordOut_D)
+    !$acc routine seq
 
     use ModCoordTransform, ONLY: atan2_check, xyz_to_sph, xyz_to_rlonlat
     use ModNumConst,       ONLY: cTwoPi
@@ -293,8 +296,10 @@ contains
           CoordOut_D = 0.0
        end if
     else
+#ifndef _OPENACC
        call CON_stop(NameSub// &
             ' not yet implemented for TypeGeometry='//TypeGeometry)
+#endif
     end if
 
     if(IsNegativePhiMin)then
@@ -311,12 +316,10 @@ contains
 
   end subroutine xyz_to_coord
   !============================================================================
-
   subroutine coord_to_xyz(CoordIn_D, XyzOut_D)
     !$acc routine seq
-#ifndef _OPENACC
+
     use ModCoordTransform, ONLY: sph_to_xyz, rlonlat_to_xyz
-#endif
 
     real, intent(in) :: CoordIn_D(MaxDim)
     real, intent(out):: XyzOut_D(MaxDim)
@@ -349,13 +352,9 @@ contains
        XyzOut_D(2) = r*sin(Phi)
        XyzOut_D(3) = Coord_D(3)
     elseif(IsSpherical)then
-#ifndef _OPENACC
        call sph_to_xyz(Coord_D, XyzOut_D)
-#endif
     elseif(IsRLonLat)then
-#ifndef _OPENACC
        call rlonlat_to_xyz(Coord_D, XyzOut_D)
-#endif
     elseif(IsRoundCube)then
        r2 = sum(CoordIn_D**2)
        ! L1 and L2 distances from origin
@@ -407,8 +406,8 @@ contains
 
   end subroutine coord_to_xyz
   !============================================================================
-
   subroutine radius_to_gen(r)
+    !$acc routine seq
 
     use ModInterpolate, ONLY: find_cell
 
@@ -429,7 +428,6 @@ contains
 
   end subroutine radius_to_gen
   !============================================================================
-
   subroutine gen_to_radius(r)
 
     use ModInterpolate, ONLY: linear
