@@ -398,7 +398,7 @@ contains
 
     nNodeUsed = nRoot
     nNode     = nRoot
-
+    !$acc update device(nRoot_D)
   end subroutine set_tree_root
   !============================================================================
 
@@ -1908,6 +1908,7 @@ contains
        nLevelMax = max(iLevel, nLevelMax)
     end do
 
+   !$acc update device(nLevelMin, nLevelMax)
   end subroutine order_tree
   !============================================================================
   recursive subroutine order_children(iNode)
