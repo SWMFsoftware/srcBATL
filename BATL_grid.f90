@@ -203,7 +203,6 @@ contains
 
     if(IsRoundCube) IsPeriodic_D = .false.
 
-
     !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D)
   end subroutine init_grid
   !============================================================================
