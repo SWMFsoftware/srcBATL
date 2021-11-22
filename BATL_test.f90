@@ -49,7 +49,7 @@ module BATL_test
   integer, public:: iVarTest = 1                       ! variable index to test
   character(len=20), public:: NameVarTest = ''         ! variable name to test
 
-  !$acc declare create(StringTest, iTest, jTest, kTest, iBlockTest, iVarTest)
+  !$acc declare create(iTest, jTest, kTest, iBlockTest, iDimTest, iVarTest)
 contains
   !============================================================================
 
@@ -229,6 +229,8 @@ contains
          "Selected test cell", iTest, jTest, kTest, iBlockTest)
     if(iProc == iProcTest2 .and. UseTest2Cell) call show_grid_cell( &
          "Second test cell", iTest2, jTest2, kTest2, iBlockTest2)
+
+    !$acc update device(iTest, jTest, kTest, iBlockTest, iDimTest, iVarTest)
 
   end subroutine find_test_cell
   !============================================================================
