@@ -977,7 +977,9 @@ contains
     !$acc update device(CellVolume_GB, CellVolume_B)
     !$acc update device(Xyz_DGB)
     !$acc update device(CellFace_DB)
+    !$acc update device(CellFace_DFB)
     !$acc update device(CellSize_DB)
+    !$acc update device(FaceNormal_DDFB)
 
   end subroutine create_grid
   !============================================================================
