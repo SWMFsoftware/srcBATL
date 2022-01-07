@@ -86,11 +86,11 @@ module BATL_geometry
   ! This is needed for the roundcube geometry
   real, public, parameter:: SqrtNDim = sqrt(real(nDim))
 
-  !$acc declare create(TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry)
-  !$acc declare create(IsRotatedCartesian, GridRot_DD)
+  !$acc declare create(TypeGeometry, IsCartesianGrid, IsCartesian)
+  !$acc declare create(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
   !$acc declare create(IsSpherical, IsRLonLat, IsCylindrical)
-  !$acc declare create(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis)
-  !$acc declare create(IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
+  !$acc declare create(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis)
+  !$acc declare create(IsAnyAxis, IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
   !$acc declare create(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
   !$acc declare create(UseHighFDGeometry)
   !$acc declare create(r_, Phi_, Theta_, Lon_, Lat_)
@@ -193,11 +193,11 @@ contains
 
     call set_high_geometry(UseFDFaceFluxIn)
 
-    !$acc update device(TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry)
-    !$acc update device(IsRotatedCartesian, GridRot_DD)
+    !$acc update device(TypeGeometry, IsCartesianGrid, IsCartesian)
+    !$acc update device(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
     !$acc update device(IsSpherical, IsRLonLat, IsCylindrical)
-    !$acc update device(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis)
-    !$acc update device(IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
+    !$acc update device(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis)
+    !$acc update device(IsAnyAxis, IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
     !$acc update device(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
     !$acc update device(UseHighFDGeometry)
     !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
@@ -262,15 +262,18 @@ contains
           Dist1 = maxval(abs(XyzIn_D))
           Dist2 = sqrt(r2)
           if (rRound1 > rRound0 ) then
-             ! The rounded (distorted) grid is outside of the non-distorted part
+             ! The rounded grid is outside of the non-distorted part
              if (Dist1 > rRound0) then
                 ! Outside the undistorted region
-                ! Assume Coord = w * Xyz and Replace Xyz in transformation Coord_to_Xyz
+                ! Assume Coord = w * Xyz and Replace Xyz in coord_to_xyz
                 ! We have a quadratic equation of w.
-                ! w^2-Coef1*w- 4*Dist1/(rRound1-rRound0)*(SqrtNDim*Dist1/Dist2 - 1) =0
+                ! w^2 - Coef1*w
+                ! - 4*Dist1/(rRound1-rRound0)*(SqrtNDim*Dist1/Dist2 - 1) = 0
 
-                Coef1 = -1 + rRound0/(rRound1-rRound0)*(dist1*SqrtNDim/Dist2 - 1)
-                Coef2 = Coef1**2 + 4*Dist1/(rRound1-rRound0)*(SqrtNDim*Dist1/Dist2 - 1)
+                Coef1 = -1 &
+                     + rRound0/(rRound1-rRound0)*(dist1*SqrtNDim/Dist2 - 1)
+                Coef2 = Coef1**2 &
+                     + 4*Dist1/(rRound1-rRound0)*(SqrtNDim*Dist1/Dist2 - 1)
                 CoordOut_D = XyzIn_D/(-Coef1 + sqrt(Coef2))*2
              else
                 ! No distortion

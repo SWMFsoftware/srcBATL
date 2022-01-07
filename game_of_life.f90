@@ -5,8 +5,8 @@ program game_of_life
 
   implicit none
 
-  integer, allocatable:: iState_GB(:,:,:), nNei_C(:,:)
-  real,    allocatable:: r_C(:,:)
+  integer, allocatable:: iState_IIB(:,:,:), nNei_II(:,:)
+  real,    allocatable:: r_II(:,:)
   logical, allocatable:: DoRefine_B(:)
   integer:: i, j, iBlock, iStep
   !----------------------------------------------------------------------------
@@ -18,9 +18,9 @@ program game_of_life
        CoordMaxIn_D   = [+10.,+10.,+0.5],  &
        IsPeriodicIn_D = [.true., .true., .true.] )
 
-  allocate(iState_GB(MinI:MaxI,MinJ:MaxJ,MaxBlock), nNei_C(nI,nJ), r_C(nI,nJ),&
-       DoRefine_B(MaxBlock))
-  iState_GB = 0
+  allocate(iState_IIB(MinI:MaxI,MinJ:MaxJ,MaxBlock), &
+       nNei_II(nI,nJ), r_II(nI,nJ), DoRefine_B(MaxBlock))
+  iState_IIB = 0
 
   ! Refine the original block twice, so we get 16 blocks (2D)
   do i = 1, 2
@@ -32,9 +32,9 @@ program game_of_life
   do iBlock = 1, nBlock
      if(Unused_B(iBlock)) CYCLE
      do i=0, iProc
-        call random_number(r_C)
+        call random_number(r_II)
      end do
-     where(r_C < 0.2) iState_GB(1:nI,1:nJ,iBlock) = 1
+     where(r_II < 0.2) iState_IIB(1:nI,1:nJ,iBlock) = 1
   end do
 
   ! Save initial state
@@ -43,23 +43,23 @@ program game_of_life
   do iStep = 1, 400
 
      ! Updage ghost cells
-     call message_pass_ng_int1(iState_GB)
+     call message_pass_ng_int1(iState_IIB)
 
      do iBlock = 1, nBlock
         if(Unused_B(iBlock)) CYCLE
 
         ! Count neighbors
         do j = 1, nJ; do i = 1, nI
-           nNei_C(i,j) = sum(iState_GB(i-1:i+1,j-1:j+1,iBlock)) &
-                - iState_GB(i,j,iBlock)
+           nNei_II(i,j) = sum(iState_IIB(i-1:i+1,j-1:j+1,iBlock)) &
+                - iState_IIB(i,j,iBlock)
         end do; end do
 
         ! Update state
         do j = 1, nJ; do i = 1, nI
-           if(nNei_C(i,j) == 3) then
-              iState_GB(i,j,iBlock) = 1
-           elseif(nNei_C(i,j) /= 2) then
-              iState_GB(i,j,iBlock) = 0
+           if(nNei_II(i,j) == 3) then
+              iState_IIB(i,j,iBlock) = 1
+           elseif(nNei_II(i,j) /= 2) then
+              iState_IIB(i,j,iBlock) = 0
            end if
         end do; end do
 
@@ -70,7 +70,7 @@ program game_of_life
 
   end do
 
-  deallocate(iState_GB, nNei_C, r_C, DoRefine_B)
+  deallocate(iState_IIB, nNei_II, r_II, DoRefine_B)
   call clean_batl
   call clean_mpi
 
@@ -104,7 +104,7 @@ contains
             +              0.5*CellSize_DB(1:nDim,iBlock),   &
             CoordMaxIn_D = CoordMax_DB(1:nDim,iBlock)        &
             -              0.5*CellSize_DB(1:nDim,iBlock),   &
-            VarIn_IIV = real(iState_GB(1:nI,1:nJ,iBlock:iBlock)))
+            VarIn_IIV = real(iState_IIB(1:nI,1:nJ,iBlock:iBlock)))
     end do
 
     TypePosition = 'append'

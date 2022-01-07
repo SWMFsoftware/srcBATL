@@ -205,12 +205,13 @@ module BATL_tree
   !$acc declare create(iNode_B, iMortonNode_A, iNodeMorton_I)
   !$acc declare create(DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P)
   !$acc declare create(iStatusNew_A, Refine_, Coarsen_, Unset_)
-  !$acc declare create(iTree_IA, Status_,  Level_, MinLevel_, MaxLevel_, Block_, Proc_)
-  !$acc declare create(Coord0_, Coord1_, Coord2_, Coord3_, Used_)
+  !$acc declare create(iTree_IA, Status_, Level_, MinLevel_, MaxLevel_, Used_)
+  !$acc declare create(Block_, Proc_, Coord0_, Coord1_, Coord2_, Coord3_)
   !$acc declare create(UseTimeLevel, nTimeLevel, iTimeLevel_A)
   !$acc declare create(IsNewDecomposition, IsNewTree)
   !$acc declare create(iAmrChange_B)
-  !$acc declare create(AmrRemoved_, AmrUnchanged_, AmrMoved_, AmrRefined_, AmrCoarsened_)
+  !$acc declare create(AmrRemoved_, AmrUnchanged_, AmrMoved_, AmrRefined_)
+  !$acc declare create(AmrCoarsened_)
 
   ! Local variables -----------------------------------------------
 

@@ -530,7 +530,7 @@ contains
       logical:: DoCheckMask
       real :: CellVolume_G(MinI:MaxI,MinJ:MaxJ,MinK:MaxK), Volume, InvVolume
       real :: FineCell_III(6,6,6)
-      integer :: Di, Dj, Dk, i6_, j6_, k6_
+      integer :: Di, Dj, Dk, i6, j6, k6
       !------------------------------------------------------------------------
       iBuffer = 0
 
@@ -577,10 +577,10 @@ contains
          if(UseHighOrderAMR) then
             ! Calc 6th order coarsened cell.
             Di = iRatio - 1; Dj = jRatio - 1; Dk = kRatio - 1
-            i6_ = max(Di*6,1); j6_  = max(Dj*6,1); k6_ = max(Dk*6,1)
+            i6 = max(Di*6,1); j6  = max(Dj*6,1); k6 = max(Dk*6,1)
             do k = 1, nK, kRatio; do j = 1, nJ, jRatio; do i=1, nI, iRatio
                do iVar = 1, nVar
-                  FineCell_III(1:i6_, 1:j6_, 1:k6_)=&
+                  FineCell_III(1:i6,1:j6,1:k6)=&
                        State_VGB(iVar,i-2*Di:i+3*Di,j-2*Dj:j+3*Dj,&
                        k-2*Dk:k+3*Dk,iBlockSend)
                   Buffer_I(iBuffer+iVar) = restriction_high_order_amr&
@@ -670,7 +670,7 @@ contains
       real   :: CellVolume_G(MinI:MaxI,MinJ:MaxJ,MinK:MaxK), Volume
       logical:: DoCheckMask
 
-      integer:: Dm1, Dp2
+      integer:: DiM1, DiP2
       !------------------------------------------------------------------------
 
       ! Find the part of the block to be prolonged
@@ -679,25 +679,25 @@ contains
       kSide = modulo(iTree_IA(Coord3_,iNodeRecv)-1, kRatio)
 
       if(UseHighOrderAMR) then
-         Dm1 = -1; Dp2 = 2
+         DiM1 = -1; DiP2 = 2
       else
-         Dm1 = 0; Dp2 = 0
+         DiM1 = 0; DiP2 = 0
       endif
 
       ! Send parent part of the block with one/two ghost cell.
       ! Calc 5th order refined cells, two ghost cell layers are used.
       if(iRatio == 2)then
-         iMin = iSide*nI/2 + Dm1; iMax = iMin + nI/2 + 1 + Dp2
+         iMin = iSide*nI/2 + DiM1; iMax = iMin + nI/2 + 1 + DiP2
       else
          iMin = 1; iMax = nI
       endif
       if(jRatio == 2)then
-         jMin = jSide*nJ/2 + Dm1; jMax = jMin + nJ/2 + 1 + Dp2
+         jMin = jSide*nJ/2 + DiM1; jMax = jMin + nJ/2 + 1 + DiP2
       else
          jMin = 1; jMax = nJ
       end if
       if(kRatio == 2)then
-         kMin = kSide*nK/2 + Dm1; kMax = kMin + nK/2 + 1 + Dp2
+         kMin = kSide*nK/2 + DiM1; kMax = kMin + nK/2 + 1 + DiP2
       else
          kMin = 1; kMax = nK
       end if
@@ -824,7 +824,7 @@ contains
       integer, parameter:: Di = iRatio-1, Dj = jRatio-1, Dk = kRatio-1
 
       real:: CoarseCell_III(5,5,5) = 0
-      integer:: iVar, i5_, j5_, k5_
+      integer:: iVar, i5, j5, k5
 
       logical:: DoCheckMask
       logical:: UseSlopeI, UseSlopeJ, UseSlopeK
@@ -860,7 +860,7 @@ contains
 
       if(UseHighOrderAMR) then
          iDir = 0; jDir = 0; kDir = 0
-         i5_ = max(5*Di,1); j5_ = max(5*Dj,1); k5_ =  max(5*Dk,1)
+         i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 =  max(5*Dk,1)
          ! For example, cell kR=1 and kR=2 refined from the same coarser
          ! cell, but they are calculated from different coarser cells.
          ! These two refined cells are symmetric about the parent coarse
@@ -880,7 +880,7 @@ contains
 
                   ! Organize the code in a symmetric way.
                   do iVar = 1,  nVar
-                     CoarseCell_III(1:i5_,1:j5_,1:k5_) &
+                     CoarseCell_III(1:i5,1:j5,1:k5) &
                           = StateP_VG(iVar,&
                           iP-2*iDir:iP+2*iDir:sign(1,iDir),&
                           jP-2*jDir:jP+2*jDir:sign(1,jDir),&
@@ -918,13 +918,13 @@ contains
                   do iP = 1, nI/iRatio
                      iR = iRatio*(iP - 1) + 1
 
-                     ! If one of the neighboring cells or the cell are masked we
-                     ! will only be able to use 1st order prolongation in that
-                     ! dimension
+                     ! If one of the neighboring cells or the cell are masked
+                     ! we will only be able to use 1st order prolongation
+                     ! in that dimension
 
                      if(DoCheckMask) then
-                        ! If any of the neighbor cells are masked the product
-                        ! will be zero and no 2nd order prolongation can be done
+                        ! If any of the neighbor cells are masked, the product
+                        ! will be 0 and no 2nd order prolongation can be done
                         if(iRatio == 2) UseSlopeI = &
                              product(StateP_VG(nVar+1,iP-1:iP+1,jP,kP)) > 0.5
                         if(jRatio == 2) UseSlopeJ = &

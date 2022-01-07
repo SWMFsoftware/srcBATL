@@ -60,7 +60,6 @@ module BATL_interpolate_amr
 
 contains
   !============================================================================
-
   subroutine interpolate_amr(CoordIn_D, &
        nCell, iCell_II, Weight_I, IsSecondOrder)
 
@@ -87,7 +86,7 @@ contains
     integer:: iProc_I(2**nDim)
     integer:: iCell, iDim ! loop variables
 
-    ! coords along non-AMR direction
+    character(len=*), parameter:: NameSub = 'interpolate_amr'
     !--------------------------------------------------------------------------
     if(nDimAmr < nDim) then
        ! this case is valid only for nDim=MaxDim=3, nDimAmr=2
@@ -182,8 +181,8 @@ contains
             iIndexes_II   = iIndexes_II, &
             IsSecondOrder = IsSecondOrder, &
             UseGhostCell  = .false.)
-       if(nGridOutAux==0)&
-            call CON_stop("Failure in BATL_interpolate_amr:interpolate_amr; Part of interpolation stencil can't be found")
+       if(nGridOutAux==0) call CON_stop('BATL::'//NameSub// &
+            ": Part of interpolation stencil can't be found")
 
        ! copy results indices
        iProc_I(            nGridOut+1:nGridOut+nGridOutAux) = &
@@ -332,9 +331,7 @@ contains
     call find_tree_node(CoordIn_D=CoordTree_D, iNode=iNode)
 
     ! Check if the block is found
-    if(iNode<=0)then
-       call CON_stop('Failure in BATL_interpolate_amr:find')
-    end if
+    if(iNode<=0)call CON_stop('BATL_interpolate_amr:::find: iNode <=0')
 
     ! position has been found
     iBlock = iTree_IA(Block_,iNode)

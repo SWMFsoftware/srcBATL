@@ -524,12 +524,12 @@ contains
              !
              do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
                 CellVolume_GB(i,j,k,iBlock) = & ! nodes in right-hand order
-                     volume4(i  ,  j,  k, i+1,  j,k  ,  i,j+1,  k,  i,  j,k+1) + &! 1234
-                     volume4(i  ,  j,k+1, i+1,  j,k+1,i+1,  j,  k,  i,j+1,  k) + & ! 4523
-                     volume4(i  ,  j,k+1,   i,j+1,k+1,i+1,  j,k+1,  i,j+1,  k) + & ! 4653
-                     volume4(i+1,  j,  k, i+1,j+1,  k,  i,j+1,  k,i+1,j+1,k+1) + & ! 2837
-                     volume4(i  ,j+1,k+1, i+1,j+1,k+1,i+1,  j,k+1,i+1,  j,  k) + & ! 6752
-                     volume4(i+1,j+1,k+1, i  ,j+1,k+1,  i,j+1,  k,i+1,  j,  k) ! 7632
+                     volume4(i,j,k,i+1,j,k,i,j+1,k,i,j,k+1)           + & !1234
+                     volume4(i,j,k+1,i+1,j,k+1,i+1,j,k,i,j+1,k)       + & !4523
+                     volume4(i,j,k+1, i,j+1,k+1,i+1,j,k+1,i,j+1,k)    + & !4653
+                     volume4(i+1,j,k,i+1,j+1,k,i,j+1,k,i+1,j+1,k+1)   + & !2837
+                     volume4(i,j+1,k+1,i+1,j+1,k+1,i+1,j,k+1,i+1,j,k) + & !6752
+                     volume4(i+1,j+1,k+1,i,j+1,k+1,i,j+1,k,i+1,j,k)       !7632
 
              end do; end do; end do
           end if

@@ -760,9 +760,11 @@ contains
             kSMax = iS_DIID(3,kDir,Max_,iDim)
             if((iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)==0)CYCLE
 
-            Counter_FDB(iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iDim,iBlockRecv) =    &
-                 Counter_FDB(iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iDim,iBlockRecv) &
-                 + Current_FDB(iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iDim,iBlockSend)
+            Counter_FDB(iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iDim,iBlockRecv) &
+                 = Counter_FDB(iRMin:iRMax,jRMin:jRMax,kRMin:kRMax,iDim,&
+                 iBlockRecv) &
+                 + Current_FDB(iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iDim,&
+                 iBlockSend)
          end do
       else
             ! Put data into the send buffer

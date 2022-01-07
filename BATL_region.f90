@@ -50,7 +50,7 @@ module BATL_region
      character(lNameRegion):: NameRegion
      character(lNameArea)  :: NameShape
      real                  :: Resolution
-     integer               :: Level
+     integer               :: iLevel
      real                  :: Center_D(nDim)
      real                  :: Size_D(nDim)
      real                  :: Radius1
@@ -173,12 +173,12 @@ contains
        if( Area%NameRegion /= "NULL") CYCLE
 
        ! Set level and resolution based on the read value
-       if(Area%Level < 0)then
+       if(Area%iLevel < 0)then
           ! Set resolution corresponding to this level
-          Area%Resolution = CellSizeRoot * 2.0**Area%Level
+          Area%Resolution = CellSizeRoot * 2.0**Area%iLevel
        else
           ! Set AMR level (note that negative value is used)
-          Area%Level = &
+          Area%iLevel = &
                -ceiling(log(CellSizeRoot/Area%Resolution)/log(2.0) - 0.01)
        end if
 
@@ -228,7 +228,7 @@ contains
     write(*,*) "Region name      :: ", Area1%NameRegion
     write(*,*) "Shape name       :: ", Area1%NameShape
     write(*,*) "Region resolution:: ", Area1%Resolution
-    write(*,*) "Region level     :: ", Area1%Level
+    write(*,*) "Region level     :: ", Area1%iLevel
     write(*,*) "Region Center_D  :: ", Area1%Center_D
     write(*,*) "Region Size_D    :: ", Area1%Size_D
     write(*,*) "Region Radius1   :: ", Area1%Radius1
@@ -425,7 +425,7 @@ contains
     ! Store the information read above
     Area%NameRegion = NameRegion
     Area%Resolution = AreaResolution
-    Area%Level      = -nLevelArea    ! Level is stored as a negative integer
+    Area%iLevel     = -nLevelArea    ! Level is stored as a negative integer
 
     ! Now process the information read into StringShape
 
@@ -1005,8 +1005,10 @@ contains
                CoordFace2 = CoordMinBlock_D(2) + (j-1)*CellSize_D(2)
                CoordCell2 = CoordMinBlock_D(2) + (min(j,nJ)-0.5)*CellSize_D(2)
                do i = 1, nINode
-                  CoordFace1 = CoordMinBlock_D(1) + (i-1)*CellSize_D(1)
-                  CoordCell1 = CoordMinBlock_D(1) + (min(i,nI)-0.5)*CellSize_D(1)
+                  CoordFace1 = &
+                       CoordMinBlock_D(1) + (i-1)*CellSize_D(1)
+                  CoordCell1 = &
+                       CoordMinBlock_D(1) + (min(i, nI) - 0.5)*CellSize_D(1)
 
                   n = n + 1
                   Coord_D = [ CoordFace1, CoordCell2, CoordCell3 ]

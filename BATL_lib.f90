@@ -123,7 +123,7 @@ module BATL_lib
   ! Inherited from BATL_amr_criteria
   public:: set_amr_criteria, clean_amr_criteria, read_amr_criteria
   public:: calc_error_amr_criteria, set_amr_geometry
-  public:: masked_amr_criteria,init_amr_criteria
+  public:: is_masked_amr_criteria,init_amr_criteria
 
   ! Inherited from BATL_region
   public:: read_region_param, get_region_indexes, block_inside_regions

@@ -565,7 +565,7 @@ contains
     real:: PlotMax_D(MaxDim), PlotMin_D(MaxDim)
     integer :: iDim, iBlock, i, j, k, iError
     integer :: nCell, nCellAll, nPlotDim, iPlot, nPlot, iXyz
-    character (len=1) :: c0
+    character(len=1) :: CharDim
 
     ! Calculate minimum cell size
     !--------------------------------------------------------------------------
@@ -716,27 +716,27 @@ contains
 
           write(UnitTmp_,'(a)') '#PLOTRANGE'
           do iDim = 1, nDim
-             write(c0,'(i1)') iDim
+             write(CharDim,'(i1)') iDim
              write(UnitTmp_,'(1pe18.10,a18)') &
-                  PlotMin_D(iDim), 'Coord'//c0//'Min'
+                  PlotMin_D(iDim), 'Coord'//CharDim//'Min'
              write(UnitTmp_,'(1pe18.10,a18)') &
-                  PlotMax_D(iDim), 'Coord'//c0//'Max'
+                  PlotMax_D(iDim), 'Coord'//CharDim//'Max'
           enddo
           write(UnitTmp_,*)
 
           write(UnitTmp_,'(a)') '#PLOTRESOLUTION'
           do iDim = 1, nDim
-             write(c0,'(i1)') iDim
+             write(CharDim,'(i1)') iDim
              write(UnitTmp_,'(1pe18.10,a18)') &
-                  CellSizePlot_D(iDim), 'DxSavePlot'//c0
+                  CellSizePlot_D(iDim), 'DxSavePlot'//CharDim
           enddo
           write(UnitTmp_,*)
 
           write(UnitTmp_,'(a)') '#CELLSIZE'
           do iDim = 1, nDim
-             write(c0,'(i1)') iDim
+             write(CharDim,'(i1)') iDim
              write(UnitTmp_,'(1pe18.10,a18)') &
-                  CellSizeMinAll_D(iDim), 'CellSizeMin'//c0
+                  CellSizeMinAll_D(iDim), 'CellSizeMin'//CharDim
           enddo
           write(UnitTmp_,*)
 

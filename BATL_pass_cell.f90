@@ -34,7 +34,7 @@ module BATL_pass_cell
   !     (a) We can then allocate a small known buffer size
   !     (b) we do at least two times message_pass_cell per time iteration,
   !         each time determining the buffer size. This would be reduced to
-  !         only once (there is a small complication with operator split
+  !         only once (there iS a small complication with operator split
   !         schemes)
 
   implicit none
@@ -119,7 +119,7 @@ module BATL_pass_cell
   !$acc declare create(iSendStage)
 
   ! local variables corresponding to optional arguments
-  logical :: UseTime        ! true if time interpolation is to be done
+  logical :: UseTime        ! true if time interpolation iS to be done
   !$omp threadprivate( UseTime )
   !$acc declare create(UseTime)
 
@@ -160,31 +160,31 @@ contains
 
     ! Fill in the nVar variables in the ghost cells of State_VGB.
     !
-    ! nWidthIn is the number of ghost cell layers to be set. Default is all.
-    ! nProlongOrderIn is the order of accuracy of prolongation. Default is 2.
-    ! nCoarseLayerIn is the number of coarse layers sent during first order
-    !    prolongation. Default is 1, so all fine cells are equal.
-    !    If it is set to 2, the 2 (or more) coarse layers are copied into
+    ! nWidthIn iS the number of ghost cell layers to be set. Default iS all.
+    ! nProlongOrderIn iS the order of accuracy of prolongation. Default iS 2.
+    ! nCoarseLayerIn iS the number of coarse layers sent during first order
+    !    prolongation. Default iS 1, so all fine cells are equal.
+    !    If it iS set to 2, the 2 (or more) coarse layers are copied into
     !    the fine cell layers one by one.
-    ! DoSendCornerIn determines if edges/corners are filled. Default is true.
-    ! DoRestrictFaceIn determines if restriction is applied to a single layer
-    !    of ghost cells instead of two layers. Default is false.
+    ! DoSendCornerIn determines if edges/corners are filled. Default iS true.
+    ! DoRestrictFaceIn determines if restriction iS applied to a single layer
+    !    of ghost cells instead of two layers. Default iS false.
     !    Only works with first order prolongation.
-    ! NameOperatorIn is used for taking the minimum or maximum of the fine
-    !    cell values for the coarse ghost cell. Default is the average.
+    ! NameOperatorIn iS used for taking the minimum or maximum of the fine
+    !    cell values for the coarse ghost cell. Default iS the average.
     ! DoResChangeOnlyIn determines if only ghost cells next to resolution
-    !    changes are filled in. Default is false.
+    !    changes are filled in. Default iS false.
     ! iLevelMin and iLevelMax restrict the communication for blocks with
-    !    grid or time (if Time_B is present) levels in the
+    !    grid or time (if Time_B iS present) levels in the
     !    iLevelMin..iLevelMax range.
-    !    Default is message passing among all levels.
+    !    Default iS message passing among all levels.
     ! TimeOld_B and Time_B are the simulation times associated with the
     !    ghost cells and physical cells of State_VGB, respectively.
     !    If these arguments are present, the ghost cells are interpolated
-    !    in time. Default is a simple update with no temporal interpolation.
-    ! UseHighResChangeIn determines if the fifth-order accurate scheme is
+    !    in time. Default iS a simple update with no temporal interpolation.
+    ! UseHighResChangeIn determines if the fifth-order accurate scheme iS
     !    used to obtain the ghost cell values at resolution changes.
-    !    Default is false.
+    !    Default iS false.
     ! DefaultState_V determines if the variables in State_VGB should be kept
     !    positive. Values larger than 0 indicates positive variables (like
     !    density or pressure). These variables are kept positive by
@@ -246,7 +246,7 @@ contains
          ' cannot use 2nd order prolongation nCoarseLayer > 1')
 
     if(nProlongOrder < 1 .or. nProlongOrder > 2) call CON_stop(NameSub// &
-         ' only nProlongOrder = 1 or 2 is implemented ')
+         ' only nProlongOrder = 1 or 2 iS implemented ')
 
     if(nWidth < 1 .or. nWidth > nG) call CON_stop(NameSub// &
          ' nWidth do not contain the ghost cells or too many')
@@ -613,7 +613,7 @@ contains
     end subroutine is_face_accurate
     !==========================================================================
     subroutine high_prolong_for_face_ghost(iBlock)
-      ! High order prolongation for face ghost cells. It is done locally.
+      ! High order prolongation for face ghost cells. It iS done locally.
 
       integer, intent(in):: iBlock
       real, allocatable:: Field1_VG(:,:,:,:)
@@ -635,7 +635,7 @@ contains
       DiLevelNei_I(5) = DiLevelNei_IIIB(0,0,-1,iBlock)
       DiLevelNei_I(6) = DiLevelNei_IIIB(0,0,+1,iBlock)
 
-      ! If the corner/edge block is not a coarse block, the ghost values for
+      ! If the corner/edge block iS not a coarse block, the ghost values for
       ! fine block need to be corrected.
       if(any(DiLevelNei_I == 1)) call correct_face_ghost_for_fine_block(&
            iBlock, nVar, State_VGB(:,:,:,:,iBlock), &
@@ -762,7 +762,7 @@ contains
       iRestrictR_DII(:,0,Max_) = 0
       iRestrictR_DII(:,1,Min_) = 1
       do iDim = 1, MaxDim
-         ! This loop is used to avoid the NAG 5.1 (282) bug on nyx
+         ! This loop iS used to avoid the NAG 5.1 (282) bug on nyx
          iRestrictR_DII(iDim,1,Max_) = nIjk_D(iDim)/iRatio_D(iDim)
          iRestrictR_DII(iDim,2,Min_) = nIjk_D(iDim)/iRatio_D(iDim) + 1
       end do
@@ -781,7 +781,7 @@ contains
 
       ! Indexed by iSend/jSend,kSend = 0..3
       do iDim = 1, MaxDim
-         ! This loop is used to avoid the NAG 5.1 (282) bug on nyx
+         ! This loop iS used to avoid the NAG 5.1 (282) bug on nyx
          iProlongS_DII(iDim,0,Min_) = 1
          iProlongS_DII(iDim,0,Max_) = nWidthProlongS_D(iDim)
          iProlongS_DII(iDim,1,Min_) = 1
@@ -809,8 +809,8 @@ contains
          do iDim = 1, nDim
             if(iRatio_D(iDim) == 1)CYCLE
 
-            ! The extension is by nWidth/2 rounded upwards independent of
-            ! the value of nCoarseLayers. There is no need to send
+            ! The extension iS by nWidth/2 rounded upwards independent of
+            ! the value of nCoarseLayers. There iS no need to send
             ! two coarse layers into corner/edge ghost cells.
             iProlongS_DII(iDim,1,Max_) = iProlongS_DII(iDim,1,Max_) &
                  + (nWidth+1)/2
@@ -1013,7 +1013,7 @@ contains
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
     ! Send information from block iBlockSend to other blocks
-    ! If DoRemote is true, send info to blocks on other cores
+    ! If DoRemote iS true, send info to blocks on other cores
     logical, intent(in):: DoRemote
 
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
@@ -1028,7 +1028,7 @@ contains
     integer :: iNodeSend
     integer :: iDir, jDir, kDir
 
-    ! Is the sending node next to the symmetry axis?
+    ! iS the sending node next to the symmetry axis?
     logical :: IsAxisNode
 
     integer :: iLevelSend, DiLevel
@@ -1039,14 +1039,14 @@ contains
     logical:: DoSendFace, DoRecvFace
 
     ! For 6th order correction, which may be better because of symmetry,
-    ! 8 cells are needed in each direction. If it is not satisfied,
+    ! 8 cells are needed in each direction. If it iS not satisfied,
     ! use 5th order correction.
     logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
          (nK==1 .or. nK>7)
     !--------------------------------------------------------------------------
     iNodeSend = iNode_B(iBlockSend)
 
-    ! Skip if the sending block level is not in the level range
+    ! Skip if the sending block level iS not in the level range
     if(present(iLevelMin) .and. .not.UseTimeLevel)then
        iLevelSend = iTree_IA(Level_,iNodeSend)
        if(iLevelSend < iLevelMin) RETURN
@@ -1088,7 +1088,7 @@ contains
              ! Ignore inner parts of the sending block
              if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
 
-             ! Exclude corners where i and j or k is at the edge
+             ! Exclude corners where i and j or k iS at the edge
              if(.not.DoSendCorner .and. iDir /= 0 .and. &
                   (jDir /= 0 .or.  kDir /= 0)) CYCLE
 
@@ -1098,9 +1098,9 @@ contains
              ! Level difference = own_level - neighbor_level
              DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
 
-             ! Skip if the receiving block grid level is not
+             ! Skip if the receiving block grid level iS not
              ! in range. Time levels of the receiving block(s)
-             ! will be checked later if UseTimeLevel is true.
+             ! will be checked later if UseTimeLevel iS true.
              if(present(iLevelMin) .and. .not.UseTimeLevel)then
                 if(iLevelSend - DiLevel < iLevelMin) CYCLE
              end if
@@ -1167,7 +1167,7 @@ contains
          if(iDir /=0) then
             iDir1 = 0
             do jDir1 = -1, 1, 2
-               ! Some information passed here is useless.
+               ! Some information passed here iS useless.
                ! Advantage: do not need to change do_equal.
                if(DiLevelNei_IIIB(iDir1,jDir1,kDir1,iBlockSend) == 1 .or.&
                     DiLevelNei_IIIB(iDir, jDir1,kDir1,iBlockSend) == 1 ) then
@@ -1233,7 +1233,7 @@ contains
                        DiLevelNei_IIIB(iDir1,jDir,kdir,iBlockSend) == 1) then
 
                      !-------------------
-                     ! The face values of iBlockSend is not accurate. Do not
+                     ! The face values of iBlockSend iS not accurate. Do not
                      ! send to iBlockRecv. The edge/corner cells of iBlockRecv
                      ! will be filled by do_prolongation.
                      iSend = (3*iDir + 3)/2
@@ -1617,7 +1617,7 @@ contains
       integer :: DiR, DjR, DkR
 
 #ifdef _OPENACC
-      integer:: is, js, ks, ir, jr, kr
+      integer:: iS, jS, kS, iR, jR, kR
 #endif
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
@@ -1665,7 +1665,7 @@ contains
       endif
 #endif
 
-      ! OpenAcc: For local copy, DoCountOnly is always false.
+      ! OpenAcc: For local copy, DoCountOnly iS always false.
 #ifndef _OPENACC
       if(DoCountOnly)then
          ! Number of reals to send to and received from the other processor
@@ -1723,12 +1723,12 @@ contains
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(3)
-            do ks = kSMin, kSMax; do js = jSMin, jSMax; do is = iSMin, iSMax
-               ir = iRMin + DiR*(is-iSMin)
-               jr = jRMin + DjR*(js-jSMin)
-               kr = kRMin + DkR*(ks-kSMin)
-               State_VGB(:,ir,jr,kr,iBlockRecv) = &
-                    State_VGB(:,is,js,ks,iBlockSend)
+            do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
+               iR = iRMin + DiR*(iS-iSMin)
+               jR = jRMin + DjR*(jS-jSMin)
+               kR = kRMin + DkR*(kS-kSMin)
+               State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                    State_VGB(:,iS,jS,kS,iBlockSend)
             end do; end do; end do
 #else
             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
@@ -1854,7 +1854,7 @@ contains
            (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
            (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
            then
-         ! This part is unused when nProc == 1
+         ! This part iS unused when nProc == 1
 #ifndef _OPENACC
 
          ! For high resolution change, finer block only receives data
@@ -1878,7 +1878,7 @@ contains
 #endif
       end if
 
-      ! If this is the pure prolongation stage, all we did was counting
+      ! If this iS the pure prolongation stage, all we did was counting
       if(iSendStage == 2 .and. .not. UseHighResChange) RETURN
 
       ! For high resolution change, the finer block receives data from
@@ -1902,7 +1902,7 @@ contains
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
       if(DoCountOnly)then
-         ! This part is unused when nProc == 1
+         ! This part iS unused when nProc == 1
 #ifndef _OPENACC
 
          ! Number of reals to send to the other processor
@@ -1995,7 +1995,7 @@ contains
                end do
             end do
          else
-            ! No time interpolation/extrapolation is needed
+            ! No time interpolation/extrapolation iS needed
             if(UseHighResChange) then
 #ifndef _OPENACC
                if(.not.IsAccurate_B(iBlockSend)) &
@@ -2265,7 +2265,7 @@ contains
                end if
 #endif
 
-               ! For 2nd order prolongation no prolongation is done in stage 1
+               ! For 2nd order prolongation no prolongation iS done in stage 1
                if(.not. UseHighResChange .and. iSendStage < nProlongOrder) &
                     CYCLE
 
@@ -2311,7 +2311,7 @@ contains
 #ifndef _OPENACC
                if(UseHighResChange .and. iSendStage == 4) then
                   ! The values set in set_range are used for iSendStage == 1,
-                  ! Which is first order prolongtion. Now, for high order
+                  ! Which iS first order prolongtion. Now, for high order
                   ! prolongation, some values need to be corrected.
                   nWidthProlongS_D(1:nDim) = 1 + (nWidth-1)/iRatio_D(1:nDim)
 
@@ -2329,9 +2329,9 @@ contains
                      ! are sent/recv together from fine to coarse block
                      do iDim = 1, nDim
                         if(iRatio_D(iDim) == 1)CYCLE
-                        ! The extension is by nWidth/2 rounded upwards
+                        ! The extension iS by nWidth/2 rounded upwards
                         ! independent of
-                        ! the value of nCoarseLayers. There is no need to send
+                        ! the value of nCoarseLayers. There iS no need to send
                         ! two coarse layers into corner/edge ghost cells.
                         iProlongS_DII(iDim,1,Max_) = &
                              iProlongS_DII(iDim,1,Max_) + (nWidth+1)/2
@@ -2368,14 +2368,21 @@ contains
                         jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
                         kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
                         if(nProlongOrder == 2) then
-                           ! For kRatio = 1 simple shift: kS = kSMin + |kR - kRMin|
-                           ! For kRatio = 2 coarsen both kR and kRMin before shift
-                           ! We add 9 both to kR and kRMin before dividing by kRatio
-                           ! so that all values remain positive and get rounded down.
-                           ! This works up to nG=10 ghost cells: likely to be enough.
+                           ! For kRatio = 1 simple shift:
+                           !    kS = kSMin + |kR - kRMin|
+                           ! For kRatio = 2 coarsen both
+                           ! kR and kRMin before shift
+                           ! We add 9 both to kR and kRMin
+                           ! before dividing by kRatio
+                           ! so that all values remain
+                           ! positive and get rounded down.
+                           ! This works up to nG=10 ghost cells:
+                           ! likely to be enough.
 
-                           ! DkR=+1: interpolate left for odd kR, right for even kR
-                           ! DkR=-1: interpolate left for even kR, right for odd kR
+                           ! DkR=+1:
+                           ! interpolate left for odd kR, right for even kR
+                           ! DkR=-1:
+                           ! interpolate left for even kR, right for odd kR
                            if(kRatio == 1) kS1 = kS
                            if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
 
@@ -2406,18 +2413,24 @@ contains
                               State_VGB(:,iR,jR,kR,iBlockRecv) = &
                                    State_VGB(:,iS,jS,kS,iBlockSend)
 
-                              if(iRatio == 2) State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   State_VGB(:,iR,jR,kR,iBlockRecv) + WeightI* &
+                              if(iRatio == 2) &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                   + WeightI* &
                                    ( State_VGB(:,iS1,jS,kS,iBlockSend) &
                                    - State_VGB(:,iS ,jS,kS,iBlockSend) )
 
-                              if(jRatio == 2) State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   State_VGB(:,iR,jR,kR,iBlockRecv) + WeightJ* &
+                              if(jRatio == 2) &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                   + WeightJ* &
                                    ( State_VGB(:,iS,jS1,kS,iBlockSend) &
                                    - State_VGB(:,iS,jS ,kS,iBlockSend) )
 
-                              if(kRatio == 2) State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   State_VGB(:,iR,jR,kR,iBlockRecv) + WeightK* &
+                              if(kRatio == 2) &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                   State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                   + WeightK* &
                                    ( State_VGB(:,iS,jS,kS1,iBlockSend) &
                                    - State_VGB(:,iS,jS,kS ,iBlockSend) )
 
@@ -2448,14 +2461,21 @@ contains
                   do kR = kRMin, kRMax, DkR
                      do jR = jRMin, jRMax, DjR
                         do iR = iRMin, iRMax, DiR
-                           ! For kRatio = 1 simple shift: kS = kSMin + |kR - kRMin|
-                           ! For kRatio = 2 coarsen both kR and kRMin before shift
-                           ! We add 9 both to kR and kRMin before dividing by kRatio
-                           ! so that all values remain positive and get rounded down.
-                           ! This works up to nG=10 ghost cells: likely to be enough.
+                           ! For kRatio = 1 simple shift:
+                           ! kS = kSMin + |kR - kRMin|
+                           ! For kRatio = 2 coarsen both
+                           ! kR and kRMin before shift
+                           ! We add 9 both to kR and kRMin
+                           ! before dividing by kRatio
+                           ! so that all values remain positive
+                           ! and get rounded down.
+                           ! This works up to nG=10 ghost cells:
+                           ! likely to be enough.
                            kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
-                           ! DkR=+1: interpolate left for odd kR, right for even kR
-                           ! DkR=-1: interpolate left for even kR, right for odd kR
+                           ! DkR=+1:
+                           ! interpolate left for odd kR, right for even kR
+                           ! DkR=-1:
+                           ! interpolate left for even kR, right for odd kR
                            if(kRatio == 1) kS1 = kS
                            if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
 
@@ -2508,7 +2528,7 @@ contains
 
                               ! The max(0.0, and the normalization to 1
                               ! avoids extrapolation when the
-                              ! receiving point is outside the sending
+                              ! receiving point iS outside the sending
                               ! polyhedron. Remove these for exact
                               ! second order test.
                               if(nDim == 2)then
@@ -2576,9 +2596,10 @@ contains
                      do kR = kRMin, kRMax, DkR
                         do jR = jRMin, jRMax, DjR
                            do iR = iRMin, iRMax, DiR
-                              ! For kRatio = 1 simple shift: kS = kSMin+kR-kRMin
-                              ! For kRatio = 2 coarsen both kR and kRMin before
-                              ! shift
+                              ! For kRatio = 1 simple shift:
+                              ! kS = kSMin+kR-kRMin
+                              ! For kRatio = 2 coarsen both
+                              ! kR and kRMin before shift
                               kS = kSMin + abs((kR+9)/kRatioRestr &
                                    -           (kRMin+9)/kRatioRestr)
 
@@ -2601,7 +2622,7 @@ contains
                         do kR = kRMin, kRMax, DkR
                            kS = kSMin + abs((kR+9)/kRatioRestr &
                                 -           (kRMin+9)/kRatioRestr)
-                           ! kDir = -1 if kR is even; kDir = 1 if kR is odd.
+                           ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
                            ! kR may be negative (1-nK),
                            ! so kR+2*nK will be always positive.
                            if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
@@ -2688,7 +2709,7 @@ contains
                      do kR = kRMin, kRMax, DkR
                         kS = kSMin + abs((kR+9)/kRatioRestr &
                              -           (kRMin+9)/kRatioRestr)
-                        ! kDir = -1 if kR is even; kDir = 1 if kR is odd.
+                        ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
                         ! kR may be negative (1-nK), kR+2*nK will be positive.
                         if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
                         do jR = jRMin, jRMax, DjR
@@ -2819,8 +2840,8 @@ contains
          DoSymInterp = nI >= 8 .or. IsAccurateGhost
 
          if(iDir1 == -1) then
-            ! i0 is the index of the origin block.
-            ! iC is the index of the coarsened block.
+            ! i0 iS the index of the origin block.
+            ! iC iS the index of the coarsened block.
             i0 = 1; iC = 1
          elseif(iDir1 == 1) then
             i0 = nI; iC = nI/2
@@ -3012,8 +3033,8 @@ contains
          enddo; enddo
       enddo ! kDir1
 
-      ! At least one neighbour block is coarse when this subroutine called.
-      ! If it is not a face block, it will be a edge/corner block.
+      ! At least one neighbour block iS coarse when this subroutine called.
+      ! If it iS not a face block, it will be a edge/corner block.
       if(nK == 1) then ! 2D. Combine 2D and 3D part??
          ! Resolution change in the edge direction.
          if(.not. DoResChange_D(1) .and. .not.DoResChange_D(2)) then
@@ -3038,7 +3059,7 @@ contains
             !
             ! 9-14 are the top layer of their parent block.
 
-            ! Coarsened cell * is interpolated diagonally.
+            ! Coarsened cell * iS interpolated diagonally.
 
             ! Edge ghost cells.
             kDir1 = 0
@@ -3160,7 +3181,7 @@ contains
             if(DoResChange_D(i)) nResChange = nResChange + 1
          enddo
 
-         if(nResChange > 1) then ! nResChange is 2 or 3.
+         if(nResChange > 1) then ! nResChange iS 2 or 3.
 
             ! Example: coarsen block 11, nResChange == 2
             ! ___________________________________________
@@ -3476,9 +3497,9 @@ contains
             ! 9-14 are the top layer of their parent block.
 
             ! Assume resolution change happens in z direction for block 11.
-            ! If block 3 is also refined, only need to coarsen block 11 to
-            ! fill in the face ghost cells of block 6, which is trivial.
-            ! If block 3 is coarse, there will be four kinds cells need
+            ! If block 3 iS also refined, only need to coarsen block 11 to
+            ! fill in the face ghost cells of block 6, which iS trivial.
+            ! If block 3 iS coarse, there will be four kinds cells need
             ! to be coarsened for block 11:
             ! ic, jc, kc are the index of coarsened block, not the original
             ! block 11.
@@ -3492,7 +3513,7 @@ contains
             ! Type 1 and Type 2 are face ghost cells of block 6. Some of them
             ! are also edge ghost cells for block 3.
             ! Type 3 and Type 4 are only used for edge ghost cells of block 3.
-            ! If nK is 6, there are no type 3 and type 4 cells.
+            ! If nK iS 6, there are no type 3 and type 4 cells.
 
             ! Calculation:
             ! Type 1: the same as simple resolution change.
@@ -3693,7 +3714,7 @@ contains
             ! But at most three edg blocks (block 3, 5, 8) and one
             ! corner (block 7) may not.
 
-            ! Case 1: only one edge block (like block 3) is coarse.
+            ! Case 1: only one edge block (like block 3) iS coarse.
             !         ic = 1 .and. jc = nJ/2 .and. 1 =< kc =< nK/2
             !         are interpolated diagonally in x-y plane. Other
             !         needed values are restricted with 6*6*6 fine cells.
@@ -3701,11 +3722,11 @@ contains
             !         with Case 1, but one cell: ic=1,jc=nk/2,kc=nk/2
             !         can be interpolated in n directions. Use the average
             !         of these n interpolations.
-            ! Case 3: only the corner block is coarse. Need to coarsen 11
+            ! Case 3: only the corner block iS coarse. Need to coarsen 11
             !         to fill in the corner ghost of block 7.
             !         All needed cells except for ic=1,jc=nk/2,kc=nk/2 can
             !         be rectricted with 6*6*6 fine cells.
-            !         The corner one (ic=1,jc=nk/2,kc=nk/2) is interpolated
+            !         The corner one (ic=1,jc=nk/2,kc=nk/2) iS interpolated
             !         diagionally in 3D space.
 
             nEdge = 0
@@ -3762,14 +3783,14 @@ contains
                         do iVar = 1, nVar
                            Cell_III = State_VGB(iVar,&
                                 2*i-3:2*i+2,2*j-3:2*j+2,2*k-3:2*k+2,iBlock)
-                           ! Some value calculated here is not accurate,
+                           ! Some value calculated here iS not accurate,
                            ! which will be corrected in the next part.
                            State_VIIIB(iVar,i,j,k,iBlock) = &
                                 restriction_high_order_amr(Cell_III, &
                                 IsPositiveIn=IsPositive_V(iVar))
                         enddo
 
-                        ! It is somewhat complicated to tell weather it is
+                        ! It iS somewhat complicated to tell weather it iS
                         ! accurate or not. So, do not set nCalc_III value.
 
                      enddo ! i
@@ -3849,7 +3870,7 @@ contains
                            endif
                         enddo ! iVar
 
-                        ! If it is accurate, it will not be overwritten by
+                        ! If it iS accurate, it will not be overwritten by
                         ! simple restriction for the inner cell code.
                         nCalc_III(i,j,k) = nCalc_III(i,j,k) + 1
 
@@ -3953,7 +3974,7 @@ contains
     if(abs(iDir0) + abs(jDir0) + abs(kDir0) == 1) then
 
        ! Loop through 4 corners block corresponding to this face,
-       ! check whether it is finer.
+       ! check whether it iS finer.
        iDirBegin = -1; iDirEnd = 1; DiDir = 2
        jDirBegin = -1; jDirEnd = 1; DjDir = 2
        kDirBegin = -1; kDirEnd = 1; DkDir = 2
