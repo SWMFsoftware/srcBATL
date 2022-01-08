@@ -94,7 +94,7 @@ module BATL_lib
   public:: IsRotatedCartesian, GridRot_DD
   public:: IsSpherical, IsRLonLat, IsCylindrical
   public:: IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis
-  public:: x_, y_, z_, r_, Phi_, Theta_, Lon_, Lat_
+  public:: x_, y_, z_, iDimR, iDimPhi, iDimTheta, iDimLon, iDimLat
   public:: IsLogRadius, IsGenRadius, nRgen, LogRgen_I
   public:: IsPeriodic_D, IsPeriodicCoord_D
   public:: Xi_, Eta_, Zeta_

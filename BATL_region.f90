@@ -102,7 +102,7 @@ contains
   !============================================================================
   subroutine init_region
 
-    use BATL_geometry,     ONLY: Phi_, Theta_, IsCartesianGrid, &
+    use BATL_geometry,     ONLY: iDimPhi, iDimTheta, IsCartesianGrid, &
          IsLogRadius, IsGenRadius, radius_to_gen, CellSizeRoot
     use ModNumConst,       ONLY: cDegToRad
 
@@ -158,10 +158,14 @@ contains
        endif
 
        ! Convert degrees to radians
-       if(Phi_ > 1)   Area%Center_D(Phi_)  = Area%Center_D(Phi_)*cDegToRad
-       if(Phi_ > 1)   Area%Size_D(Phi_)    = Area%Size_D(Phi_)*cDegToRad
-       if(Theta_ > 1) Area%Center_D(Theta_)= Area%Center_D(Theta_)*cDegToRad
-       if(Theta_ > 1) Area%Size_D(Theta_)  = Area%Size_D(Theta_)*cDegToRad
+       if(iDimPhi > 1) then
+          Area%Center_D(iDimPhi)   = Area%Center_D(iDimPhi)*cDegToRad
+          Area%Size_D(iDimPhi)     = Area%Size_D(iDimPhi)*cDegToRad
+       end if
+       if(iDimTheta > 1)then
+          Area%Center_D(iDimTheta) = Area%Center_D(iDimTheta)*cDegToRad
+          Area%Size_D(iDimTheta)   = Area%Size_D(iDimTheta)*cDegToRad
+       end if
     end do
 
     ! Loop over the areas defined by #GRIDLEVEL/RESOLUTION commands

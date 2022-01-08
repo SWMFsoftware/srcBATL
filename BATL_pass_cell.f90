@@ -4,14 +4,14 @@
 module BATL_pass_cell
 
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
-  	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
+  	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, iDimLat, iDimTheta, &
   	coord_to_xyz
   use ModNumConst, ONLY: cPi, cHalfPi
-  use BATL_high_order, ONLY: restriction_high_order_reschange, &
-  	prolongation_high_order_amr, &
-  	prolongation_high_order_for_face_ghost, &
+  use BATL_high_order, ONLY: restrict_high_order_reschange, &
+  	prolong_high_order_amr, &
+  	prolong_high_order_face_ghost, &
   	correct_face_ghost_for_fine_block, &
-  	limit_interpolation, restriction_high_order_amr
+  	limit_interpolation, restrict_high_order_amr
   use BATL_size, ONLY: MaxDim, nGang
   use ModUtilities, ONLY: CON_stop
   use ModMpi
@@ -624,7 +624,7 @@ contains
 
       call is_face_accurate(iBlock)
 
-      call prolongation_high_order_for_face_ghost(&
+      call prolong_high_order_face_ghost(&
            iBlock, nVar, Field1_VG, State_VGB(:,:,:,:,iBlock), &
            IsAccurateFace_GB(:,:,:,iBlock), IsPositiveIn_V=IsPositive_V)
 
@@ -1068,9 +1068,9 @@ contains
 
        if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
             kDir == -1 .and. &
-            CoordMin_DB(Lat_,iBlockSend) < -cHalfPi + 1e-8 .or. &
+            CoordMin_DB(iDimLat,iBlockSend) < -cHalfPi + 1e-8 .or. &
             kDir == +1 .and. &
-            CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
+            CoordMax_DB(iDimLat,iBlockSend) > +cHalfPi - 1e-8
 
        do jDir = -1, 1
           if(nDim < 2 .and. jDir /= 0) CYCLE
@@ -1080,9 +1080,9 @@ contains
 
           if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
                jDir == -1 .and. &
-               CoordMin_DB(Theta_,iBlockSend) < 1e-8 .or. &
+               CoordMin_DB(iDimTheta,iBlockSend) < 1e-8 .or. &
                jDir == +1 .and. &
-               CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
+               CoordMax_DB(iDimTheta,iBlockSend) > cPi-1e-8
 
           do iDir = -1,1
              ! Ignore inner parts of the sending block
@@ -2648,7 +2648,7 @@ contains
                                          iBlockSend)
 
                                     State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                                         prolongation_high_order_amr&
+                                         prolong_high_order_amr&
                                          (CoarseCell_III,&
                                          IsPositiveIn=IsPositive_V(iVar))
                                  enddo
@@ -2730,7 +2730,7 @@ contains
                                       iBlockSend)
 
                                  BufferS_I(iBufferS+iVar)=&
-                                      prolongation_high_order_amr&
+                                      prolong_high_order_amr&
                                       (CoarseCell_III,&
                                       IsPositiveIn=IsPositive_V(iVar))
 
@@ -2884,7 +2884,7 @@ contains
 
             do iVar = 1, nVar
                CoarseCell = State_VGB(iVar,i0+iDir1,2*j,min(2*k,nK),iBlock)
-               call restriction_high_order_reschange(CoarseCell, &
+               call restrict_high_order_reschange(CoarseCell, &
                     Fine_VIII(iVar,:,:,:), Coarse_I, DoSymInterp,&
                     IsPositiveIn=IsPositive_V(iVar))
                State_VIIIB(iVar,iC:iC-2*iDir1:-iDir1,j,k,iBlock) = Coarse_I
@@ -2949,7 +2949,7 @@ contains
             do iVar = 1, nVar
                CoarseCell = State_VGB(iVar,2*i,j0+jDir1,min(2*k,nK),iBlock)
 
-               call restriction_high_order_reschange(CoarseCell, &
+               call restrict_high_order_reschange(CoarseCell, &
                     Fine_VIII(iVar,:,:,:), Coarse_I, DoSymInterp,&
                     IsPositiveIn=IsPositive_V(iVar))
 
@@ -3014,7 +3014,7 @@ contains
 
             do iVar = 1, nVar
                CoarseCell = State_VGB(iVar,2*i,2*j,k0+kDir1,iBlock)
-               call restriction_high_order_reschange(CoarseCell, &
+               call restrict_high_order_reschange(CoarseCell, &
                     Fine_VIII(iVar,:,:,:), Coarse_I, DoSymInterp,&
                     IsPositiveIn=IsPositive_V(iVar))
 
@@ -3085,7 +3085,7 @@ contains
                      Cell_III(:,:,k) = &
                           State_VGB(iVar,2*i-3:2*i+2,2*j-3:2*j+2,k,iBlock)
                      State_VIIIB(iVar,i,j,k,iBlock) = &
-                          restriction_high_order_amr(Cell_III,&
+                          restrict_high_order_amr(Cell_III,&
                           IsPositiveIn=IsPositive_V(iVar))
                   enddo; enddo
 
@@ -3579,7 +3579,7 @@ contains
                                       2*k-3:2*k+2,&
                                       iBlock)
                                  State_VIIIB(iVar,i,j,k,iBlock) = &
-                                      restriction_high_order_amr(Cell_III,&
+                                      restrict_high_order_amr(Cell_III,&
                                       IsPositiveIn=IsPositive_V(iVar))
                               enddo ! iVar
                               nCalc_III(i,j,k) = nCalc_III(i,j,k)+1
@@ -3786,7 +3786,7 @@ contains
                            ! Some value calculated here iS not accurate,
                            ! which will be corrected in the next part.
                            State_VIIIB(iVar,i,j,k,iBlock) = &
-                                restriction_high_order_amr(Cell_III, &
+                                restrict_high_order_amr(Cell_III, &
                                 IsPositiveIn=IsPositive_V(iVar))
                         enddo
 
@@ -3914,7 +3914,7 @@ contains
                               Cell_III = State_VGB(iVar,&
                                    2*i-3:2*i+2,2*j-3:2*j+2,2*k-3:2*k+2,iBlock)
                               State_VIIIB(iVar,i,j,k,iBlock) = &
-                                   restriction_high_order_amr(Cell_III,&
+                                   restrict_high_order_amr(Cell_III,&
                                    IsPositiveIn=IsPositive_V(iVar))
                            enddo
                         enddo

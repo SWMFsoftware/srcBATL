@@ -23,17 +23,17 @@ module BATL_high_order
   public:: calc_face_value
 
   ! 5th order prolongation for resolution change.
-  public:: prolongation_high_order_for_face_ghost
+  public:: prolong_high_order_face_ghost
 
   ! 5th order restriction for resolution change.
-  public:: restriction_high_order_reschange
+  public:: restrict_high_order_reschange
 
   ! Make sure all the ghost cells are high order accurate.
   public:: correct_face_ghost_for_fine_block
 
   ! 5th order AMR.
-  public:: prolongation_high_order_amr
-  public:: restriction_high_order_amr
+  public:: prolong_high_order_amr
+  public:: restrict_high_order_amr
 
   public:: limit_interpolation
 contains
@@ -190,7 +190,7 @@ contains
   end function two_points_interpolation
   !============================================================================
 
-  subroutine restriction_high_order_reschange(CoarseCell, FineCell_III, &
+  subroutine restrict_high_order_reschange(CoarseCell, FineCell_III, &
        Ghost_I, DoSymInterpIn,IsPositiveIn)
     ! For 2D:
     !         _________________________________
@@ -246,7 +246,7 @@ contains
     logical, parameter:: DoLimit = .true. ! change only for debugging
     integer:: i
 
-    character(len=*), parameter:: NameSub = 'restriction_high_order_reschange'
+    character(len=*), parameter:: NameSub = 'restrict_high_order_reschange'
     !--------------------------------------------------------------------------
 
     ! use f3...f8 to interpolate G3.
@@ -305,7 +305,7 @@ contains
        endif
     endif
 
-  end subroutine restriction_high_order_reschange
+  end subroutine restrict_high_order_reschange
   !============================================================================
   real function calc_edge_value(CellValue_II,DoLimitIn,IsPositiveIn)
     ! For 3D, need more tests.
@@ -666,7 +666,7 @@ contains
   end function interpolate_in_coarse_blk2d
   !============================================================================
 
-  subroutine prolongation_high_order_for_face_ghost(&
+  subroutine prolong_high_order_face_ghost(&
        iBlock, nVar, Field1_VG, Field_VG, DoOrder5Face_G, IsPositiveIn_V)
 
     ! High order prolongation for simple resolution change (resolution
@@ -711,7 +711,7 @@ contains
     ! be overwritten by remote prolongation (iSendStage == 3).
     logical:: UseOrder4
 
-    character(len=*), parameter:: NameSub = 'prolongation_high_order_for_face_ghost'
+    character(len=*), parameter:: NameSub = 'prolong_high_order_face_ghost'
     !--------------------------------------------------------------------------
     IsPositive_V = .false.
     if(present(IsPositiveIn_V)) IsPositive_V = IsPositiveIn_V
@@ -1456,7 +1456,7 @@ contains
           enddo; enddo
        enddo; enddo
     endif
-  end subroutine prolongation_high_order_for_face_ghost
+  end subroutine prolong_high_order_face_ghost
   !============================================================================
 
   subroutine correct_face_ghost_for_fine_block(iBlock, nVar, Field_VG,&
@@ -1642,7 +1642,7 @@ contains
        ! case 4: only 7 is refined. The ghost cells: -2 <= i <= 0 .and.
        !         nJ-3 <= j <= nJ .and. nK <= k <= nK . are not 5th
        !         order. They are calculated with 4th order accurate
-       !         interpolation in prolongation_high_order_for_face_ghost.
+       !         interpolation in prolong_high_order_face_ghost.
        !         These cells may passed to block 9 and other block as
        !         edge/corner ghost cells. But themselves, as the face ghost
        !         of block 11, they will be overwritten with 5th order value
@@ -1960,7 +1960,7 @@ contains
   end subroutine correct_face_ghost_for_fine_block
   !============================================================================
 
-  real function prolongation_high_order_amr(Cell_III, IsPositiveIn,DoTestMeIn)
+  real function prolong_high_order_amr(Cell_III, IsPositiveIn,DoTestMeIn)
     ! Calc 5th order refined cell for AMR.
     use BATL_size, ONLY: kRatio
     real, intent(in):: Cell_III(5,5,5)
@@ -1970,7 +1970,7 @@ contains
     integer:: i, j, k
     real:: Temp, Distance_I(4)=[-7,-3,1,5]
     real:: CellLimit_I(4)
-    character(len=*), parameter:: NameSub = 'prolongation_high_order_amr'
+    character(len=*), parameter:: NameSub = 'prolong_high_order_amr'
     !--------------------------------------------------------------------------
     IsPositive = .false.
     if(present(IsPositiveIn)) IsPositive = IsPositiveIn
@@ -2014,7 +2014,7 @@ contains
     enddo
     Temp = interpolate_in_coarse_blk_amr1d(Cell_I, DoLimitIn=.true.,&
          IsPositiveIn = IsPositive)
-    prolongation_high_order_amr = limit_interpolation(Temp,CellLimit_I,&
+    prolong_high_order_amr = limit_interpolation(Temp,CellLimit_I,&
          Distance_I)
 
     if(DoTest) then
@@ -2024,10 +2024,10 @@ contains
        write(*,*) 'Distance_I  = ',Distance_I
     endif
 
-  end function prolongation_high_order_amr
+  end function prolong_high_order_amr
   !============================================================================
 
-  real function restriction_high_order_amr(Cell_III, IsPositiveIn)
+  real function restrict_high_order_amr(Cell_III, IsPositiveIn)
     ! Calc 6th order coarsened cell for AMR.
     use BATL_size, ONLY: kRatio
     real, intent(in):: Cell_III(6,6,6)
@@ -2051,9 +2051,9 @@ contains
        Cell_I(i) = calc_face_value(Cell_II(i,:), DoLimitIn=.true.,&
             IsPositiveIn=IsPositiveIn)
     enddo
-    restriction_high_order_amr = calc_face_value(Cell_I, DoLimitIn=.true.,&
+    restrict_high_order_amr = calc_face_value(Cell_I, DoLimitIn=.true.,&
          IsPositiveIn=IsPositiveIn)
-  end function restriction_high_order_amr
+  end function restrict_high_order_amr
   !============================================================================
 
 end module BATL_high_order

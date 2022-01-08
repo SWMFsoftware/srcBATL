@@ -524,7 +524,7 @@ contains
     subroutine send_coarsened_block
 
       use BATL_size, ONLY:  InvIjkRatio
-      use BATL_high_order, ONLY: restriction_high_order_amr
+      use BATL_high_order, ONLY: restrict_high_order_amr
 
       integer :: i, j, k, i2, j2, k2, iVar, iBuffer
       logical:: DoCheckMask
@@ -583,7 +583,7 @@ contains
                   FineCell_III(1:i6,1:j6,1:k6)=&
                        State_VGB(iVar,i-2*Di:i+3*Di,j-2*Dj:j+3*Dj,&
                        k-2*Dk:k+3*Dk,iBlockSend)
-                  Buffer_I(iBuffer+iVar) = restriction_high_order_amr&
+                  Buffer_I(iBuffer+iVar) = restrict_high_order_amr&
                        (FineCell_III, IsPositiveIn=IsPositive_V(iVar))
                end do
                iBuffer = iBuffer + nVar
@@ -816,7 +816,7 @@ contains
       ! Copy buffer into recv block of State_VGB
 
       use BATL_size, ONLY: InvIjkRatio
-      use BATL_high_order, ONLY: prolongation_high_order_amr
+      use BATL_high_order, ONLY: prolong_high_order_amr
       integer:: iBuffer, i, j, k
       integer:: nVarUsed
       integer:: iP, jP, kP, iR, jR, kR
@@ -888,7 +888,7 @@ contains
 
                      ! Calculate 5th order refined cells.
                      State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                          prolongation_high_order_amr&
+                          prolong_high_order_amr&
                           (CoarseCell_III,&
                           IsPositiveIn = IsPositive_V(iVar))
                   enddo ! iVar

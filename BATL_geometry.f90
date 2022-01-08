@@ -73,7 +73,7 @@ module BATL_geometry
   integer, parameter, public:: Xi_=1, Eta_=2, Zeta_=3
 
   ! The following index names will be set in init_geometry
-  integer, public:: r_=-1, Phi_=-1, Theta_=-1, Lon_=-1, Lat_=-1
+  integer, public:: iDimR=-1, iDimPhi=-1, iDimTheta=-1, iDimLon=-1, iDimLat=-1
 
   ! General radial coordinates
   integer, public:: nRgen = -1    ! number of elements in LogRgen_I
@@ -93,7 +93,7 @@ module BATL_geometry
   !$acc declare create(IsAnyAxis, IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
   !$acc declare create(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
   !$acc declare create(UseHighFDGeometry)
-  !$acc declare create(r_, Phi_, Theta_, Lon_, Lat_)
+  !$acc declare create(iDimR, iDimPhi, iDimTheta, iDimLon, iDimLat)
   !$acc declare create(rRound0, rRound1, IsRoundCube)
 
 contains
@@ -167,15 +167,15 @@ contains
        GridRot_DD = i_DD
     end if
 
-    r_ = -1; Phi_ = -1; Theta_ = -1; Lon_ = -1; Lat_ = -1
+    iDimR = -1; iDimPhi = -1; iDimTheta = -1; iDimLon = -1; iDimLat = -1
     if(IsRzGeometry)then
-       r_ = 2
+       iDimR = 2
     elseif(IsCylindrical)then
-       r_ = 1; Phi_ = 2
+       iDimR = 1; iDimPhi = 2
     elseif(IsSpherical)then
-       r_ = 1; Theta_ = 2; Phi_ = 3
+       iDimR = 1; iDimTheta = 2; iDimPhi = 3
     elseif(IsRLonLat)then
-       r_ = 1; Phi_ = 2; Theta_ = 3; Lon_ =2; Lat_ = 3
+       iDimR = 1; iDimPhi = 2; iDimTheta = 3; iDimLon =2; iDimLat = 3
     end if
 
     nRgen = -1
@@ -200,7 +200,7 @@ contains
     !$acc update device(IsAnyAxis, IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
     !$acc update device(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
     !$acc update device(UseHighFDGeometry)
-    !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
+    !$acc update device(iDimR, iDimPhi, iDimTheta, iDimLon, iDimLat)
     !$acc update device(rRound0, rRound1, IsRoundCube)
 
   end subroutine init_geometry
@@ -248,8 +248,8 @@ contains
        CoordOut_D = matmul(XyzIn_D, GridRot_DD)
     elseif(IsCylindrical)then
        x = XyzIn_D(x_); y = XyzIn_D(y_)
-       CoordOut_D(r_)   = sqrt(x**2 + y**2)
-       CoordOut_D(Phi_) = atan2_check(y, x)
+       CoordOut_D(iDimR)   = sqrt(x**2 + y**2)
+       CoordOut_D(iDimPhi) = atan2_check(y, x)
        CoordOut_D(z_)   = XyzIn_D(z_)
     elseif(IsSpherical)then
        call xyz_to_sph(XyzIn_D, CoordOut_D)
@@ -307,8 +307,8 @@ contains
 
     if(IsNegativePhiMin)then
        ! Allow for negative Phi angles
-       if(CoordOut_D(Phi_) > CoordMax_D(Phi_)) &
-            CoordOut_D(Phi_) = CoordOut_D(Phi_) - cTwoPi
+       if(CoordOut_D(iDimPhi) > CoordMax_D(iDimPhi)) &
+            CoordOut_D(iDimPhi) = CoordOut_D(iDimPhi) - cTwoPi
     end if
 
     if(IsLogRadius)then
@@ -349,8 +349,8 @@ contains
     end if
 
     if(IsCylindrical)then
-       r = Coord_D(r_);
-       Phi = Coord_D(Phi_)
+       r = Coord_D(iDimR);
+       Phi = Coord_D(iDimPhi)
        XyzOut_D(1) = r*cos(Phi)
        XyzOut_D(2) = r*sin(Phi)
        XyzOut_D(3) = Coord_D(3)
