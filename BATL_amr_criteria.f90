@@ -1431,7 +1431,7 @@ contains
       character(len=nChar), intent(in):: Name_I(nMaxComponents)
 
       integer:: i, iElmt
-      !---------------------------------------------------------------
+      !------------------------------------------------------------------------
       if(iStartElmt <= nElmt) then
          i = 0
          do iElmt = iStartElmt, nElmt

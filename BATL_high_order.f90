@@ -711,8 +711,7 @@ contains
     ! be overwritten by remote prolongation (iSendStage == 3).
     logical:: UseOrder4
 
-    character(len=*), parameter:: &
-         NameSub = 'prolongation_high_order_for_face_ghost'
+    character(len=*), parameter:: NameSub = 'prolongation_high_order_for_face_ghost'
     !--------------------------------------------------------------------------
     IsPositive_V = .false.
     if(present(IsPositiveIn_V)) IsPositive_V = IsPositiveIn_V
