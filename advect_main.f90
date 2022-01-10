@@ -51,7 +51,7 @@ program advect
 
   ! Spatial order of accuracy and beta parameter for the TVD limiter
   integer :: nOrder = 2
-  real    :: BetaLimiter = 1.5 ! 1 <= Beta <= 2 for nOrder=2
+  real    :: LimiterBeta = 1.5 ! 1 <= Beta <= 2 for nOrder=2
   logical :: DoLimitVolumeState = .false.
 
   ! Use fixed or local time stepping
@@ -368,7 +368,7 @@ contains
        case("#SCHEME")
           call read_var('nOrder', nOrder)
           if(nOrder > 1)then
-             call read_var('BetaLimiter', BetaLimiter)
+             call read_var('LimiterBeta', LimiterBeta)
              call read_var('DoLimitVolumeState', DoLimitVolumeState)
           end if
        case("#TIMESTEP")
@@ -1083,8 +1083,8 @@ contains
           SlopeRight_V = State_VG(:,i+Di,j+Dj,k+Dk) - State_VG(:,i,j,k)
           Slope_VGD(:,i,j,k,iDim) = &
                (sign(0.5, SlopeLeft_V) + sign(0.5, SlopeRight_V))*min( &
-               BetaLimiter*abs(SlopeLeft_V), &
-               BetaLimiter*abs(SlopeRight_V), &
+               LimiterBeta*abs(SlopeLeft_V), &
+               LimiterBeta*abs(SlopeRight_V), &
                0.5*abs(SlopeLeft_V + SlopeRight_V))
        end do; end do; end do
     end do
