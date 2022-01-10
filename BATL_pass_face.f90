@@ -38,7 +38,7 @@ contains
          UseTimeLevel, iTimeLevel_A
 
     use BATL_geometry, ONLY: &
-         IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, iDimLat, iDimTheta
+         IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_
 
     use BATL_grid, ONLY: &
          CoordMin_DB, CoordMax_DB
@@ -184,16 +184,16 @@ contains
 
              if(IsSphericalAxis .and. iDim == 2)then
                 if(iDimSide==1 .and. &
-                     CoordMin_DB(iDimTheta,iBlock) < 1e-8) CYCLE
+                     CoordMin_DB(Theta_,iBlock) < 1e-8) CYCLE
                 if(iDimSide==2 .and. &
-                     CoordMax_DB(iDimTheta,iBlock) > cPi - 1e-8) CYCLE
+                     CoordMax_DB(Theta_,iBlock) > cPi - 1e-8) CYCLE
              end if
 
              if(IsLatitudeAxis .and. iDim == 3)then
                 if(iDimSide==1 .and. &
-                     CoordMin_DB(iDimLat,iBlock) < -cHalfPi + 1e-8) CYCLE
+                     CoordMin_DB(Lat_,iBlock) < -cHalfPi + 1e-8) CYCLE
                 if(iDimSide==2 .and. &
-                     CoordMax_DB(iDimLat,iBlock) >  cHalfPi - 1e-8) CYCLE
+                     CoordMax_DB(Lat_,iBlock) >  cHalfPi - 1e-8) CYCLE
              end if
 
              if(DiLevel == 0)then

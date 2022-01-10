@@ -4,7 +4,7 @@
 program advect
 
   use BATL_lib, ONLY: MaxDim, nDim, nDimAmr, nI, nJ, nK, &
-       MinI, MaxI, MinJ, MaxJ, MinK, MaxK, iProc, barrier_mpi, iDimR, &
+       MinI, MaxI, MinJ, MaxJ, MinK, MaxK, iProc, barrier_mpi, r_, &
        Xyz_DGB, CellSize_DB, message_pass_cell, &
        StringTest, &
        XyzTestCell_D, iTest, jTest, kTest, iBlockTest, iProcTest, &
@@ -198,7 +198,7 @@ contains
        if(Unused_B(iBlock)) CYCLE
        ! Check refinement first
        do k = 1, nK; do j = 1, nJ; do i = 1, nI
-          if(IsRzGeometry) Factor = 1./Xyz_DGB(iDimR,i,j,k,iBlock)
+          if(IsRzGeometry) Factor = 1./Xyz_DGB(r_,i,j,k,iBlock)
           if(State_VGB(Rho_,i,j,k,iBlock) > Factor*RhoRefine) then
              iStatusNew_A(iNode_B(iBlock)) = Refine_
              CYCLE BLOCK
@@ -206,7 +206,7 @@ contains
        end do; end do; end do
        ! If not refined, check for coarsening
        do k = 1, nK; do j = 1, nJ; do i = 1, nI
-          if(IsRzGeometry) Factor = 1./Xyz_DGB(iDimR,i,j,k,iBlock)
+          if(IsRzGeometry) Factor = 1./Xyz_DGB(r_,i,j,k,iBlock)
           if(State_VGB(Rho_,i,j,k,iBlock) < Factor*RhoCoarsen)then
              iStatusNew_A(iNode_B(iBlock)) = Coarsen_
              CYCLE BLOCK
@@ -275,7 +275,7 @@ contains
        ! Scale by 1/r1**(D-1) so radial flow is stationary solution
        exact_v(Rho_) = Rho/r1**(nDim-1)
     elseif(IsRzGeometry) then
-       exact_v(Rho_) = Rho/Xyz_D(iDimR)
+       exact_v(Rho_) = Rho/Xyz_D(r_)
     else
        exact_v(Rho_) = Rho
     end if
@@ -550,7 +550,7 @@ contains
     use BATL_lib, ONLY: MaxDim, nBlock, Unused_B, &
          iComm, nProc, iProc, iNode_B, &
          TypeGeometry, IsCylindrical, IsSpherical, IsRLonLat, IsGenRadius, &
-         iDimPhi, nDimAmr, CoordMin_D, CoordMax_D, nRgen, LogRgen_I, &
+         Phi_, nDimAmr, CoordMin_D, CoordMax_D, nRgen, LogRgen_I, &
          CellVolume_GB, CellSize_DB, Xyz_DGB, CoordMin_DB, CoordMax_DB, &
          rRound0, rRound1, SqrtNDim, nDim
 
@@ -618,15 +618,15 @@ contains
              if(CoordMin_DB(2,iBlock) > cHalfPi) CYCLE
              if(CoordMax_DB(2,iBlock) < cHalfPi) CYCLE
           elseif((IsSpherical .or. IsRLonLat) .and. iPlot == 2)then
-             if(  CoordMin_DB(iDimPhi,iBlock) > 0  .and.  &
-                  CoordMax_DB(iDimPhi,iBlock) < cPi       ) CYCLE
-             if(  CoordMin_DB(iDimPhi,iBlock) > cPi .and. &
-                  CoordMax_DB(iDimPhi,iBlock) < cTwoPi    ) CYCLE
+             if(  CoordMin_DB(Phi_,iBlock) > 0  .and.  &
+                  CoordMax_DB(Phi_,iBlock) < cPi       ) CYCLE
+             if(  CoordMin_DB(Phi_,iBlock) > cPi .and. &
+                  CoordMax_DB(Phi_,iBlock) < cTwoPi    ) CYCLE
           elseif(IsCylindrical .and. iPlot == 2)then
-             if(  CoordMin_DB(iDimPhi,iBlock) > 1e-6          .and. &
-                  CoordMax_DB(iDimPhi,iBlock) < cPi    - 1e-6       ) CYCLE
-             if(  CoordMin_DB(iDimPhi,iBlock) > cPi    + 1e-6 .and. &
-                  CoordMax_DB(iDimPhi,iBlock) < cTwoPi - 1e-6       ) CYCLE
+             if(  CoordMin_DB(Phi_,iBlock) > 1e-6          .and. &
+                  CoordMax_DB(Phi_,iBlock) < cPi    - 1e-6       ) CYCLE
+             if(  CoordMin_DB(Phi_,iBlock) > cPi    + 1e-6 .and. &
+                  CoordMax_DB(Phi_,iBlock) < cTwoPi - 1e-6       ) CYCLE
           elseif(nDim > 1)then
              if(CoordMin_DB(iXyz,iBlock) > 1e-6) CYCLE
              if(CoordMax_DB(iXyz,iBlock) <-1e-6) CYCLE

@@ -4,7 +4,7 @@
 module BATL_pass_cell
 
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
-  	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, iDimLat, iDimTheta, &
+  	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
   	coord_to_xyz
   use ModNumConst, ONLY: cPi, cHalfPi
   use BATL_high_order, ONLY: restrict_high_order_reschange, &
@@ -1068,9 +1068,9 @@ contains
 
        if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
             kDir == -1 .and. &
-            CoordMin_DB(iDimLat,iBlockSend) < -cHalfPi + 1e-8 .or. &
+            CoordMin_DB(Lat_,iBlockSend) < -cHalfPi + 1e-8 .or. &
             kDir == +1 .and. &
-            CoordMax_DB(iDimLat,iBlockSend) > +cHalfPi - 1e-8
+            CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
 
        do jDir = -1, 1
           if(nDim < 2 .and. jDir /= 0) CYCLE
@@ -1080,9 +1080,9 @@ contains
 
           if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
                jDir == -1 .and. &
-               CoordMin_DB(iDimTheta,iBlockSend) < 1e-8 .or. &
+               CoordMin_DB(Theta_,iBlockSend) < 1e-8 .or. &
                jDir == +1 .and. &
-               CoordMax_DB(iDimTheta,iBlockSend) > cPi-1e-8
+               CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
 
           do iDir = -1,1
              ! Ignore inner parts of the sending block

@@ -163,7 +163,7 @@ contains
 
     use ModNumConst, ONLY: cRadToDeg
     use BATL_geometry, ONLY: &
-         DomainSize_D, CellSizeRoot, IsLogRadius, IsGenRadius, iDimPhi
+         DomainSize_D, CellSizeRoot, IsLogRadius, IsGenRadius, Phi_
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nIJK_D
     use BATL_tree, ONLY: Unused_B,  nRoot_D
     use BATL_mpi,  ONLY: iProc
@@ -177,8 +177,8 @@ contains
     if(CellSizeRoot < 0.0)then
        ! Set maximum cell size in the first non-stretched dimension
        if(IsLogRadius .or. IsGenRadius)then
-          CellSizeRoot = cRadToDeg*DomainSize_D(iDimPhi) &
-               /(nRoot_D(iDimPhi)*nIJK_D(iDimPhi))
+          CellSizeRoot = cRadToDeg*DomainSize_D(Phi_) &
+               /(nRoot_D(Phi_)*nIJK_D(Phi_))
        else
           CellSizeRoot = DomainSize_D(1)/(nRoot_D(1) * nI)
        end if
@@ -1536,7 +1536,7 @@ contains
 
     use BATL_grid,     ONLY: Xyz_DNB,CellSize_DB
     use BATL_size,     ONLY: nINode,nJNode,nKNode,nDim
-    use BATL_geometry, ONLY: IsCartesianGrid, iDimPhi, IsLogRadius, IsGenRadius
+    use BATL_geometry, ONLY: IsCartesianGrid, Phi_, IsLogRadius, IsGenRadius
     use BATL_tree,     ONLY: iNode_B, iTree_IA, Level_
     use ModNumConst,   ONLY: cRadToDeg
 
@@ -1547,7 +1547,7 @@ contains
     !--------------------------------------------------------------------------
     if(.not. UseCellSize)then
        if(IsLogRadius .or. IsGenRadius)then
-          LengthMax = cRadToDeg*CellSize_DB(iDimPhi,iBlock)
+          LengthMax = cRadToDeg*CellSize_DB(Phi_,iBlock)
        else
           LengthMax = CellSize_DB(1,iBlock)
        end if

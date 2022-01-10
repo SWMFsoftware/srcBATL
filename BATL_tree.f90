@@ -6,7 +6,7 @@ module BATL_tree
   use BATL_size, ONLY: &
        MaxBlock, nBlock, MaxDim, nDim, iRatio_D, nDimAmr, iDimAmr_D, nIJK_D
   use BATL_geometry, ONLY: &
-       IsPeriodic_D, IsPeriodicCoord_D, iDimPhi, iDimTheta, &
+       IsPeriodic_D, IsPeriodicCoord_D, Phi_, Theta_, &
        IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis
 
   use ModUtilities, ONLY: CON_stop
@@ -375,7 +375,7 @@ contains
 
     ! Check for even number of root blocks in phi direction around the axis
     if(IsAnyAxis)then
-       if(modulo(nRoot_D(iDimPhi),2) /= 0) call CON_stop(NameSub // &
+       if(modulo(nRoot_D(Phi_),2) /= 0) call CON_stop(NameSub // &
             ': there must be an even number of root blocks around the axis')
     end if
 
@@ -1489,9 +1489,9 @@ contains
           if(iTree_IA(Coord1_,iNode) > 1) CYCLE
        else
           iLevel = iTree_IA(Level_,iNode)
-          MaxCoord = nRoot_D(iDimTheta)
-          if(iRatio_D(iDimTheta) == 2) MaxCoord = MaxCoord*MaxCoord_I(iLevel)
-          iCoord = iTree_IA(Coord0_+iDimTheta,iNode)
+          MaxCoord = nRoot_D(Theta_)
+          if(iRatio_D(Theta_) == 2) MaxCoord = MaxCoord*MaxCoord_I(iLevel)
+          iCoord = iTree_IA(Coord0_+Theta_,iNode)
           if(iCoord > 1 .and. iCoord < MaxCoord) CYCLE
        end if
 
@@ -1502,9 +1502,9 @@ contains
        Coord_D = 0.5*(PositionMax_D + PositionMin_D)
 
        ! Shift the Phi coordinate in the positive direction to the next node
-       Coord_D(iDimPhi) = &
-            modulo(Coord_D(iDimPhi)&
-            +      0.6*(PositionMax_D(iDimPhi) - PositionMin_D(iDimPhi)), 1.0)
+       Coord_D(Phi_) = &
+            modulo(Coord_D(Phi_)&
+            +      0.6*(PositionMax_D(Phi_) - PositionMin_D(Phi_)), 1.0)
 
        call find_tree_node(Coord_D, jNode)
        iNodeAxisNei_A(iNode) = jNode

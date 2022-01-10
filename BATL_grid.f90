@@ -130,40 +130,40 @@ contains
     ! Set special boundary conditions and convert coordinates
     IsCylindricalAxis = .false.
     if(IsCylindrical .and. .not.IsLogRadius .and. .not.IsGenRadius) &
-         IsCylindricalAxis = CoordMin_D(iDimR) == 0.0
+         IsCylindricalAxis = CoordMin_D(r_) == 0.0
 
     if(UseRadius)then
        if(IsLogRadius)then
           ! Convert rMin, rMax to log(rMin) log(rMax) for logarithmic radius
-          CoordMin_D(iDimR) = log(CoordMin_D(iDimR))
-          CoordMax_D(iDimR) = log(CoordMax_D(iDimR))
+          CoordMin_D(r_) = log(CoordMin_D(r_))
+          CoordMax_D(r_) = log(CoordMax_D(r_))
        elseif(IsGenRadius)then
           ! Convert rMin, rMax to generalized radial coordinates
-          call radius_to_gen(CoordMin_D(iDimR))
-          call radius_to_gen(CoordMax_D(iDimR))
+          call radius_to_gen(CoordMin_D(r_))
+          call radius_to_gen(CoordMax_D(r_))
        end if
     end if
 
     IsSphericalAxis = .false.
-    if(IsSpherical) IsSphericalAxis = CoordMin_D(iDimTheta) <   0.01*Unit &
-         .and.                        CoordMax_D(iDimTheta) > 179.99*Unit
+    if(IsSpherical) IsSphericalAxis = CoordMin_D(Theta_) <   0.01*Unit &
+         .and.                        CoordMax_D(Theta_) > 179.99*Unit
 
     IsLatitudeAxis = .false.
-    if(IsRLonLat) IsLatitudeAxis    = CoordMin_D(iDimLat)   < -89.99*Unit &
-         .and.                        CoordMax_D(iDimLat)   >  89.99*Unit
+    if(IsRLonLat) IsLatitudeAxis    = CoordMin_D(Lat_)   < -89.99*Unit &
+         .and.                        CoordMax_D(Lat_)   >  89.99*Unit
 
     IsAnyAxis = IsCylindricalAxis .or. IsSphericalAxis .or. IsLatitudeAxis
 
     if(UseDegree)then
        ! Convert degrees to radians for the domain boundaries
        if(IsCylindrical .or. IsSpherical .or. IsRLonLat)then
-          CoordMin_D(iDimPhi) = CoordMin_D(iDimPhi)*cDegToRad
-          CoordMax_D(iDimPhi) = CoordMax_D(iDimPhi)*cDegToRad
+          CoordMin_D(Phi_) = CoordMin_D(Phi_)*cDegToRad
+          CoordMax_D(Phi_) = CoordMax_D(Phi_)*cDegToRad
        end if
 
        if(IsSpherical .or. IsRLonLat)then
-          CoordMin_D(iDimTheta) = CoordMin_D(iDimTheta)*cDegToRad
-          CoordMax_D(iDimTheta) = CoordMax_D(iDimTheta)*cDegToRad
+          CoordMin_D(Theta_) = CoordMin_D(Theta_)*cDegToRad
+          CoordMax_D(Theta_) = CoordMax_D(Theta_)*cDegToRad
        end if
     end if
 
@@ -185,22 +185,22 @@ contains
          allocate(FaceNormal_DDFB(nDim,nDim,1:nI+1,1:nJ+1,1:nK+1,MaxBlock))
 
     ! Periodicity in the radial direction is not possible at all
-    if(iDimR > 0) IsPeriodic_D(iDimR) = .false.
+    if(r_ > 0) IsPeriodic_D(r_) = .false.
 
-    if(iDimTheta > 0 .and. (IsSphericalAxis .or. IsLatitudeAxis)) &
-         IsPeriodic_D(iDimTheta) = .false.
+    if(Theta_ > 0 .and. (IsSphericalAxis .or. IsLatitudeAxis)) &
+         IsPeriodic_D(Theta_) = .false.
 
-    if(iDimPhi > 0)then
+    if(Phi_ > 0)then
        ! Enforce periodicity for cylindrical and spherical grids if
        ! there is a full grid in the Phi direction.
        ! One can also have periodicity with a segment in Phi
-       if( abs(DomainSize_D(iDimPhi) - cTwoPi) < 1e-6 )then
-          IsPeriodic_D(iDimPhi) = .true.
-          IsPeriodicCoord_D(iDimPhi) = .true.
+       if( abs(DomainSize_D(Phi_) - cTwoPi) < 1e-6 )then
+          IsPeriodic_D(Phi_) = .true.
+          IsPeriodicCoord_D(Phi_) = .true.
        end if
 
        ! Set logical for the sign of the minimum Phi coordinate
-       IsNegativePhiMin = CoordMin_D(iDimPhi) < 0.0
+       IsNegativePhiMin = CoordMin_D(Phi_) < 0.0
 
     end if
 
@@ -558,7 +558,7 @@ contains
              end do
           end if
 
-          Dphi = CellSize_DB(iDimPhi,iBlock)
+          Dphi = CellSize_DB(Phi_,iBlock)
 
           if(IsCylindrical)then
 
@@ -573,12 +573,12 @@ contains
 
           elseif(IsSpherical)then
 
-             Dtheta = CellSize_DB(iDimTheta,iBlock)
+             Dtheta = CellSize_DB(Theta_,iBlock)
 
              allocate(dCosTheta_I(MinJ:MaxJ))
 
              do j = MinJ, MaxJ
-                Theta = CoordMin_DB(iDimTheta,iBlock) + (j-1)*Dtheta
+                Theta = CoordMin_DB(Theta_,iBlock) + (j-1)*Dtheta
                 ! Note the sign change
                 dCosTheta_I(j) = cos(Theta) - cos(Theta + dTheta)
              end do
@@ -591,12 +591,12 @@ contains
              end do; end do
 
           elseif(IsRLonLat)then
-             Dtheta = CellSize_DB(iDimLat,iBlock)
+             Dtheta = CellSize_DB(Lat_,iBlock)
 
              allocate(dCosTheta_I(MinK:MaxK))
 
              do k = MinK, MaxK
-                Theta = cHalfPi - (CoordMin_DB(iDimLat,iBlock) + (k-1)*Dtheta)
+                Theta = cHalfPi - (CoordMin_DB(Lat_,iBlock) + (k-1)*Dtheta)
                 ! Note the sign change
                 dCosTheta_I(k) = cos(Theta - dTheta) - cos(Theta)
              end do
@@ -654,29 +654,29 @@ contains
             CosPhiFace_I(j) =  cos(Phi)
          end do
 
-         ! dA_r = iDimR(i+1/2)*dphi*dz * (cos phi, sin phi, 0)
-         if(nDim == 3) FaceNormal_DDFB(z_,iDimR,:,:,:,iBlock) = 0
+         ! dA_r = r_(i+1/2)*dphi*dz * (cos phi, sin phi, 0)
+         if(nDim == 3) FaceNormal_DDFB(z_,r_,:,:,:,iBlock) = 0
          do i = 1, nI+1
             Area = rFace_I(i)*Dphi*Dz
-            CellFace_DFB(iDimR,i,:,:,iBlock) = Area
+            CellFace_DFB(r_,i,:,:,iBlock) = Area
             if(Area > 0)then
                do k = 1, nK; do j=1, nJ
-                  FaceNormal_DDFB(x_,iDimR,i,j,k,iBlock) = Area*CosPhi_I(j)
-                  FaceNormal_DDFB(y_,iDimR,i,j,k,iBlock) = Area*SinPhi_I(j)
+                  FaceNormal_DDFB(x_,r_,i,j,k,iBlock) = Area*CosPhi_I(j)
+                  FaceNormal_DDFB(y_,r_,i,j,k,iBlock) = Area*SinPhi_I(j)
                end do; end do
             else
-               FaceNormal_DDFB(x_:y_,iDimR,i,:,:,iBlock) = 0
+               FaceNormal_DDFB(x_:y_,r_,i,:,:,iBlock) = 0
             end if
          end do
 
          ! dA_phi = dr*dz * (-sin phi, cos phi, 0) = dr*dz * (-y/r, x/r, 0)
-         if(nDim == 3)FaceNormal_DDFB(z_,iDimPhi,:,:,:,iBlock) = 0
+         if(nDim == 3)FaceNormal_DDFB(z_,Phi_,:,:,:,iBlock) = 0
          do i = 1, nI
             Area = (rFace_I(i+1)-rFace_I(i))*Dz
-            CellFace_DFB(iDimPhi,i,:,:,iBlock) = Area
+            CellFace_DFB(Phi_,i,:,:,iBlock) = Area
             do k = 1, nK; do j=1, nJ+1
-               FaceNormal_DDFB(x_,iDimPhi,i,j,k,iBlock) = -Area*SinPhiFace_I(j)
-               FaceNormal_DDFB(y_,iDimPhi,i,j,k,iBlock) = +Area*CosPhiFace_I(j)
+               FaceNormal_DDFB(x_,Phi_,i,j,k,iBlock) = -Area*SinPhiFace_I(j)
+               FaceNormal_DDFB(y_,Phi_,i,j,k,iBlock) = +Area*CosPhiFace_I(j)
             end do; end do
          end do
 
@@ -698,40 +698,40 @@ contains
 
          do j = 1, nJ+1
             SinThetaFace_I(j) = &
-                 sin(CoordMin_DB(iDimTheta,iBlock) + (j-1)*Dtheta)
+                 sin(CoordMin_DB(Theta_,iBlock) + (j-1)*Dtheta)
          end do
 
-         ! dA_r = iDimR(i+1/2)^2*dphi*d(cos theta)
+         ! dA_r = r_(i+1/2)^2*dphi*d(cos theta)
          do k = 1, nK; do j = 1, nJ; do i = 1, nI+1
             ! Exact surface area
             Area = rFace_I(i)**2*Dphi*dCosTheta_I(j)
-            CellFace_DFB(iDimR,i,j,k,iBlock) = Area
+            CellFace_DFB(r_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i-1,j,k,iBlock)
-            FaceNormal_DDFB(:,iDimR,i,j,k,iBlock) = Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,r_,i,j,k,iBlock) = Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
          ! dA_theta = r_i*sin(theta)*dr*dphi
          do k = 1, nK; do j=1, nJ+1; do i = 1, nI
             Area = rCell_I(i)*SinThetaFace_I(j)*(rFace_I(i+1)-rFace_I(i))*Dphi
-            CellFace_DFB(iDimTheta,i,j,k,iBlock) = Area
+            CellFace_DFB(Theta_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i,j-1,k,iBlock)
-            FaceNormal_DDFB(:,iDimTheta,i,j,k,iBlock) = Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,Theta_,i,j,k,iBlock) = Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
          ! dA_phi = r*dr*dtheta
          do k = 1, nK+1; do j=1, nJ; do i = 1, nI
             Area = rCell_I(i)*(rFace_I(i+1)-rFace_I(i))*Dtheta
-            CellFace_DFB(iDimPhi,i,j,k,iBlock) = Area
+            CellFace_DFB(Phi_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i,j,k-1,iBlock)
-            FaceNormal_DDFB(:,iDimPhi,i,j,k,iBlock)= Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,Phi_,i,j,k,iBlock)= Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
@@ -742,40 +742,40 @@ contains
          allocate(SinThetaFace_I(nK+1))
 
          do k = 1, nK+1
-            SinThetaFace_I(k) = cos(CoordMin_DB(iDimLat,iBlock) + (k-1)*Dtheta)
+            SinThetaFace_I(k) = cos(CoordMin_DB(Lat_,iBlock) + (k-1)*Dtheta)
          end do
 
-         ! dA_r = iDimR(i+1/2)^2*dphi*d(cos theta)
+         ! dA_r = r_(i+1/2)^2*dphi*d(cos theta)
          do k = 1, nK; do j = 1, nJ; do i = 1, nI+1
             ! Exact surface area
             Area = rFace_I(i)**2*Dphi*dCosTheta_I(k)
-            CellFace_DFB(iDimR,i,j,k,iBlock) = Area
+            CellFace_DFB(r_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i-1,j,k,iBlock)
-            FaceNormal_DDFB(:,iDimR,i,j,k,iBlock) = Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,r_,i,j,k,iBlock) = Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
          ! dA_phi = r*dr*dtheta
          do k = 1, nK; do j=1, nJ+1; do i = 1, nI
             Area = rCell_I(i)*(rFace_I(i+1)-rFace_I(i))*Dtheta
-            CellFace_DFB(iDimPhi,i,j,k,iBlock) = Area
+            CellFace_DFB(Phi_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i,j-1,k,iBlock)
-            FaceNormal_DDFB(:,iDimPhi,i,j,k,iBlock)= Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,Phi_,i,j,k,iBlock)= Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
          ! dA_lat = r_i*sin(theta)*dr*dphi
          do k = 1, nK+1; do j=1, nJ; do i = 1, nI
             Area = rCell_I(i)*SinThetaFace_I(k)*(rFace_I(i+1)-rFace_I(i))*Dphi
-            CellFace_DFB(iDimLat,i,j,k,iBlock) = Area
+            CellFace_DFB(Lat_,i,j,k,iBlock) = Area
 
             ! Orthogonal coordinate system
             d_D = Xyz_DGB(:,i,j,k,iBlock) - Xyz_DGB(:,i,j,k-1,iBlock)
-            FaceNormal_DDFB(:,iDimLat,i,j,k,iBlock)= Area*d_D/norm2(d_D)
+            FaceNormal_DDFB(:,Lat_,i,j,k,iBlock)= Area*d_D/norm2(d_D)
 
          end do; end do; end do
 
@@ -1782,20 +1782,20 @@ contains
        if(IsSpherical .or. IsRLonLat)then
           ! example in rlonlat coords: point's latitude is close to pi/2 and
           ! block is across the pole => reflect point so that latitude > pi/2
-          if(CoordMin_DB(iDimTheta, iBlock)==CoordMin_D(iDimTheta).and.&
-               abs(Coord_D(iDimPhi)-CoordMin_DB(iDimPhi,iBlock)) > &
-               0.25*DomainSize_D(iDimPhi))then
-             Coord_D(iDimTheta) = 2*CoordMin_D(iDimTheta) - Coord_D(iDimTheta)
-             Coord_D(iDimPhi  ) = CoordMin_D(iDimPhi) &
-                  + modulo(Coord_D(iDimPhi) - CoordMin_D(iDimPhi) &
-                  +        0.5*DomainSize_D(iDimPhi), DomainSize_D(iDimPhi))
-          elseif(CoordMax_DB(iDimTheta, iBlock)==CoordMax_D(iDimTheta).and.&
-               abs(Coord_D(iDimPhi)-CoordMax_DB(iDimPhi,iBlock)) > &
-               0.25*DomainSize_D(iDimPhi))then
-             Coord_D(iDimTheta) = 2*CoordMax_D(iDimTheta)-Coord_D(iDimTheta)
-             Coord_D(iDimPhi  ) = CoordMin_D(iDimPhi) &
-                  + modulo(Coord_D(iDimPhi) - CoordMin_D(iDimPhi) &
-                  +        0.5*DomainSize_D(iDimPhi), DomainSize_D(iDimPhi))
+          if(CoordMin_DB(Theta_, iBlock)==CoordMin_D(Theta_).and.&
+               abs(Coord_D(Phi_)-CoordMin_DB(Phi_,iBlock)) > &
+               0.25*DomainSize_D(Phi_))then
+             Coord_D(Theta_) = 2*CoordMin_D(Theta_) - Coord_D(Theta_)
+             Coord_D(Phi_  ) = CoordMin_D(Phi_) &
+                  + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
+                  +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
+          elseif(CoordMax_DB(Theta_, iBlock)==CoordMax_D(Theta_).and.&
+               abs(Coord_D(Phi_)-CoordMax_DB(Phi_,iBlock)) > &
+               0.25*DomainSize_D(Phi_))then
+             Coord_D(Theta_) = 2*CoordMax_D(Theta_)-Coord_D(Theta_)
+             Coord_D(Phi_  ) = CoordMin_D(Phi_) &
+                  + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
+                  +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
           end if
        end if
     end if
@@ -2027,12 +2027,12 @@ contains
 
           ! may need to fix CoordTree_D for spherical grids
           if(IsSpherical .or. IsRLonLat)then
-             if(CoordTree_D(iDimTheta) > 1.0)then
-                CoordTree_D(iDimTheta) = 2.0 - CoordTree_D(iDimTheta)
-                CoordTree_D(iDimPhi) = modulo(CoordTree_D(iDimPhi)+0.5, 1.0)
-             elseif(CoordTree_D(iDimTheta) < 0.0)then
-                CoordTree_D(iDimTheta) = - CoordTree_D(iDimTheta)
-                CoordTree_D(iDimPhi) = modulo(CoordTree_D(iDimPhi)+0.5, 1.0)
+             if(CoordTree_D(Theta_) > 1.0)then
+                CoordTree_D(Theta_) = 2.0 - CoordTree_D(Theta_)
+                CoordTree_D(Phi_) = modulo(CoordTree_D(Phi_)+0.5, 1.0)
+             elseif(CoordTree_D(Theta_) < 0.0)then
+                CoordTree_D(Theta_) = - CoordTree_D(Theta_)
+                CoordTree_D(Phi_) = modulo(CoordTree_D(Phi_)+0.5, 1.0)
              end if
           end if
           ! may need to fix CoordTree_D for periodic grids
