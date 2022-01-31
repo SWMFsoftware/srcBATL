@@ -46,10 +46,13 @@ module BATL_test
   real,    public:: xTest = 0, yTest = 0, zTest = 0    ! 1st test point pos.
   real,    public:: xTest2 = 0, yTest2 = 0, zTest2 = 0 ! 2nd test point pos.
   integer, public:: iDimTest = 1                       ! dimension to test
+  ! iTestSide: -1 means test left state, 1 means right state, 0 means both
+  integer, public:: iTestSide = 0
   integer, public:: iVarTest = 1                       ! variable index to test
   character(len=20), public:: NameVarTest = ''         ! variable name to test
 
-  !$acc declare create(iTest, jTest, kTest, iBlockTest, iDimTest, iVarTest)
+  !$acc declare create(iTest, jTest, kTest, iBlockTest)
+  !$acc declare create(iDimTest, iTestSide, iVarTest)
 contains
   !============================================================================
 
@@ -107,6 +110,8 @@ contains
     case("#TESTDIM")
        call read_var('iDimTest', iDimTest)
        iDimTest = min(nDim, max(0, iDimTest))  ! 0 means all dimensions
+    case("#TESTSIDE")
+       call read_var('iTestSide', iTestSide)
     case("#TESTVAR")
        call read_var('NameVarTest', NameVarTest)
     case("#TESTVARINDEX")
