@@ -235,7 +235,8 @@ contains
     if(iProc == iProcTest2 .and. UseTest2Cell) call show_grid_cell( &
          "Second test cell", iTest2, jTest2, kTest2, iBlockTest2)
 
-    !$acc update device(iTest, jTest, kTest, iBlockTest, iDimTest, iVarTest)
+    !$acc update device(iTest, jTest, kTest, iBlockTest)
+    !$acc update device(iDimTest, iSideTest, iVarTest)
 
   end subroutine find_test_cell
   !============================================================================
