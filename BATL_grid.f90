@@ -996,6 +996,7 @@ contains
     !$acc update device(CellFace_DFB)
     !$acc update device(CellSize_DB)
     !$acc update device(FaceNormal_DDFB)
+    !$acc update device(CoordMin_DB, CoordMax_DB)
 
   end subroutine create_grid
   !============================================================================
