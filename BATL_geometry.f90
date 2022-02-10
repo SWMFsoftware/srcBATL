@@ -193,16 +193,6 @@ contains
 
     call set_high_geometry(UseFDFaceFluxIn)
 
-    !$acc update device(TypeGeometry, IsCartesianGrid, IsCartesian)
-    !$acc update device(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
-    !$acc update device(IsSpherical, IsRLonLat, IsCylindrical)
-    !$acc update device(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis)
-    !$acc update device(IsAnyAxis, IsLogRadius, IsGenRadius, nRgen, LogRgen_I)
-    !$acc update device(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
-    !$acc update device(UseHighFDGeometry)
-    !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
-    !$acc update device(rRound0, rRound1, IsRoundCube)
-
   end subroutine init_geometry
   !============================================================================
 
