@@ -1678,8 +1678,6 @@ contains
       end if
 #endif
 
-      ! OpenACC: Do not support IsAxisNode so far.
-#ifndef _OPENACC
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
             kRMin = iEqualR_DII(3,-kDir,Max_)
@@ -1692,7 +1690,7 @@ contains
             iRMax = iEqualR_DII(1,1,Min_)
          end if
       end if
-#endif
+
       iSMin = iEqualS_DII(1,iDir,Min_)
       iSMax = iEqualS_DII(1,iDir,Max_)
       jSMin = iEqualS_DII(2,jDir,Min_)
