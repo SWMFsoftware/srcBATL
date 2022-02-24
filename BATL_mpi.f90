@@ -20,9 +20,52 @@ module BATL_mpi
   integer, public:: iProc = 0   ! processor rank from 0 to nProc-1
   integer, public:: nThread = 1 ! number of threads per MPI process
   integer, public:: iThread = 0 ! thread rank from 0 to nThread-1
+  integer, public:: nGpuDev=-1 ! total number of GPUs on this node
+  integer, public:: iGpuDev=-1 ! the GPU the current MPI process is using
   !$acc declare create(iComm, nProc, iProc, nThread, iThread)
 
 contains
+  !============================================================================
+  subroutine init_gpu(iComm, iProc)
+    use openacc
+    integer, intent(in) :: iComm, iProc
+    integer :: iLocalComm, iLocalProc, nLocalProc, iError
+    
+    ! Get the node-local (shared-memory capable) communicator
+    call MPI_Comm_Split_Type(iComm, MPI_COMM_TYPE_SHARED, iProc, &
+         MPI_INFO_NULL, iLocalComm, iError)
+
+    ! Determine the number of local processes and the local rank
+    call MPI_Comm_Size(iLocalComm, nLocalProc, iError)
+    call MPI_Comm_Rank(iLocalComm, iLocalProc, iError)
+
+    ! Determine the number of GPUs
+    nGpuDev = acc_get_num_devices(ACC_DEVICE_NVIDIA)
+
+    ! Note: from now on we assume that all local procs see the same # of GPUs
+
+    if (nGpuDev <= 0) then ! we do not have GPUs on this node!
+       if (iLocalProc==0) write (*, 10) iProc
+10     format ('Error: (process ',I0,'): No GPUs detected on the node. Aborting...')
+       call MPI_Barrier(iLocalComm, iError) ! wait for the local root to print the error
+       call MPI_Abort(MPI_COMM_WORLD, 1, iError)
+       stop
+    end if
+
+    iGpuDev = iLocalProc
+    if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
+       if (iLocalProc==0) write (*, 20) iProc,nLocalProc,nGpuDev
+20     format ('Warning: (process ',I0,'): ',I0,' processes, but ',I0,' GPUs; GPUs will be shared.')
+       iGpuDev = mod(iLocalProc, nGpuDev)
+    end if
+
+    ! set the device number we will be operating on
+    !$acc set device_num(iGpuDev)
+    !$acc init device_num(iGpuDev)
+
+    call MPI_Comm_free(iLocalComm, iError)
+  end subroutine init_gpu
+
   !============================================================================
   subroutine init_mpi(iCommIn)
 
@@ -54,6 +97,9 @@ contains
     end if
     call MPI_comm_rank(iComm, iProc, iError)
     call MPI_comm_size(iComm, nProc, iError)
+#ifdef _OPENACC
+    call init_gpu(iComm, iProc)
+#endif    
 
   end subroutine init_mpi
   !============================================================================
