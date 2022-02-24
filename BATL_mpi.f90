@@ -26,8 +26,11 @@ module BATL_mpi
 
 contains
   !============================================================================
+#ifdef _OPENACC
   subroutine init_gpu(iComm, iProc)
+
     use openacc
+
     integer, intent(in) :: iComm, iProc
     integer :: iLocalComm, iLocalProc, nLocalProc, iError
     
@@ -44,18 +47,12 @@ contains
 
     ! Note: from now on we assume that all local procs see the same # of GPUs
 
-    if (nGpuDev <= 0) then ! we do not have GPUs on this node!
-       if (iLocalProc==0) write (*, 10) iProc
-10     format ('Error: (process ',I0,'): No GPUs detected on the node. Aborting...')
-       call MPI_Barrier(iLocalComm, iError) ! wait for the local root to print the error
-       call MPI_Abort(MPI_COMM_WORLD, 1, iError)
-       stop
-    end if
+    if (nGpuDev <= 0) call CON_stop('No GPUs detected on the node')
 
     iGpuDev = iLocalProc
     if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
-       if (iLocalProc==0) write (*, 20) iProc,nLocalProc,nGpuDev
-20     format ('Warning: (process ',I0,'): ',I0,' processes, but ',I0,' GPUs; GPUs will be shared.')
+       if (iLocalProc==0) write (*,*) NameSub, " WARINGIN:" &
+            ' iProc, nLocalProc > nGpu=', iProc, nLocalProc, nGpu
        iGpuDev = mod(iLocalProc, nGpuDev)
     end if
 
@@ -64,7 +61,9 @@ contains
     !$acc init device_num(iGpuDev)
 
     call MPI_Comm_free(iLocalComm, iError)
+
   end subroutine init_gpu
+#endif
 
   !============================================================================
   subroutine init_mpi(iCommIn)
