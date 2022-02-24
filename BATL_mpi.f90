@@ -33,7 +33,10 @@ contains
 
     integer, intent(in) :: iComm, iProc
     integer :: iLocalComm, iLocalProc, nLocalProc, iError
-    
+
+    character(len=*), parameter:: NameSub = 'init_gpu'
+    !--------------------------------------------------------------------------
+
     ! Get the node-local (shared-memory capable) communicator
     call MPI_Comm_Split_Type(iComm, MPI_COMM_TYPE_SHARED, iProc, &
          MPI_INFO_NULL, iLocalComm, iError)
@@ -45,13 +48,11 @@ contains
     ! Determine the number of GPUs
     nGpuDev = acc_get_num_devices(ACC_DEVICE_NVIDIA)
 
-    ! Note: from now on we assume that all local procs see the same # of GPUs
-
     if (nGpuDev <= 0) call CON_stop('No GPUs detected on the node')
 
     iGpuDev = iLocalProc
     if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
-       if (iLocalProc==0) write (*,*) NameSub, " WARINGIN:" &
+       if (iLocalProc==0) write (*,*) NameSub, " WARNING:" &
             ' iProc, nLocalProc > nGpu=', iProc, nLocalProc, nGpu
        iGpuDev = mod(iLocalProc, nGpuDev)
     end if
@@ -63,9 +64,8 @@ contains
     call MPI_Comm_free(iLocalComm, iError)
 
   end subroutine init_gpu
-#endif
-
   !============================================================================
+#endif
   subroutine init_mpi(iCommIn)
 
     ! Initialize iComm, nProc and iProc. If iCommIn is not present, set it
@@ -98,7 +98,7 @@ contains
     call MPI_comm_size(iComm, nProc, iError)
 #ifdef _OPENACC
     call init_gpu(iComm, iProc)
-#endif    
+#endif
 
   end subroutine init_mpi
   !============================================================================
