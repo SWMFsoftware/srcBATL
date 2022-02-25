@@ -52,8 +52,8 @@ contains
 
     iGpuDev = iLocalProc
     if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
-       if (iLocalProc==0) write (*,*) NameSub, " WARNING:" &
-            ' iProc, nLocalProc > nGpu=', iProc, nLocalProc, nGpu
+       if (iLocalProc==0) write (*,*) NameSub, " WARNING:", &
+            ' iProc, nLocalProc > nGpu=', iProc, nLocalProc, nGpuDev
        iGpuDev = mod(iLocalProc, nGpuDev)
     end if
 
