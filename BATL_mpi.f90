@@ -48,7 +48,10 @@ contains
     ! Determine the number of GPUs
     nGpuDev = acc_get_num_devices(ACC_DEVICE_NVIDIA)
 
-    if (nGpuDev <= 0) call CON_stop('No GPUs detected on the node')
+    if (nGpuDev <= 0)then
+       write(*,*) NameSub,': No GPUs detected on the node'
+       call MPI_abort(MPI_COMM_WORLD,1,iError)
+    end if
 
     iGpuDev = iLocalProc
     if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
