@@ -3,6 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module BATL_mpi
 
+  use ModUtilities, ONLY: CON_stop
   use ModMpi
 
   implicit none
@@ -48,10 +49,7 @@ contains
     ! Determine the number of GPUs
     nGpuDev = acc_get_num_devices(ACC_DEVICE_NVIDIA)
 
-    if (nGpuDev <= 0)then
-       write(*,*) NameSub,': No GPUs detected on the node'
-       call MPI_abort(MPI_COMM_WORLD,1,iError)
-    end if
+    if (nGpuDev <= 0) call CON_stop(NameSub//': No GPUs detected on the node')
 
     iGpuDev = iLocalProc
     if (nLocalProc > nGpuDev) then ! we have more processes than GPUs
