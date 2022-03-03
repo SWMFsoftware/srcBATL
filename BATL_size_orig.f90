@@ -127,6 +127,7 @@ module BATL_size
 
   ! Largest used block index on a processor at any given time
   integer :: nBlock = 0
+  !$acc declare create(nBlock)
 
   ! Number of different kinds of particles
   integer, parameter:: nKindParticle = 8
