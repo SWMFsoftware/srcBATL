@@ -1014,10 +1014,10 @@ contains
     !==========================================================================
 
   end subroutine do_amr
-  !=========================================================================== 
+  !============================================================================
 #ifdef _OPENACC
   subroutine sync_cpu_gpu_amr(mode)
-    !sync grid information between cpu and gpu for amr
+    ! sync grid information between cpu and gpu for amr
 
     use BATL_grid,  ONLY: CoordMin_DB, CoordMax_DB, CellSize_DB, &
          Xyz_DGB, Xyz_DNB, CellFace_DB, CellFace_DFB, &
@@ -1027,11 +1027,11 @@ contains
          iTree_IA
 
     integer, intent(in):: mode
-    !if mode = 0, then sync from device to host;
-    !if mode = 1, then sync from host to device.    
+    ! if mode = 0, then sync from device to host;
+    ! if mode = 1, then sync from host to device.
     !--------------------------------------------------------------------------
     select case(mode)
-    case(0) !to cpu
+    case(0) ! to cpu
        !$acc update host(CoordMin_DB, CoordMax_DB, CellSize_DB)
        !$acc update host(Xyz_DGB, Xyz_DNB)
        !$acc update host(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
@@ -1041,8 +1041,8 @@ contains
        !$acc update host(iNode_B)
        !$acc update host(DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P)
        !$acc update host(iTree_IA)
-       !acc update host(nBlock)
-    case(1) !to gpu
+       ! acc update host(nBlock)
+    case(1) ! to gpu
        !$acc update device(CoordMin_DB, CoordMax_DB, CellSize_DB)
        !$acc update device(Xyz_DGB, Xyz_DNB)
        !$acc update device(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
@@ -1052,13 +1052,13 @@ contains
        !$acc update device(iNode_B)
        !$acc update device(DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P)
        !$acc update device(iTree_IA)
-       !acc update device(nBlock)
+       ! acc update device(nBlock)
     case default
        RETURN
     end select
   end subroutine sync_cpu_gpu_amr
-#endif
   !============================================================================
+#endif
 
 end module BATL_amr
 !==============================================================================
