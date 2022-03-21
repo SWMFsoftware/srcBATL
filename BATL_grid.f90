@@ -79,13 +79,13 @@ module BATL_grid
   !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
   !$acc declare create(Xyz_DGB, Xyz_DNB)
 
-  !acc declare create(Xyz_DGB)
+  ! acc declare create(Xyz_DGB)
 
   !$acc declare create(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
   !$acc declare create(CellVolume_B, CellVolume_GB)
 
-  !acc declare create(CellMetrice_DDG, CellCoef_DDGB)
-  !acc declare create(IsNodeBasedGrid)
+  ! acc declare create(CellMetrice_DDG, CellCoef_DDGB)
+  ! acc declare create(IsNodeBasedGrid)
 
   ! Local variables
 
