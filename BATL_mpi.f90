@@ -100,6 +100,7 @@ contains
 #ifdef _OPENACC
     call init_gpu(iComm, iProc)
 #endif
+    !$acc update device(iComm, iProc, nProc)
 
   end subroutine init_mpi
   !============================================================================
