@@ -54,6 +54,10 @@ module BATL_pass_cell
           message_pass_ng_int1      ! Integer scalar with nG ghost cells
   end interface message_pass_cell
 
+  ! Force using simple weights
+  logical, public:: UseSimpleProlongation = .false.
+  !$acc declare create(UseSimpleProlongation)
+
   ! local variables corresponding to optional arguments
   logical :: UseMin, UseMax  ! logicals for min and max operators
   !$acc declare create(UseMin, UseMax)
@@ -2192,7 +2196,8 @@ contains
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
 
-      UseSimpleWeights = nDim == 1 .or. nDimAmr < nDim &
+      UseSimpleWeights = UseSimpleProlongation .or. &
+           nDim == 1 .or. nDimAmr < nDim &
            .or. IsCartesianGrid .or. IsRotatedCartesian .or. IsRoundCube
 
       iGang = 1
