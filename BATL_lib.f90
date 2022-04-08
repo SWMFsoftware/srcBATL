@@ -116,6 +116,9 @@ module BATL_lib
   public:: interpolate_state_vector ! Interpolate state vactor to a given loc,
                                     ! Need all ghost cells with ProlongOrder=1
 
+  ! Inherited from BATL_pass_cell
+  public:: UseSimpleProlongation
+
   !--------------------
   ! Functions inherited
   !--------------------
