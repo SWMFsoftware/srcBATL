@@ -28,6 +28,40 @@ module BATL_mpi
 contains
   !============================================================================
 #ifdef _OPENACC
+  !  subroutine acc_error_handler(sMsg) bind(C)
+  subroutine acc_error_handler() bind(C)
+    ! use iso_c_binding, only: C_CHAR, C_NULL_CHAR
+    use ModUtilities, only: CON_Stop
+    ! character(kind=C_CHAR,len=1024), intent(in) :: sMsg
+    ! integer i
+
+    ! do i=1,len(sMsg)
+    !    if (sMsg(i:i)==C_NULL_CHAR) exit
+    ! end do
+
+    write (*,*) 'DEBUG: Fortran OpenACC error handler is calling CON_Stop()'
+    !call CON_Stop("OpenACC error: " // sMsg(1:i-1))
+    call CON_Stop("OpenACC error!")
+    stop "UNREACHABLE CODE" ! hint for the compiler
+  end subroutine acc_error_handler
+#endif
+  !============================================================================
+#ifdef _OPENACC
+  subroutine set_acc_error_handler()
+    use iso_c_binding, only: C_FUNPTR, c_funloc
+    interface
+       subroutine acc_set_error_routine(fptr) BIND(C)
+         use iso_c_binding, only: C_FUNPTR
+         type(C_FUNPTR), intent(in), value :: fptr
+       end subroutine acc_set_error_routine
+    end interface
+    type(C_FUNPTR) :: fptr
+    fptr = c_funloc(acc_error_handler)
+    call acc_set_error_routine(fptr)
+  end subroutine set_acc_error_handler
+#endif
+  !============================================================================
+#ifdef _OPENACC
   subroutine init_gpu(iComm, iProc)
 
     use openacc
@@ -63,6 +97,8 @@ contains
     !$acc init device_num(iGpuDev)
 
     call MPI_Comm_free(iLocalComm, iError)
+
+    call set_acc_error_handler()
 
   end subroutine init_gpu
   !============================================================================
