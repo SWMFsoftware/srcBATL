@@ -289,10 +289,10 @@ contains
           CoordOut_D = 0.0
        end if
     else
-#ifndef _OPENACC
+!#ifndef _OPENACC
        call CON_stop(NameSub// &
-            ' not yet implemented for TypeGeometry='//TypeGeometry)
-#endif
+            ' not yet implemented for TypeGeometry=', sAfter=TypeGeometry)
+!#endif
     end if
 
     if(IsNegativePhiMin)then
@@ -391,10 +391,10 @@ contains
           XyzOut_D = 0.0
        end if
     else
-#ifndef _OPENACC
+!#ifndef _OPENACC
        call CON_stop(NameSub// &
-            ' not yet implemented for TypeGeometry='//TypeGeometry)
-#endif
+            ' not yet implemented for TypeGeometry=', sAfter=TypeGeometry)
+!#endif
     end if
 
   end subroutine coord_to_xyz
