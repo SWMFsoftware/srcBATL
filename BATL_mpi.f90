@@ -39,13 +39,14 @@ contains
     !    if (sMsg(i:i)==C_NULL_CHAR) exit
     ! end do
 
+    !--------------------------------------------------------------------------
     write (*,*) 'DEBUG: Fortran OpenACC error handler is calling CON_Stop()'
-    !call CON_Stop("OpenACC error: " // sMsg(1:i-1))
+    ! call CON_Stop("OpenACC error: " // sMsg(1:i-1))
     call CON_Stop("OpenACC error!")
     stop "UNREACHABLE CODE" ! hint for the compiler
   end subroutine acc_error_handler
-#endif
   !============================================================================
+#endif
 #ifdef _OPENACC
   subroutine set_acc_error_handler()
     use iso_c_binding, only: C_FUNPTR, c_funloc
@@ -56,11 +57,12 @@ contains
        end subroutine acc_set_error_routine
     end interface
     type(C_FUNPTR) :: fptr
+    !--------------------------------------------------------------------------
     fptr = c_funloc(acc_error_handler)
     call acc_set_error_routine(fptr)
   end subroutine set_acc_error_handler
-#endif
   !============================================================================
+#endif
 #ifdef _OPENACC
   subroutine init_gpu(iComm, iProc)
 
