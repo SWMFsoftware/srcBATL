@@ -51,15 +51,15 @@ contains
   subroutine set_acc_error_handler()
     use iso_c_binding, only: C_FUNPTR, c_funloc
     interface
-       subroutine acc_set_error_routine(fptr) BIND(C)
+       subroutine acc_set_error_routine(FuncPtr) BIND(C)
          use iso_c_binding, only: C_FUNPTR
-         type(C_FUNPTR), intent(in), value :: fptr
+         type(C_FUNPTR), intent(in), value :: FuncPtr
        end subroutine acc_set_error_routine
     end interface
-    type(C_FUNPTR) :: fptr
+    type(C_FUNPTR) :: FuncPtr
     !--------------------------------------------------------------------------
-    fptr = c_funloc(acc_error_handler)
-    call acc_set_error_routine(fptr)
+    FuncPtr = c_funloc(acc_error_handler)
+    call acc_set_error_routine(FuncPtr)
   end subroutine set_acc_error_handler
   !============================================================================
 #endif
