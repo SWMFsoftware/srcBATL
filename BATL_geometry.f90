@@ -5,7 +5,7 @@ module BATL_geometry
 
   use BATL_size, ONLY: MaxDim, nDim
 
-  use ModUtilities, ONLY: CON_stop
+  use ModUtilities, ONLY: CON_stop, CON_stop_simple
 
   implicit none
 
@@ -289,10 +289,8 @@ contains
           CoordOut_D = 0.0
        end if
     else
-!#ifndef _OPENACC
-       call CON_stop(NameSub// &
-            ' not yet implemented for TypeGeometry=', sAfter=TypeGeometry)
-!#endif
+       call CON_stop_simple(NameSub// &
+            ' not yet implemented for TypeGeometry=', TypeGeometry)
     end if
 
     if(IsNegativePhiMin)then
@@ -391,10 +389,8 @@ contains
           XyzOut_D = 0.0
        end if
     else
-!#ifndef _OPENACC
-       call CON_stop(NameSub// &
-            ' not yet implemented for TypeGeometry=', sAfter=TypeGeometry)
-!#endif
+       call CON_stop_simple(NameSub// &
+            ' not yet implemented for TypeGeometry=', TypeGeometry)
     end if
 
   end subroutine coord_to_xyz
