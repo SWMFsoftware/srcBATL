@@ -160,6 +160,8 @@ contains
     integer, optional, intent(in) :: iLevelMin, iLevelMax
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
+    !$acc declare create(TimeOld_B, Time_B)
+
     logical, optional, intent(in) :: UseHighResChangeIn
     real,    optional, intent(in) :: DefaultState_V(nVar)
     logical, optional, intent(in) :: DoTestIn
@@ -523,7 +525,8 @@ contains
           call timing_stop('wait_pass')
 
           call timing_start('buffer_to_state')
-          call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB)
+          call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
+               UseTime, TimeOld_B, Time_B)
           call timing_stop('buffer_to_state')
 
           if(UseHighResChange .and. iSendStage == 2) then
@@ -652,7 +655,8 @@ contains
 
     end subroutine high_prolong_for_face_ghost
     !==========================================================================
-    subroutine buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB)
+    subroutine buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
+         UseTime, TimeOld_B, Time_B)
       !$acc routine vector
 
       ! Copy buffer into recv block of State_VGB
@@ -662,8 +666,13 @@ contains
       real,    intent(in)::BufferR_I(:)
       integer, intent(in)::nVar
       integer, intent(in)::nG
+      logical, intent(inout)::UseTime
       real,    intent(inout)::State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
+      !logical, intent(in)::UseHighResChange
+
+      real,    optional, intent(in)::TimeOld_B(MaxBlock)
+      real,    optional, intent(in)::Time_B(MaxBlock)
 
       integer:: iBufferR, i, j, k
       real :: TimeSend, WeightOld, WeightNew
@@ -699,7 +708,7 @@ contains
             if(nDim > 2) DkR   = sign(1, kRmax - kRMin)
 
             iBufferR = iBufferR + 1 + 2*nDim
-#ifndef _OPENACC
+!!!#ifndef _OPENACC
             if(present(Time_B))then
                ! Get time of neighbor and interpolate/extrapolate ghost cells
                iBufferR = iBufferR + 1
@@ -718,6 +727,7 @@ contains
 
                   iBufferR = iBufferR + nVar
                end do; end do; end do
+#ifndef _OPENACC
             elseif(UseHighResChange)then
                do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
                   if(.not. (iSendStage ==4 &
@@ -734,9 +744,9 @@ contains
                        BufferR_I(iBufferR+1:iBufferR+nVar)
                   iBufferR = iBufferR + nVar
                end do; end do; end do
-#ifndef _OPENACC
+!!!#ifndef _OPENACC
             end if
-#endif
+!!!#endif
             if(iBufferR >= sum(nBufferR_P(0:iProcSend))) EXIT
          end do
       end do
