@@ -669,7 +669,7 @@ contains
       logical, intent(inout)::UseTime
       real,    intent(inout)::State_VGB(nVar,&
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-      !logical, intent(in)::UseHighResChange
+      ! logical, intent(in)::UseHighResChange
 
       real,    optional, intent(in)::TimeOld_B(MaxBlock)
       real,    optional, intent(in)::Time_B(MaxBlock)
@@ -1781,7 +1781,7 @@ contains
 
          iBufferS = iBufferS + 1 + 2*nDim
 
-#ifndef _OPENACC 
+#ifndef _OPENACC
          if(present(Time_B))then
             iBufferS = iBufferS + 1
             BufferS_I(iBufferS) = Time_B(iBlockSend)
