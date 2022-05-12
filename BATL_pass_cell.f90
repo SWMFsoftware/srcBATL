@@ -100,9 +100,12 @@ module BATL_pass_cell
 
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
+  !$acc declare create(nBufferR_P, nBufferS_P, iBufferS_P)
+
   integer :: iBufferS, iBufferR
   integer :: MaxBufferS=-1, MaxBufferR=-1
   real, allocatable:: BufferR_I(:), BufferS_I(:)
+  !$acc declare create(BufferR_I, BufferS_I)
 
   integer :: iRequestR, iRequestS, iError
   integer, allocatable:: iRequestR_I(:), iRequestS_I(:)
@@ -378,6 +381,8 @@ contains
 
           if(UseOpenACC) then
              !$acc update device(iSendStage, DoCountOnly)
+             !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
+             !$acc update device(BufferR_I, BufferS_I)
 
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
@@ -518,7 +523,7 @@ contains
           call timing_stop('wait_pass')
 
           call timing_start('buffer_to_state')
-          call buffer_to_state
+          call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB)
           call timing_stop('buffer_to_state')
 
           if(UseHighResChange .and. iSendStage == 2) then
@@ -647,13 +652,23 @@ contains
 
     end subroutine high_prolong_for_face_ghost
     !==========================================================================
-    subroutine buffer_to_state
+    subroutine buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB)
+      !$acc routine vector
 
       ! Copy buffer into recv block of State_VGB
+      use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
+
+      integer, intent(in)::nBufferR_P(:)
+      real,    intent(in)::BufferR_I(:)
+      integer, intent(in)::nVar
+      integer, intent(in)::nG
+      real,    intent(inout)::State_VGB(nVar,&
+         1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
       integer:: iBufferR, i, j, k
       real :: TimeSend, WeightOld, WeightNew
 
+      integer:: iProcSend
       integer:: iBlockRecv
 
       ! Index range for recv and send segments of the blocks
@@ -684,13 +699,13 @@ contains
             if(nDim > 2) DkR   = sign(1, kRmax - kRMin)
 
             iBufferR = iBufferR + 1 + 2*nDim
+#ifndef _OPENACC
             if(present(Time_B))then
                ! Get time of neighbor and interpolate/extrapolate ghost cells
                iBufferR = iBufferR + 1
                TimeSend = BufferR_I(iBufferR)
                UseTime  = (TimeSend /= Time_B(iBlockRecv))
             end if
-
             if(UseTime) then
                ! Time interpolation
                WeightOld = (TimeSend - Time_B(iBlockRecv)) &
@@ -713,12 +728,15 @@ contains
                   iBufferR = iBufferR + nVar
                end do; end do; end do
             else
+#endif
                do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
                   State_VGB(:,i,j,k,iBlockRecv) = &
                        BufferR_I(iBufferR+1:iBufferR+nVar)
                   iBufferR = iBufferR + nVar
                end do; end do; end do
+#ifndef _OPENACC
             end if
+#endif
             if(iBufferR >= sum(nBufferR_P(0:iProcSend))) EXIT
          end do
       end do
@@ -1670,7 +1688,7 @@ contains
 #endif
 
       ! OpenAcc: For local copy, DoCountOnly iS always false.
-#ifndef _OPENACC
+!!! #ifndef _OPENACC !!!
       if(DoCountOnly)then
          ! Number of reals to send to and received from the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -1680,7 +1698,7 @@ contains
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
       end if
-#endif
+!!! #endif !!!
 
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
@@ -1711,7 +1729,7 @@ contains
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
          if(UseTime)then
-#ifndef _OPENACC
+!!! #ifndef _OPENACC
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -1721,7 +1739,7 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-#endif
+!!! #endif
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(3)
@@ -1739,7 +1757,7 @@ contains
 #endif
          end if
       else
-#ifndef _OPENACC
+!!! #ifndef _OPENACC !!!
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
@@ -1753,18 +1771,19 @@ contains
 
          iBufferS = iBufferS + 1 + 2*nDim
 
+#ifndef _OPENACC 
          if(present(Time_B))then
             iBufferS = iBufferS + 1
             BufferS_I(iBufferS) = Time_B(iBlockSend)
          end if
-
+#endif
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
             BufferS_I(iBufferS+1:iBufferS+nVar) = State_VGB(:,i,j,k,iBlockSend)
             iBufferS = iBufferS + nVar
          end do; end do; end do
 
          iBufferS_P(iProcRecv) = iBufferS
-#endif
+!!! #endif
       end if
     end subroutine do_equal
     !==========================================================================
