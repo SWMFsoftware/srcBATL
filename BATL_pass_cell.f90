@@ -662,7 +662,7 @@ contains
       ! Copy buffer into recv block of State_VGB
       use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
 
-      integer, intent(in)::nBufferR_P(:)
+      integer, intent(in)::nBufferR_P(0:)
       real,    intent(in)::BufferR_I(:)
       integer, intent(in)::nVar
       integer, intent(in)::nG
