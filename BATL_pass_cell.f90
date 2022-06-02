@@ -480,10 +480,11 @@ contains
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
 
+             !$acc host_data use_device(BufferS_I, nBufferS_P)
              call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
                   MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
                   iError)
-
+             !$acc end host_data
              iBufferS = iBufferS + nBufferS_P(iProcRecv)
           end do
 
@@ -493,11 +494,11 @@ contains
           do iProcSend = 0, nProc-1
              if(nBufferR_P(iProcSend) == 0) CYCLE
              iRequestR = iRequestR + 1
-
+             !$acc host_data use_device(BufferR_I, nBufferR_P)
              call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
                   MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
                   iError)
-
+             !$acc end host_data
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
 
