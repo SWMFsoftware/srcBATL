@@ -446,12 +446,14 @@ contains
                    if(allocated(BufferR_I)) deallocate(BufferR_I)
                    MaxBufferR = sum(nBufferR_P)
                    allocate(BufferR_I(MaxBufferR))
+                   !$acc update device(BufferR_I)
                 end if
 
                 if(sum(nBufferS_P) > MaxBufferS) then
                    if(allocated(BufferS_I)) deallocate(BufferS_I)
                    MaxBufferS = sum(nBufferS_P)
                    allocate(BufferS_I(MaxBufferS))
+                   !$acc update device(BufferS_I)
                 end if
 
                 ! Initialize buffer indexes for storing data into BufferS_I
@@ -479,8 +481,8 @@ contains
           do iProcRecv = 0, nProc-1
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
-
-             !$acc host_data use_device(BufferS_I, nBufferS_P)
+             !$acc update device(BufferS_I) !FIXME:DEBUG: to be sure the buffer is on the device
+             !$acc host_data use_device(BufferS_I)
              call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
                   MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
                   iError)
@@ -494,7 +496,8 @@ contains
           do iProcSend = 0, nProc-1
              if(nBufferR_P(iProcSend) == 0) CYCLE
              iRequestR = iRequestR + 1
-             !$acc host_data use_device(BufferR_I, nBufferR_P)
+             !$acc update device(BufferR_I) !FIXME:DEBUG: to be sure the buffer is on the device
+             !$acc host_data use_device(BufferR_I)
              call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
                   MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
                   iError)
