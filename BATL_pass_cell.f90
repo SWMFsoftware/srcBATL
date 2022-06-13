@@ -3,6 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module BATL_pass_cell
 
+  use BATL_test, ONLY: test_start, test_stop
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
   	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
   	coord_to_xyz
@@ -215,7 +216,11 @@ contains
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
-    DoTest = .false.; if(present(DoTestIn)) DoTest = DoTestIn
+    DoTest = .false.
+
+    call test_start(NameSub,DoTest)
+    if(present(DoTestIn)) DoTest = DoTestIn .or. DoTest
+
     if(DoTest)write(*,*)NameSub,' starting with nVar=',nVar
 
     call timing_start('batl_pass')
@@ -546,9 +551,8 @@ contains
 
     if(UseHighResChange) &
          deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
-
+    call test_stop(NameSub, Dotest)
     call timing_stop('batl_pass')
-
   contains
     !==========================================================================
     subroutine is_face_accurate(iBlock)
