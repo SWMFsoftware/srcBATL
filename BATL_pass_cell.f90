@@ -493,7 +493,7 @@ contains
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
                    if (iProc == iProcTest .and. iBlockSend == 4) &
-                        write(*,*)'!!! in serial after message_pass_block, ghost value= ', & 
+                        write(*,*)'!!! in serial after message_pass_block, ghost value= ', &
                         State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
 
                 end do ! iBlockSend
@@ -547,7 +547,7 @@ contains
           !$acc update device(nBufferS_P, nBufferR_P)
 
           !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
-          !$acc copy(iLevelMin, iLevelMax) 
+          !$acc copy(iLevelMin, iLevelMax)
           !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
@@ -572,7 +572,7 @@ contains
 
           call timing_start('buffer_to_state')
 
-!!!this is not in line with how use GPU variables in other subroutines
+!!! this is not in line with how use GPU variables in other subroutines
           !$acc serial &
           !$acc copy(nBufferR_P, BufferR_I, nVar)
           call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
@@ -1232,10 +1232,8 @@ contains
     end do ! kDir
 
     if (iProc == iProcTest .and. iBlockSend == 4) &
-         write(*,*)'!!! at end of message_pass_block, ghost value= ', & 
+         write(*,*)'!!! at end of message_pass_block, ghost value= ', &
          State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
-
-
 
   contains
     !==========================================================================
@@ -1710,11 +1708,11 @@ contains
       integer :: DiR, DjR, DkR
 
       logical :: DoTest
-      character(len=*), parameter:: NameSub = 'do_equal'
 
 #ifdef _OPENACC
       integer:: iS, jS, kS, iR, jR, kR
 #endif
+      character(len=*), parameter:: NameSub = 'do_equal'
       !------------------------------------------------------------------------
       DoTest = .false.
 
@@ -1799,15 +1797,6 @@ contains
       jSMax = iEqualS_DII(2,jDir,Max_)
       kSMin = iEqualS_DII(3,kDir,Min_)
       kSMax = iEqualS_DII(3,kDir,Max_)
-
-      if(iProcRecv == iProcTest .and. iBlockRecv == iBlockTest) then
-         write(*,*)'on iProcTest, iBlockTest =', iProcTest,iBlockTest
-         write(*,*)'iSMin, iSMax, jSMin, jSMax, kSMin, kSMax =',&
-              iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
-         write(*,*)'iRMin, iRMax, jRMin, jRMax, kRMin, kRMax =',&
-              iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
-         write(*,*)'iTest, jTest, kTest =', iTest, jTest, kTest
-      end if
 
       if(iProc == iProcRecv)then
          ! Local copy
