@@ -3,7 +3,8 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module BATL_pass_cell
 
-  use BATL_test, ONLY: test_start, test_stop
+  use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
+       iBlockTest, iVarTest, iDimTest, iSideTest, iProcTest
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
   	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
   	coord_to_xyz
@@ -141,7 +142,7 @@ contains
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
-    use BATL_mpi,  ONLY: iComm, nProc
+    use BATL_mpi,  ONLY: iComm, nProc, iProc
     use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B
 
     ! Arguments
@@ -387,23 +388,29 @@ contains
           call timing_start('single_pass')
 
           if(UseOpenACC) then
-             !$acc update device(iSendStage, DoCountOnly)
-             !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-             !$acc update device(BufferR_I, BufferS_I)
-
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
+                if(DoTest .and. iBlockSend==iBlockTest)then
+                   write(*,*)'On iProc=', iProc, ' iBlock=', iBlockSend, &
+                        'iTest=', iTest, 'jTest=', jTest, 'kTest=', kTest
+                end if
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                      .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                      UseOpenACCIn)
              end do ! iBlockSend
+
           else
              ! Loop through all blocks that may send a message
              !$omp parallel do
              do iBlockSend = 1, nBlock
                 if(Unused_B(iBlockSend)) CYCLE
+                if(DoTest .and. iBlockSend==iBlockTest)then
+                   write(*,*)'On iProc=', iProc, ' iBlock=', iBlockSend, &
+                        'iTest=', iTest, 'jTest=', jTest, 'kTest=', kTest
+                   write(*,*)''
+                end if
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                      .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                      UseOpenACCIn)
@@ -426,7 +433,6 @@ contains
     else
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
-
           if(UseHighResChange) then
              State_VIIIB = 0
              IsAccurate_B = .false.
@@ -447,6 +453,7 @@ contains
                 nBufferS_P = 0
              else
                 ! Make buffers large enough
+                !$acc update host(nBufferR_P, nBufferS_P)
                 if(sum(nBufferR_P) > MaxBufferR) then
                    if(allocated(BufferR_I)) deallocate(BufferR_I)
                    MaxBufferR = sum(nBufferR_P)
@@ -468,13 +475,36 @@ contains
                    iBufferS = iBufferS + nBufferS_P(iProcRecv)
                 end do
              end if
+             !$acc update device(nBufferS_P, iBufferS_P)
+             !$acc update device(nBufferR_P)
 
-             ! Prepare the buffer for remote message passing
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                     .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
-             end do ! iBlockSend
+             if(UseOpenACC) then
+                ! Prepare the buffer for remote message passing
+                !$acc update device(iSendStage, DoCountOnly)
+                !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
+                !$acc update device(BufferR_I, BufferS_I)
+
+!!! serial loop
+
+                ! Loop through all blocks that may send a message
+                !$acc serial loop gang present(State_VGB)
+                do iBlockSend = 1, nBlock
+                   if(Unused_B(iBlockSend)) CYCLE
+                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                        .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                   if (iProc == iProcTest .and. iBlockSend == 4) &
+                        write(*,*)'!!! in serial after message_pass_block, ghost value= ', & 
+                        State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
+
+                end do ! iBlockSend
+
+             else
+                do iBlockSend = 1, nBlock
+                   if(Unused_B(iBlockSend)) CYCLE
+                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+                        .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                end do ! iBlockSend
+             end if
 
              call timing_stop('part1_pass')
 
@@ -483,10 +513,10 @@ contains
           ! post sends
           iRequestS = 0
           iBufferS  = 1
+
           do iProcRecv = 0, nProc-1
              if(nBufferS_P(iProcRecv) == 0) CYCLE
              iRequestS = iRequestS + 1
-             !$acc update device(BufferS_I) !!! Seems unnecessary
              !$acc host_data use_device(BufferS_I)
              call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
                   MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
@@ -501,7 +531,6 @@ contains
           do iProcSend = 0, nProc-1
              if(nBufferR_P(iProcSend) == 0) CYCLE
              iRequestR = iRequestR + 1
-             !$acc update device(BufferR_I) !!! Seems unnecessary
              !$acc host_data use_device(BufferR_I)
              call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
                   MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
@@ -514,11 +543,19 @@ contains
 
           ! Local message passing
           !$omp parallel do
+
+          !$acc update device(nBufferS_P, nBufferR_P)
+
+          !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
+          !$acc copy(iLevelMin, iLevelMax) 
+          !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                   .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
           end do ! iBlockSend
+          !$acc end parallel
+
           !$omp end parallel do
 
           call timing_stop('local_mp_pass')
@@ -534,8 +571,14 @@ contains
           call timing_stop('wait_pass')
 
           call timing_start('buffer_to_state')
+
+!!!this is not in line with how use GPU variables in other subroutines
+          !$acc serial &
+          !$acc copy(nBufferR_P, BufferR_I, nVar)
           call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
                UseTime, TimeOld_B, Time_B)
+          !$acc end serial
+
           call timing_stop('buffer_to_state')
 
           if(UseHighResChange .and. iSendStage == 2) then
@@ -1008,6 +1051,7 @@ contains
     ! help array for converting between Scalar_GB and State_VGB
     ! used by message_pass_cell
     real, allocatable, save:: Scalar_VGB(:,:,:,:,:)
+    !$acc declare create(Scalar_VGB)
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_int1'
     !--------------------------------------------------------------------------
@@ -1186,6 +1230,12 @@ contains
           end do ! iDir
        end do ! jDir
     end do ! kDir
+
+    if (iProc == iProcTest .and. iBlockSend == 4) &
+         write(*,*)'!!! at end of message_pass_block, ghost value= ', & 
+         State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
+
+
 
   contains
     !==========================================================================
@@ -1634,7 +1684,10 @@ contains
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
+      use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
+           iBlockTest, iVarTest, iDimTest, iSideTest
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
+      use BATL_mpi, ONLY: iProc
 
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
@@ -1656,10 +1709,15 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
+      logical :: DoTest
+      character(len=*), parameter:: NameSub = 'do_equal'
+
 #ifdef _OPENACC
       integer:: iS, jS, kS, iR, jR, kR
 #endif
       !------------------------------------------------------------------------
+      DoTest = .false.
+
       DiR = 1; DjR = 1; DkR = 1
 
       iSend = (3*iDir + 3)/2
@@ -1673,6 +1731,10 @@ contains
       if(iProc == iProcRecv .eqv. DoRemote) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
+
+!      if(iBlockSend==iBlockTest .or. iBlockRecv==iBlockTest)then
+!         call test_start(NameSub, DoTest)
+!      end if
 
       ! Skip blocks with a time level outside the range
       if(UseTimeLevel .and. present(iLevelMin))then
@@ -1738,6 +1800,15 @@ contains
       kSMin = iEqualS_DII(3,kDir,Min_)
       kSMax = iEqualS_DII(3,kDir,Max_)
 
+      if(iProcRecv == iProcTest .and. iBlockRecv == iBlockTest) then
+         write(*,*)'on iProcTest, iBlockTest =', iProcTest,iBlockTest
+         write(*,*)'iSMin, iSMax, jSMin, jSMax, kSMin, kSMax =',&
+              iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
+         write(*,*)'iRMin, iRMax, jRMin, jRMax, kRMin, kRMax =',&
+              iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
+         write(*,*)'iTest, jTest, kTest =', iTest, jTest, kTest
+      end if
+
       if(iProc == iProcRecv)then
          ! Local copy
          if(nDim > 1) DiR = sign(1, iRMax - iRMin)
@@ -1746,6 +1817,7 @@ contains
 
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
+
          if(UseTime)then
 !!! #ifndef _OPENACC
             ! Time interpolation
@@ -1760,6 +1832,7 @@ contains
 !!! #endif
          else
 #ifdef _OPENACC
+!            write(*,*)'ready to set ghost cell...'
             !$acc loop vector collapse(3)
             do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
                iR = iRMin + DiR*(iS-iSMin)
@@ -1767,6 +1840,11 @@ contains
                kR = kRMin + DkR*(kS-kSMin)
                State_VGB(:,iR,jR,kR,iBlockRecv) = &
                     State_VGB(:,iS,jS,kS,iBlockSend)
+               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
+                    iBlockRecv == iBlockTest .and. iProc == iProcTest)then
+                  write(*,*)'!!! setting ghost cell to', &
+                       State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
+               end if
             end do; end do; end do
 #else
             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
@@ -1803,12 +1881,17 @@ contains
          iBufferS_P(iProcRecv) = iBufferS
 !!! #endif
       end if
+
+      if (iBlockRecv == iBlockTest .and. iProc == iProcTest) &
+           write(*,*)'!!! at end of do_equal, ghost value= ', &
+           State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockRecv)
+
     end subroutine do_equal
     !==========================================================================
     subroutine do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
-
+      use BATL_mpi, ONLY: iProc
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
 
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
@@ -2189,7 +2272,7 @@ contains
       use BATL_size,     ONLY: nDimAmr
       use ModCoordTransform, ONLY: cross_product
       use BATL_tree, ONLY: get_tree_position
-
+      use BATL_mpi, ONLY: iProc
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
