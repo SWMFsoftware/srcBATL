@@ -493,7 +493,8 @@ contains
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
                    if (iProc == iProcTest .and. iBlockSend == 4) &
-                        write(*,*)'!!! in serial after message_pass_block, ghost value= ', &
+                        write(*,*)'in serial after message_pass_block, &
+                        ghost value= ', &
                         State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
 
                 end do ! iBlockSend
