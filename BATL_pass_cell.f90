@@ -1232,9 +1232,9 @@ contains
        end do ! jDir
     end do ! kDir
 
-    if (iProc == iProcTest .and. iBlockSend == 4) &
-         write(*,*)'!!! at end of message_pass_block, ghost value= ', &
-         State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
+!    if (iProc == iProcTest .and. iBlockSend == 4) &
+!         write(*,*)'!!! at end of message_pass_block, ghost value= ', &
+!         State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
 
   contains
     !==========================================================================
@@ -1872,9 +1872,9 @@ contains
 !!! #endif
       end if
 
-      if (iBlockRecv == iBlockTest .and. iProc == iProcTest) &
-           write(*,*)'!!! at end of do_equal, ghost value= ', &
-           State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockRecv)
+!      if (iBlockRecv == iBlockTest .and. iProc == iProcTest) &
+!           write(*,*)'!!! at end of do_equal, ghost value= ', &
+!           State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockRecv)
 
     end subroutine do_equal
     !==========================================================================
