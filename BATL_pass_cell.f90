@@ -388,6 +388,10 @@ contains
           call timing_start('single_pass')
 
           if(UseOpenACC) then
+             !$acc update device(iSendStage, DoCountOnly)
+             !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
+             !$acc update device(BufferR_I, BufferS_I)
+
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
              do iBlockSend = 1, nBlock
