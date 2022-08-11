@@ -390,7 +390,7 @@ contains
           if(UseOpenACC) then
              !$acc update device(iSendStage, DoCountOnly)
              !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-             !$acc update device(BufferR_I, BufferS_I)
+             !acc update device(BufferR_I, BufferS_I)
 
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
@@ -479,6 +479,7 @@ contains
                    iBufferS = iBufferS + nBufferS_P(iProcRecv)
                 end do
              end if
+
              !$acc update device(nBufferS_P, iBufferS_P)
              !$acc update device(nBufferR_P)
 
@@ -486,9 +487,7 @@ contains
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
                 !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-                !$acc update device(BufferR_I, BufferS_I)
-
-!!! serial loop
+                !acc update device(BufferR_I, BufferS_I)
 
                 ! Loop through all blocks that may send a message
                 !$acc serial loop gang present(State_VGB)
@@ -496,10 +495,10 @@ contains
                    if(Unused_B(iBlockSend)) CYCLE
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
-                   if (iProc == iProcTest .and. iBlockSend == 4) &
-                        write(*,*)'in serial after message_pass_block, &
-                        ghost value= ', &
-                        State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
+!                   if (iProc == iProcTest .and. iBlockSend == 4) &
+!                        write(*,*)'in serial after message_pass_block, &
+!                        ghost value= ', &
+!                        State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
 
                 end do ! iBlockSend
 
@@ -543,7 +542,7 @@ contains
              !$acc end host_data
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
-
+          
           call timing_start('local_mp_pass')
 
           ! Local message passing
@@ -577,12 +576,20 @@ contains
 
           call timing_start('buffer_to_state')
 
-!!! this is not in line with how use GPU variables in other subroutines
-          !$acc serial &
+!!!To call buffer_to_state on a GPU, the following construct doesn't work:
+! acc serial
+! ...
+! acc end serial
+!Using the serial construct results in only one processor receiving 
+!from the buffer.
+!Instead, use the following construct for now.
+
+          !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
           !$acc copy(nBufferR_P, BufferR_I, nVar)
+          !acc copy(nBufferR_P, nVar)
           call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
                UseTime, TimeOld_B, Time_B)
-          !$acc end serial
+          !$acc end parallel
 
           call timing_stop('buffer_to_state')
 
@@ -717,6 +724,7 @@ contains
 
       ! Copy buffer into recv block of State_VGB
       use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
+      use BATL_test, ONLY: iTest, jTest, kTest, iBlockTest, iVarTest
 
       integer, intent(in)::nBufferR_P(0:)
       real,    intent(in)::BufferR_I(:)
@@ -730,7 +738,7 @@ contains
       real,    optional, intent(in)::TimeOld_B(MaxBlock)
       real,    optional, intent(in)::Time_B(MaxBlock)
 
-      integer:: iBufferR, i, j, k
+      integer:: iBufferR, iVarR , i, j, k
       real :: TimeSend, WeightOld, WeightNew
 
       integer:: iProcSend
@@ -742,6 +750,7 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
+!      write(*,*)'!!!buffer_to_state starting on iProc= ',iProc
       jRMin = 1; jRMax = 1
       kRMin = 1; kRMax = 1
 
@@ -793,13 +802,31 @@ contains
                   endif
                   iBufferR = iBufferR + nVar
                end do; end do; end do
-            else
 #endif
+            else
+!               write(*,*)'!!!before recving, iProc, iBlockRecv= ',iProc, iBlockRecv
+!               write(*,*)'!!!kRMin,kRmax,jRMin,jRMax,iRMin,iRMax= ',&
+!                    kRMin,kRmax,jRMin,jRMax,iRMin,iRMax
+
+               !$acc loop seq collapse(3)
                do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-                  State_VGB(:,i,j,k,iBlockRecv) = &
-                       BufferR_I(iBufferR+1:iBufferR+nVar)
+                  !$acc loop seq
+                  do iVarR = 1, nVar
+                     State_VGB(iVarR,i,j,k,iBlockRecv) = &
+                          BufferR_I(iBufferR+iVarR)
+                  enddo
+
+!                  if (i==iTest+1 .and. j==jTest .and. k==kTest .and. &
+!                       iProc == iProcTest .and. iBlockRecv == iBlockTest)then
+!                     write(*,*)'!!!Recving i,j,k,iBlockR,BufferR,State_V= ',&
+!                     i,j,k,iBlockRecv,BufferR_I(iBufferR+iVarTest),&
+!                     State_VGB(iVarTest,i,j,k,iBlockRecv)
+!                     write(*,*)'!!!nVar, iBufferR= ', nVar, iBufferR
+!                  endif
+
                   iBufferR = iBufferR + nVar
                end do; end do; end do
+
 !!!#ifndef _OPENACC
             end if
 !!!#endif
@@ -1701,11 +1728,11 @@ contains
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
-      integer :: iBufferS, i, j, k, nSize, nWithin
+      integer :: iBufferS, iVarS, i, j, k, nSize, nWithin
       real    :: WeightOld, WeightNew
 
-      integer :: iSend,jSend,kSend
-      integer :: iBlockRecv,iProcRecv, iNodeRecv
+      integer :: iSend, jSend, kSend
+      integer :: iBlockRecv, iProcRecv, iNodeRecv
       ! Index range for recv and send segments of the blocks
       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
       integer :: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
@@ -1826,7 +1853,6 @@ contains
 !!! #endif
          else
 #ifdef _OPENACC
-!            write(*,*)'ready to set ghost cell...'
             !$acc loop vector collapse(3)
             do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
                iR = iRMin + DiR*(iS-iSMin)
@@ -1834,11 +1860,11 @@ contains
                kR = kRMin + DkR*(kS-kSMin)
                State_VGB(:,iR,jR,kR,iBlockRecv) = &
                     State_VGB(:,iS,jS,kS,iBlockSend)
-               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
-                    iBlockRecv == iBlockTest .and. iProc == iProcTest)then
-                  write(*,*)'!!! setting ghost cell to', &
-                       State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
-               end if
+!               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
+!               if(iBlockRecv == iBlockTest .and. iProc == iProcTest)then
+!                  write(*,*)'!!!iR, jR, kR, State_V=',&
+!                       iR, jR, kR, State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
+!               end if
             end do; end do; end do
 #else
             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
@@ -1847,7 +1873,7 @@ contains
 #endif
          end if
       else
-!!! #ifndef _OPENACC !!!
+!         write(*,*)'!!!before sending, iProc, iBlockRecv= ',iProc, iBlockRecv
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
@@ -1867,13 +1893,32 @@ contains
             BufferS_I(iBufferS) = Time_B(iBlockSend)
          end if
 #endif
+         !$acc loop seq collapse(3)
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
-            BufferS_I(iBufferS+1:iBufferS+nVar) = State_VGB(:,i,j,k,iBlockSend)
+            !$acc loop seq
+            do iVarS = 1, nVar
+               BufferS_I(iBufferS+iVarS) = State_VGB(iVarS,i,j,k,iBlockSend)
+            end do
+
+!hard coded statements for the sending cell
+!            if (i==1 .and. j==6 .and. k==6 .and. &
+!                 iBlockSend == 1 .and. iProc /= iProcTest)then
+!               write(*,*)'!!!Sending i,j,k,iBlockS,BufferS,State_V= ',&
+!                    i,j,k,iBlockSend,BufferS_I(iBufferS+iVarTest),&
+!                    State_VGB(iVarTest,i,j,k,iBlockSend)
+!               write(*,*)'!!!nVar, iBufferS= ', nVar, iBufferS
+!            endif
             iBufferS = iBufferS + nVar
+!               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
+!               if(iBlockRecv == iBlockTest .and. iProc == iProcTest)then
+!                  write(*,*)'!!!iR, jR, kR, State_V=',&
+!                       iR, jR, kR, State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
+!               end if
+
          end do; end do; end do
 
          iBufferS_P(iProcRecv) = iBufferS
-!!! #endif
+
       end if
 
 !      if (iBlockRecv == iBlockTest .and. iProc == iProcTest) &
