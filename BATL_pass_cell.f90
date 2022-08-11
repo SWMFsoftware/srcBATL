@@ -390,7 +390,7 @@ contains
           if(UseOpenACC) then
              !$acc update device(iSendStage, DoCountOnly)
              !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-             !acc update device(BufferR_I, BufferS_I)
+             ! acc update device(BufferR_I, BufferS_I)
 
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
@@ -487,7 +487,7 @@ contains
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
                 !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-                !acc update device(BufferR_I, BufferS_I)
+                ! acc update device(BufferR_I, BufferS_I)
 
                 ! Loop through all blocks that may send a message
                 !$acc serial loop gang present(State_VGB)
@@ -542,7 +542,7 @@ contains
              !$acc end host_data
              iBufferR = iBufferR + nBufferR_P(iProcSend)
           end do
-          
+
           call timing_start('local_mp_pass')
 
           ! Local message passing
@@ -576,17 +576,17 @@ contains
 
           call timing_start('buffer_to_state')
 
-!!!To call buffer_to_state on a GPU, the following construct doesn't work:
+!!! To call buffer_to_state on a GPU, the following construct doesn't work:
 ! acc serial
 ! ...
 ! acc end serial
-!Using the serial construct results in only one processor receiving 
-!from the buffer.
-!Instead, use the following construct for now.
+! Using the serial construct results in only one processor receiving
+! from the buffer.
+! Instead, use the following construct for now.
 
           !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
           !$acc copy(nBufferR_P, BufferR_I, nVar)
-          !acc copy(nBufferR_P, nVar)
+          ! acc copy(nBufferR_P, nVar)
           call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
                UseTime, TimeOld_B, Time_B)
           !$acc end parallel
@@ -750,7 +750,7 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
-!      write(*,*)'!!!buffer_to_state starting on iProc= ',iProc
+!      write(*,*)'!!! buffer_to_state starting on iProc= ',iProc
       jRMin = 1; jRMax = 1
       kRMin = 1; kRMax = 1
 
@@ -804,8 +804,8 @@ contains
                end do; end do; end do
 #endif
             else
-!               write(*,*)'!!!before recving, iProc, iBlockRecv= ',iProc, iBlockRecv
-!               write(*,*)'!!!kRMin,kRmax,jRMin,jRMax,iRMin,iRMax= ',&
+!               write(*,*)'!!! before recving, iProc, iBlockRecv= ',iProc, iBlockRecv
+!               write(*,*)'!!! kRMin,kRmax,jRMin,jRMax,iRMin,iRMax= ',&
 !                    kRMin,kRmax,jRMin,jRMax,iRMin,iRMax
 
                !$acc loop seq collapse(3)
@@ -818,10 +818,10 @@ contains
 
 !                  if (i==iTest+1 .and. j==jTest .and. k==kTest .and. &
 !                       iProc == iProcTest .and. iBlockRecv == iBlockTest)then
-!                     write(*,*)'!!!Recving i,j,k,iBlockR,BufferR,State_V= ',&
+!                     write(*,*)'!!! Recving i,j,k,iBlockR,BufferR,State_V= ',&
 !                     i,j,k,iBlockRecv,BufferR_I(iBufferR+iVarTest),&
 !                     State_VGB(iVarTest,i,j,k,iBlockRecv)
-!                     write(*,*)'!!!nVar, iBufferR= ', nVar, iBufferR
+!                     write(*,*)'!!! nVar, iBufferR= ', nVar, iBufferR
 !                  endif
 
                   iBufferR = iBufferR + nVar
@@ -1862,7 +1862,7 @@ contains
                     State_VGB(:,iS,jS,kS,iBlockSend)
 !               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
 !               if(iBlockRecv == iBlockTest .and. iProc == iProcTest)then
-!                  write(*,*)'!!!iR, jR, kR, State_V=',&
+!                  write(*,*)'!!! iR, jR, kR, State_V=',&
 !                       iR, jR, kR, State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
 !               end if
             end do; end do; end do
@@ -1873,7 +1873,7 @@ contains
 #endif
          end if
       else
-!         write(*,*)'!!!before sending, iProc, iBlockRecv= ',iProc, iBlockRecv
+!         write(*,*)'!!! before sending, iProc, iBlockRecv= ',iProc, iBlockRecv
          ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
@@ -1900,18 +1900,18 @@ contains
                BufferS_I(iBufferS+iVarS) = State_VGB(iVarS,i,j,k,iBlockSend)
             end do
 
-!hard coded statements for the sending cell
+! hard coded statements for the sending cell
 !            if (i==1 .and. j==6 .and. k==6 .and. &
 !                 iBlockSend == 1 .and. iProc /= iProcTest)then
-!               write(*,*)'!!!Sending i,j,k,iBlockS,BufferS,State_V= ',&
+!               write(*,*)'!!! Sending i,j,k,iBlockS,BufferS,State_V= ',&
 !                    i,j,k,iBlockSend,BufferS_I(iBufferS+iVarTest),&
 !                    State_VGB(iVarTest,i,j,k,iBlockSend)
-!               write(*,*)'!!!nVar, iBufferS= ', nVar, iBufferS
+!               write(*,*)'!!! nVar, iBufferS= ', nVar, iBufferS
 !            endif
             iBufferS = iBufferS + nVar
 !               if (iR==iTest-1 .and. jR==jTest .and. kR==kTest .and. &
 !               if(iBlockRecv == iBlockTest .and. iProc == iProcTest)then
-!                  write(*,*)'!!!iR, jR, kR, State_V=',&
+!                  write(*,*)'!!! iR, jR, kR, State_V=',&
 !                       iR, jR, kR, State_VGB(iVarTest,iR,jR,kR,iBlockRecv)
 !               end if
 
