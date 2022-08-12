@@ -804,8 +804,9 @@ contains
                end do; end do; end do
 #endif
             else
-!               write(*,*)'!!! before recving, iProc, iBlockRecv= ',iProc, iBlockRecv
-!               write(*,*)'!!! kRMin,kRmax,jRMin,jRMax,iRMin,iRMax= ',&
+!               write(*,*)'!!!before recving, iProc, iBlockRecv= ', &
+!                    iProc, iBlockRecv
+!               write(*,*)'!!!kRMin,kRmax,jRMin,jRMax,iRMin,iRMax= ',&
 !                    kRMin,kRmax,jRMin,jRMax,iRMin,iRMax
 
                !$acc loop seq collapse(3)
