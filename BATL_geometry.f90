@@ -98,7 +98,6 @@ module BATL_geometry
 
 contains
   !============================================================================
-
   subroutine init_geometry(TypeGeometryIn, IsPeriodicIn_D, RgenIn_I, &
        UseFDFaceFluxIn)
 
@@ -195,28 +194,23 @@ contains
 
   end subroutine init_geometry
   !============================================================================
-
   subroutine set_high_geometry(UseFDFaceFluxIn)
     logical, optional, intent(in):: UseFDFaceFluxIn
     !--------------------------------------------------------------------------
-
     if(present(UseFDFaceFluxIn)) then
        if(UseFDFaceFluxIn .and. .not. IsCartesian) UseHighFDGeometry = .true.
     endif
   end subroutine set_high_geometry
   !============================================================================
-
   subroutine clean_geometry
 
     ! Release storage
-
     !--------------------------------------------------------------------------
     nRgen = -1
     if(allocated(LogRgen_I)) deallocate(LogRgen_I)
 
   end subroutine clean_geometry
   !============================================================================
-
   subroutine xyz_to_coord(XyzIn_D, CoordOut_D)
     !$acc routine seq
 
@@ -230,7 +224,6 @@ contains
 
     character(len=*), parameter:: NameSub = 'xyz_to_coord'
     !--------------------------------------------------------------------------
-
     if(IsCartesianGrid)then
        CoordOut_D = XyzIn_D
        RETURN
@@ -426,20 +419,17 @@ contains
 
     character(len=*), parameter:: NameSub = 'gen_to_radius'
     !--------------------------------------------------------------------------
-
     ! interpolate the LogRgen_I array for the general coordinate
     r = exp(linear(LogRgen_I, 0, nRgen-1, r*(nRgen-1), DoExtrapolate=.true.))
 
   end subroutine gen_to_radius
   !============================================================================
-
   function cart_to_rot_vector(a_D)
 
     ! Rotate a vector from Cartesian to RotatedCartesian frame
 
     real, intent(in):: a_D(MaxDim)
     real:: cart_to_rot_vector(MaxDim)
-
     !--------------------------------------------------------------------------
     if(IsRotatedCartesian)then
        cart_to_rot_vector = matmul(GridRot_DD, a_D)
@@ -449,14 +439,12 @@ contains
 
   end function cart_to_rot_vector
   !============================================================================
-
   function cart_to_rot_matrix(a_DD)
 
     ! Rotate a matrix from Cartesian to RotatedCartesian frame
 
     real, intent(in):: a_DD(MaxDim,MaxDim)
     real:: cart_to_rot_matrix(MaxDim,MaxDim)
-
     !--------------------------------------------------------------------------
     if(IsRotatedCartesian)then
        cart_to_rot_matrix = matmul(GridRot_DD, &
@@ -466,14 +454,12 @@ contains
     end if
   end function cart_to_rot_matrix
   !============================================================================
-
   function rot_to_cart_vector(a_D)
 
     ! Rotate a vector from RotatedCartesian to Cartesian frame
 
     real, intent(in):: a_D(MaxDim)
     real:: rot_to_cart_vector(MaxDim)
-
     !--------------------------------------------------------------------------
     if(IsRotatedCartesian)then
        rot_to_cart_vector = matmul(a_D, GridRot_DD)
@@ -483,14 +469,12 @@ contains
 
   end function rot_to_cart_vector
   !============================================================================
-
   function rot_to_cart_matrix(a_DD)
 
     ! Rotate a matrix from RotatedCartesian to Cartesian frame
 
     real, intent(in):: a_DD(MaxDim,MaxDim)
     real:: rot_to_cart_matrix(MaxDim,MaxDim)
-
     !--------------------------------------------------------------------------
     if(IsRotatedCartesian)then
        rot_to_cart_matrix = matmul(transpose(GridRot_DD), &
@@ -500,6 +484,5 @@ contains
     end if
   end function rot_to_cart_matrix
   !============================================================================
-
 end module BATL_geometry
 !==============================================================================
