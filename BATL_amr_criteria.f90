@@ -1106,8 +1106,9 @@ contains
              if(DoTest) write(*,*) NameSub, ' refine block'
 
              CYCLE BLOCK3
-          else if(AmrCrit_IB(iVarCrit,iBlock) > CoarsenCritAll_I(iCrit))then
-
+          else if(AmrCrit_IB(iVarCrit,iBlock) > CoarsenCritAll_I(iCrit) .and. &
+               2*AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock) &
+               > ResolutionLimit_I(iCrit))then
              ! If any of the AMR criteria AmrCrit_IB(iVarCrit,iBlock)
              ! is above the coarsening limit, the block should not be coarsened
              DoCoarsen = .false.
@@ -1115,9 +1116,9 @@ contains
              if(DoTest) write(*,*) NameSub, &
                   ' do not coarsen block, CoarsenCritAll=', &
                   CoarsenCritAll_I(iCrit)
-
+             
           end if
-
+          
        end do
 
        if(DoChangeBlock .and. DoCoarsen)then
