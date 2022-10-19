@@ -1116,9 +1116,9 @@ contains
              if(DoTest) write(*,*) NameSub, &
                   ' do not coarsen block, CoarsenCritAll=', &
                   CoarsenCritAll_I(iCrit)
-             
+
           end if
-          
+
        end do
 
        if(DoChangeBlock .and. DoCoarsen)then
