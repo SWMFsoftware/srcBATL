@@ -1048,7 +1048,7 @@ contains
     logical:: DoChangeBlock
     real:: BlockRes ! resolution or level of the block
     real:: ResLimit ! max resolution/level
-    
+
     logical, parameter:: DoTest = .false.
 
     character(len=*), parameter:: NameSub = 'apply_unsorted_criteria'
