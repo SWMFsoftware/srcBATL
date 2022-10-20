@@ -206,9 +206,9 @@ contains
     endif
 
     if (allocated(iResolutionLimit_I)) deallocate(iResolutionLimit_I)
-    if (allocated(iAreaIdx_II)) deallocate(iAreaIdx_II)
-    if (allocated(nAreaPerCritAll_I)) deallocate(nAreaPerCritAll_I)
-    if (allocated(ResolutionLimit_I)) deallocate(ResolutionLimit_I)
+    if (allocated(iAreaIdx_II))        deallocate(iAreaIdx_II)
+    if (allocated(nAreaPerCritAll_I))  deallocate(nAreaPerCritAll_I)
+    if (allocated(ResolutionLimit_I))  deallocate(ResolutionLimit_I)
 
     allocate(RefineCritAll_I(nCrit),&
          CoarsenCritAll_I(nCrit),&
@@ -229,9 +229,9 @@ contains
        nAreaPerCritAll_I(1:nPhysCritUsed) = nAreaPerCritPhys_I
 
        ! fixing indexing as "physics" criteria comes first
-       do iCrit=1,nPhysCritUsed
+       do iCrit = 1, nPhysCritUsed
           iResolutionLimit_I(iCrit) = &
-               max(0,maxval(iVarCritAll_I(1:nPhysCritUsed-nCritDxLevel))) + &
+               max(0, maxval(iVarCritAll_I(1:nPhysCritUsed-nCritDxLevel))) + &
                MaxGeoCritPhys_I(iCrit)
        end do
     end if
@@ -781,7 +781,7 @@ contains
           iIdxSort_II(iSort,1) = iNode_I(k)
           CritSort_II(iSort,1) = &
                AllCrit_II(iResolutionLimit_I(iStartCrit), &
-               iBlock+nRecivDisp_P(jProc))
+               iBlock + nRecivDisp_P(jProc))
        end do
     end do
     nNodeSort = iSort
@@ -1044,9 +1044,9 @@ contains
          Unused_B, iNode_B, iNode_B
 
     integer:: iBlock, iCrit, iVarCrit
-    ! number of blocks set out for refining and coarsning
-    logical :: DoCoarsen
+    logical:: DoCoarsen
     logical:: DoChangeBlock
+    real:: BlockRes ! resolution or level of the block
 
     logical, parameter:: DoTest = .false.
 
@@ -1083,21 +1083,22 @@ contains
           ! For geometric refinement it can also be grid level or dx.
           iVarCrit = iVarCritAll_I(iCrit)
 
+          ! Current resolution or level of the block
+          BlockRes = AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock)
+
           if(DoTest) write(*,*) NameSub, &
                ' iVarCrit, AmrCrit_IB, RefineCrit, BlockRes, ResLimit=', &
                iVarCrit, AmrCrit_IB(iVarCrit,iBlock), &
-               AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock), &
+               BlockRes, &
                ResolutionLimit_I(iCrit)
 
           if(AmrCrit_IB(iVarCrit,iBlock) > RefineCritAll_I(iCrit) .and. &
-               AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock) &
-               > ResolutionLimit_I(iCrit))then
+               BlockRes > ResolutionLimit_I(iCrit))then
 
              ! Block should be refined because the AMR criteria value
              ! AmrCrit_IB(iVarCrit,iBlock) exceeds the level set for
              ! refinement in RefineCritAll_I, and the block has a resolution
-             ! AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock)
-             ! that is larger than the limit ResolutionLimit_I(iCrit).
+             ! BlockRes that is larger than the limit ResolutionLimit_I(iCrit).
              ! Note that grid level is stored with a negative sign
              ! so this comparison works for both cell size and level.
 
@@ -1107,16 +1108,23 @@ contains
 
              CYCLE BLOCK3
           else if(AmrCrit_IB(iVarCrit,iBlock) > CoarsenCritAll_I(iCrit) .and. &
-               2*AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock) &
-               > ResolutionLimit_I(iCrit))then
+               (BlockRes < 0 .or. 2*BlockRes > ResolutionLimit_I(iCrit)) )then
              ! If any of the AMR criteria AmrCrit_IB(iVarCrit,iBlock)
-             ! is above the coarsening limit, the block should not be coarsened
+             ! is above the coarsening limit, and the block would become
+             ! coarser than required (for physics based criteria)
+             ! the block should not be coarsened
              DoCoarsen = .false.
 
-             if(DoTest) write(*,*) NameSub, &
-                  ' do not coarsen block, CoarsenCritAll=', &
-                  CoarsenCritAll_I(iCrit)
-
+             if(DoTest)then
+                write(*,*) NameSub, ' do not coarsen block, CoarsenCritAll=',&
+                     CoarsenCritAll_I(iCrit)
+                write(*,*) NameSub, ' iCrit, iResolutionLimit_I   =', &
+                     iCrit, iResolutionLimit_I(iCrit)
+                write(*,*)NameSub, ' AmrCrit(iVar), CoarsenCritAll=', &
+                     AmrCrit_IB(iVarCrit,iBlock), CoarsenCritAll_I(iCrit)
+                write(*,*)NameSub, ' AmrCrit(iRes), ResolutionLimit=', &
+                     BlockRes, ResolutionLimit_I(iCrit)
+             end if
           end if
 
        end do
