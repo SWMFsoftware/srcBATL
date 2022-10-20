@@ -1047,7 +1047,8 @@ contains
     logical:: DoCoarsen
     logical:: DoChangeBlock
     real:: BlockRes ! resolution or level of the block
-
+    real:: ResLimit ! max resolution/level
+    
     logical, parameter:: DoTest = .false.
 
     character(len=*), parameter:: NameSub = 'apply_unsorted_criteria'
@@ -1085,20 +1086,19 @@ contains
 
           ! Current resolution or level of the block
           BlockRes = AmrCrit_IB(iResolutionLimit_I(iCrit),iBlock)
+          ResLimit = ResolutionLimit_I(iCrit)
 
           if(DoTest) write(*,*) NameSub, &
                ' iVarCrit, AmrCrit_IB, RefineCrit, BlockRes, ResLimit=', &
-               iVarCrit, AmrCrit_IB(iVarCrit,iBlock), &
-               BlockRes, &
-               ResolutionLimit_I(iCrit)
+               iVarCrit, AmrCrit_IB(iVarCrit,iBlock), BlockRes, ResLimit
 
           if(AmrCrit_IB(iVarCrit,iBlock) > RefineCritAll_I(iCrit) .and. &
-               BlockRes > ResolutionLimit_I(iCrit))then
+               BlockRes > ResLimit)then
 
              ! Block should be refined because the AMR criteria value
              ! AmrCrit_IB(iVarCrit,iBlock) exceeds the level set for
              ! refinement in RefineCritAll_I, and the block has a resolution
-             ! BlockRes that is larger than the limit ResolutionLimit_I(iCrit).
+             ! BlockRes that is larger than the limit ResLimit.
              ! Note that grid level is stored with a negative sign
              ! so this comparison works for both cell size and level.
 
@@ -1108,7 +1108,8 @@ contains
 
              CYCLE BLOCK3
           else if(AmrCrit_IB(iVarCrit,iBlock) > CoarsenCritAll_I(iCrit) .and. &
-               (BlockRes < 0 .or. 2*BlockRes > ResolutionLimit_I(iCrit)) )then
+               (BlockRes < 0 .and. BlockRes+1 > ResLimit &
+               .or. BlockRes > 0 .and. 2*BlockRes > ResLimit) )then
              ! If any of the AMR criteria AmrCrit_IB(iVarCrit,iBlock)
              ! is above the coarsening limit, and the block would become
              ! coarser than required (for physics based criteria)
@@ -1122,8 +1123,8 @@ contains
                      iCrit, iResolutionLimit_I(iCrit)
                 write(*,*)NameSub, ' AmrCrit(iVar), CoarsenCritAll=', &
                      AmrCrit_IB(iVarCrit,iBlock), CoarsenCritAll_I(iCrit)
-                write(*,*)NameSub, ' AmrCrit(iRes), ResolutionLimit=', &
-                     BlockRes, ResolutionLimit_I(iCrit)
+                write(*,*)NameSub, ' BlockRes, ResolutionLimit=', &
+                     BlockRes, ResLimit
              end if
           end if
 
