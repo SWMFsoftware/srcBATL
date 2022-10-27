@@ -1081,7 +1081,7 @@ contains
     write(*,'(a,3es13.5,a,es13.5)') &
          ' CellSize_D=', CellSize_DB(:,iBlock),&
          ' CellVolume=', CellVolume_GB(i,j,k,iBlock)
-    if(.not.IsCartesian) write(*,'(a,3f12.5)') &
+    if(.not.IsCartesian) write(*,'(a,3es13.5)') &
          ' CellFace_D=',CellFace_DFB(:,i,j,k,iBlock)
     do iDim = 1, nDim
        do iSide = -1, 1, 2
