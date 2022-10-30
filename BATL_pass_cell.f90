@@ -499,7 +499,7 @@ contains
              end if
 
              !$acc update device(iBufferS_P)
-             !acc update device(nBufferS_P, nBufferR_P)
+             ! acc update device(nBufferS_P, nBufferR_P)
 
              if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
@@ -1986,7 +1986,7 @@ contains
       ! No need to count data for local copy
       if(DoCountOnly .and. iProc == iProcRecv) RETURN
 
-      if (.not. nProc == 1) then !!!TEMPORARY
+      if (.not. nProc == 1) then !!! TEMPORARY
          if(DoCountOnly .and. (&
               (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
               (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
@@ -2134,7 +2134,7 @@ contains
                   end do
                end do
             end do
-         else !usetime
+         else ! usetime
             ! No time interpolation/extrapolation is needed
             if(UseHighResChange) then
 #ifndef _OPENACC
@@ -2337,9 +2337,9 @@ contains
       iGang = iBlockSend
 #endif
       ! Loop through the subfaces or subedges
-      !this doesn't work: acc loop seq collapse(3)
+      ! this doesn't work: acc loop seq collapse(3)
       !$acc loop seq collapse(3) private(KSend, kRecv, jSend, jRecv, kSend, kRecv)
-      do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio; & 
+      do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio; &
            do jSide = (1-jDir)/2, 1-(1+jDir)/2, 3-jRatio; &
            do iSide = (1-iDir)/2, 1-(1+iDir)/2, 3-iRatio
 
@@ -2490,7 +2490,7 @@ contains
             if(kDir /= 0) kRatioRestr = 1
          end if
 
-         if (nProc == 1) then !!!old version, but is not ever called.
+         if (nProc == 1) then !!! old version, but is not ever called.
             !$acc loop vector collapse(3) private(kS, jS, iS, kS1, jS1, iS1)
             do kR = kRMin, kRMax, DkR
                do jR = jRMin, jRMax, DjR
@@ -2575,7 +2575,7 @@ contains
                   end do
                end do
             end do
-         else !!!amr + nproc=1 to be debugged
+         else !!! amr + nproc=1 to be debugged
 
             if(nProlongOrder == 2)then
                Slope_VGI(:,:,:,:,iGang)= 0.0
@@ -2914,7 +2914,7 @@ contains
                iBufferS_P(iProcRecv) = iBufferS
             end if
 
-         end if !!!if nproc == 1
+         end if !!! if nproc == 1
       end do; end do; end do
     end subroutine do_prolong
     !==========================================================================
