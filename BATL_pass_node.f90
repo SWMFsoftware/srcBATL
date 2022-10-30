@@ -234,7 +234,6 @@ contains
                    elseif(DiLevel == 1)then
                       call do_restrict
                    elseif(DiLevel == -1)then
-                      ! write (*,*)"do_prolong...."
                       call do_prolong
                    endif
                 end do ! iDir
