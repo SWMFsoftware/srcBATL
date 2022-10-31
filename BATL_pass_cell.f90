@@ -623,7 +623,7 @@ contains
     !$omp parallel
     if(allocated(Slope_VGI)) deallocate(Slope_VGI)
     !$omp end parallel
-    
+
     call test_stop(NameSub, Dotest)
     call timing_stop('batl_pass')
   contains
