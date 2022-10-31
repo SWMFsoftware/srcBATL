@@ -319,11 +319,11 @@ contains
     ! allocate slope_vgi for do_prolong
     !$omp parallel
 #ifndef _OPENACC
-    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,&
-         1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_,1))
+    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,1-nWidth*jDim_:nJ+nWidth*jDim_,&
+         1-nWidth*kDim_:nK+nWidth*kDim_,1))
 #else
-    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,&
-         1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_,MaxBlock))
+    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,1-nWidth*jDim_:nJ+nWidth*jDim_,&
+         1-nWidth*kDim_:nK+nWidth*kDim_,MaxBlock))
 #endif
     Slope_VGI = 0.0
     !$omp end parallel
@@ -1252,22 +1252,26 @@ contains
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
                 if(nProc==1)then
-                   call do_restrict_orig(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                   call do_restrict_orig( &
+                        iDir, jDir, kDir, iNodeSend, iBlockSend, &
                         nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                         Time_B, TimeOld_B)
                 else
-                   call do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                   call do_restrict( &
+                        iDir, jDir, kDir, iNodeSend, iBlockSend, &
                         nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                         Time_B, TimeOld_B)
                 end if
              elseif(DiLevel == -1)then
                 ! Send prolonged data to finer neighbor
                 if(nProc==1) then
-                   call do_prolong_orig(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                   call do_prolong_orig( &
+                        iDir, jDir, kDir, iNodeSend, iBlockSend, &
                         nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                         Time_B, TimeOld_B)
                 else
-                   call do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                   call do_prolong( &
+                        iDir, jDir, kDir, iNodeSend, iBlockSend, &
                         nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                         Time_B, TimeOld_B)
                 endif
@@ -1986,11 +1990,11 @@ contains
       ! No need to count data for local copy
       if(DoCountOnly .and. iProc == iProcRecv) RETURN
 
-      if (.not. nProc == 1) then !!! TEMPORARY
+      if (nProc > 1) then !!! TEMPORARY
          if(DoCountOnly .and. (&
               (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
-              (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
-              then
+              (UseHighResChange .and. &
+              (iSendStage == 1 .or. iSendStage == 4)))) then
             ! This part iS unused when nProc == 1
             !#ifndef _OPENACC
 
@@ -2338,7 +2342,8 @@ contains
 #endif
       ! Loop through the subfaces or subedges
       ! this doesn't work: acc loop seq collapse(3)
-      !$acc loop seq collapse(3) private(KSend, kRecv, jSend, jRecv, kSend, kRecv)
+      !$acc loop seq collapse(3) &
+      !$acc      private(KSend, kRecv, jSend, jRecv, kSend, kRecv)
       do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio; &
            do jSide = (1-jDir)/2, 1-(1+jDir)/2, 3-jRatio; &
            do iSide = (1-iDir)/2, 1-(1+iDir)/2, 3-iRatio
@@ -2918,7 +2923,8 @@ contains
       end do; end do; end do
     end subroutine do_prolong
     !==========================================================================
-    subroutine do_restrict_orig(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
+    subroutine do_restrict_orig( &
+         iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
       use BATL_mpi, ONLY: iProc
@@ -3296,7 +3302,8 @@ contains
 
     end subroutine do_restrict_orig
     !==========================================================================
-    subroutine do_prolong_orig(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
+    subroutine do_prolong_orig( &
+         iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
       use BATL_size,     ONLY: nDimAmr
