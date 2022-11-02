@@ -501,8 +501,8 @@ contains
 
              !$acc update device(iBufferS_P)
              ! acc update device(nBufferS_P, nBufferR_P)
-             
-             !!!use new code only when nproc>1 on GPUs
+
+             !!! use new code only when nproc>1 on GPUs
              if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
@@ -510,7 +510,7 @@ contains
                 !$acc update device(nBufferR_P, nBufferS_P)
 
                 ! Loop through all blocks that may send a message
-                !acc serial loop gang present(State_VGB)
+                ! acc serial loop gang present(State_VGB)
                 !$acc parallel present(State_VGB)
                 !$acc loop seq
                 do iBlockSend = 1, nBlock
@@ -2880,7 +2880,7 @@ contains
                   end do ! kR
 #endif
                else ! not using high res change
-                  !loop is serial backward for dependency on iBufferS
+                  ! loop is serial backward for dependency on iBufferS
                   !$acc loop seq collapse(3) private(iS, jS, kS)
                   do kR = kRMin, kRMax, DkR
                      do jR=jRMin, jRMax, DjR
