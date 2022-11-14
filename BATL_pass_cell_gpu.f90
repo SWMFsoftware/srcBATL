@@ -2382,8 +2382,6 @@ contains
                  + 1 + 2*nDim
             if(present(Time_B)) nSize = nSize + 1
             nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
-            !            write(*,*)'!!!do_prolong, iProcRecv, iBlockSend, nBufferR= ',&
-            !                 iProcRecv,iBlockSend, nBufferR_P(iProcRecv)
          end if
 
          ! For 2nd order prolongation no prolongation iS done in stage 1
@@ -2407,8 +2405,6 @@ contains
                  + 1 + 2*nDim
             if(present(Time_B)) nSize = nSize + 1
             nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
-            !            write(*,*)'!!!do_prolong, iProcRecv, iBlockSend, nBufferS= ',&
-            !                 iProcRecv,iBlockSend, nBufferS_P(iProcRecv)
             CYCLE
          end if
 
@@ -2481,8 +2477,9 @@ contains
          end if
 
          !!! timing !!!
+         Slope_VGI(:,:,:,:,iGang)= 0.0
+
          if(nProlongOrder == 2)then
-            Slope_VGI(:,:,:,:,iGang)= 0.0
             ! Add up 2nd order corrections for all AMR dimensions
             ! Use simple interpolation, should be OK for ghost cells
             if(.not.UseSimpleWeights .and. iProcRecv /= iProc)then
@@ -2648,7 +2645,8 @@ contains
 
                         State_VGB(:,iR,jR,kR,iBlockRecv) = &
                              WeightOld*State_VGB(:,iR,jR,kR,iBlockRecv)+&
-                             WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend))
+                             WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend)&
+                             + Slope_VGI(:,iR,jR,kR,iGang))
                      end do
                   end do
                end do
