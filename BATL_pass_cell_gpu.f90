@@ -103,7 +103,7 @@ module BATL_pass_cell
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
   !$acc declare create(nBufferR_P, nBufferS_P, iBufferS_P)
-  !reduction
+  ! reduction
 
   integer :: iBufferS, iBufferR
   integer :: MaxBufferS=-1, MaxBufferR=-1
@@ -339,9 +339,9 @@ contains
 
        !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
        ! Set index ranges based on arguments
-       !acc serial
+       ! acc serial
        call set_range
-       !acc end serial
+       ! acc end serial
        !$acc end parallel
     else
        call set_range
@@ -503,7 +503,7 @@ contains
              !$acc update device(iBufferS_P)
              ! acc update device(nBufferS_P, nBufferR_P)
 
-!!!use new code only when nproc>1 on GPUs
+!!! use new code only when nproc>1 on GPUs
              if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
@@ -2782,7 +2782,7 @@ contains
                end do ! kR
 #endif
             else ! not using high res change
-               !loop is serial backward for dependency on iBufferS
+               ! loop is serial backward for dependency on iBufferS
                !$acc loop seq collapse(3) !private(iS, jS, kS)
                do kR = kRMin, kRMax, DkR
                   do jR=jRMin, jRMax, DjR
