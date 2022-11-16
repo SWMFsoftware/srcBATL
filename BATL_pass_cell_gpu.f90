@@ -318,7 +318,6 @@ contains
     UseTime = .false.
 
     ! allocate slope_vgi for do_prolong
-!!! only allocate if norderprolong == 2
     !$omp parallel
 #ifndef _OPENACC
     allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,1-nWidth*jDim_:nJ+nWidth*jDim_,&
@@ -501,9 +500,7 @@ contains
              end if
 
              !$acc update device(iBufferS_P)
-             ! acc update device(nBufferS_P, nBufferR_P)
 
-!!! use new code only when nproc>1 on GPUs
              if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
@@ -512,7 +509,7 @@ contains
                 !$acc update device(UseHighResChange, nProlongOrder)
                 !$acc update device(iSendStage)
                 ! Loop through all blocks that may send a message
-!!! this loop cannot be parallelized
+                !!! this loop cannot be parallelized
                 !$acc parallel present(State_VGB)
                 !$acc loop seq
                 do iBlockSend = 1, nBlock
@@ -571,7 +568,6 @@ contains
 
           !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
           !$acc copy(iLevelMin, iLevelMax)
-!!! acc loop gang
           !$acc loop seq
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
@@ -596,7 +592,7 @@ contains
 
           call timing_start('buffer_to_state')
 
-!!! To call buffer_to_state on a GPU, the following construct doesn't work:
+          !!! To call buffer_to_state on a GPU, the following construct doesn't work:
           ! acc serial
           ! ...
           ! acc end serial
@@ -796,7 +792,6 @@ contains
             if(nDim > 2) DkR   = sign(1, kRmax - kRMin)
 
             iBufferR = iBufferR + 1 + 2*nDim
-!!!#ifndef _OPENACC
             if(present(Time_B))then
                ! Get time of neighbor and interpolate/extrapolate ghost cells
                iBufferR = iBufferR + 1
@@ -837,10 +832,8 @@ contains
 
                   iBufferR = iBufferR + nVar
                end do; end do; end do
-
-!!!#ifndef _OPENACC
             end if
-!!!#endif
+
             if(iBufferR >= sum(nBufferR_P(0:iProcSend))) EXIT
          end do
       end do
@@ -1842,7 +1835,6 @@ contains
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
 
          if(UseTime)then
-!!! #ifndef _OPENACC
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -1852,7 +1844,6 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-!!! #endif
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(3) private(iR,jR,kR)
@@ -2476,9 +2467,7 @@ contains
             if(kDir /= 0) kRatioRestr = 1
          end if
 
-         !!! timing !!!
          Slope_VGI(:,:,:,:,iGang)= 0.0
-
          if(nProlongOrder == 2)then
             ! Add up 2nd order corrections for all AMR dimensions
             ! Use simple interpolation, should be OK for ghost cells
