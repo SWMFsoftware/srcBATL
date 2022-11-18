@@ -592,7 +592,8 @@ contains
 
           call timing_start('buffer_to_state')
 
-          !!! To call buffer_to_state on a GPU, the following construct doesn't work:
+          ! To call buffer_to_state on a GPU, !!!
+          ! the following construct doesn't work:
           ! acc serial
           ! ...
           ! acc end serial
