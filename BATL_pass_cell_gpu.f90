@@ -564,11 +564,8 @@ contains
           ! Local message passing
           !$omp parallel do
 
-          !$acc update device(nBufferS_P, nBufferR_P)
-
-          !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
-          !$acc copy(iLevelMin, iLevelMax)
-          !$acc loop seq
+          !$acc parallel copy(iLevelMin, iLevelMax)
+          !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
