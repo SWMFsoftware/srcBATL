@@ -14,7 +14,7 @@ module BATL_pass_cell
        prolong_high_order_face_ghost, &
        correct_face_ghost_for_fine_block, &
        limit_interpolation, restrict_high_order_amr
-  use BATL_size, ONLY: MaxDim
+  use BATL_size, ONLY: MaxDim, nGang
   use ModUtilities, ONLY: CON_stop
   use ModMpi
   use omp_lib
@@ -103,7 +103,6 @@ module BATL_pass_cell
   ! Variables related to recv and send buffers
   integer, allocatable:: iBufferS_P(:), nBufferS_P(:), nBufferR_P(:)
   !$acc declare create(nBufferR_P, nBufferS_P, iBufferS_P)
-  ! reduction
 
   integer :: iBufferS, iBufferR
   integer :: MaxBufferS=-1, MaxBufferR=-1
@@ -132,10 +131,6 @@ module BATL_pass_cell
   logical :: UseTime        ! true if time interpolation iS to be done
   !$omp threadprivate( UseTime )
   !$acc declare create(UseTime)
-
-  real, allocatable:: Slope_VGI(:,:,:,:,:)
-  !$omp threadprivate(Slope_VGI)
-  !$acc declare create(Slope_VGI)
 
 contains
   !============================================================================
@@ -317,31 +312,16 @@ contains
     ! Initialize logical for time interpolation/extrapolation
     UseTime = .false.
 
-    ! allocate slope_vgi for do_prolong
-    !$omp parallel
-#ifndef _OPENACC
-    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,1-nWidth*jDim_:nJ+nWidth*jDim_,&
-         1-nWidth*kDim_:nK+nWidth*kDim_,1))
-#else
-    allocate(Slope_VGI(nVar,1-nWidth:nI+nWidth,1-nWidth*jDim_:nJ+nWidth*jDim_,&
-         1-nWidth*kDim_:nK+nWidth*kDim_,MaxBlock))
-#endif
-    Slope_VGI = 0.0
-    !$omp end parallel
-    !$acc update device(Slope_VGI)
-
     if(UseOpenACC) then
        !$acc update device(&
        !$acc DoSendCorner, DoResChangeOnly, MaxBlock, UseTime,&
        !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
        !$acc UseHighResChange, UseMin, UseMax)
 
-       !$acc parallel num_gangs(1) num_workers(1) vector_length(1)
+       !$acc serial
        ! Set index ranges based on arguments
-       ! acc serial
        call set_range
-       ! acc end serial
-       !$acc end parallel
+       !$acc end serial
     else
        call set_range
     endif
@@ -410,8 +390,8 @@ contains
           if(UseOpenACC) then
              !$acc update device(iSendStage, DoCountOnly)
              !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
-             !$acc update device(UseHighResChange, nProlongOrder)
-             !$acc update device(iSendStage)
+             ! acc update device(BufferR_I, BufferS_I)
+
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
              do iBlockSend = 1, nBlock
@@ -424,6 +404,7 @@ contains
                      .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                      UseOpenACCIn)
              end do ! iBlockSend
+
           else
              ! Loop through all blocks that may send a message
              !$omp parallel do
@@ -499,25 +480,28 @@ contains
                 end do
              end if
 
-             !$acc update device(iBufferS_P)
+             !$acc update device(nBufferS_P, iBufferS_P)
+             !$acc update device(nBufferR_P)
 
              if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
                 !$acc update device(iSendStage, DoCountOnly)
-                !$acc update device(iBufferS_P)
-                !$acc update device(nBufferR_P, nBufferS_P)
-                !$acc update device(UseHighResChange, nProlongOrder)
-                !$acc update device(iSendStage)
+                !$acc update device(nBufferR_P, nBufferS_P, iBufferS_P)
+                ! acc update device(BufferR_I, BufferS_I)
+
                 ! Loop through all blocks that may send a message
-                !!! this loop cannot be parallelized
-                !$acc parallel present(State_VGB)
-                !$acc loop seq
+                !$acc serial loop gang present(State_VGB)
                 do iBlockSend = 1, nBlock
                    if(Unused_B(iBlockSend)) CYCLE
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., TimeOld_B, Time_B, iLevelMin, iLevelMax)
+                   !                   if (iProc == iProcTest .and. iBlockSend == 4) &
+                   !                        write(*,*)'in serial after message_pass_block, &
+                   !                        ghost value= ', &
+                   !                        State_VGB(iVarTest,iTest-1,jTest,kTest,iBlockTest)
+
                 end do ! iBlockSend
-                !$acc end parallel
+
              else
                 do iBlockSend = 1, nBlock
                    if(Unused_B(iBlockSend)) CYCLE
@@ -564,7 +548,10 @@ contains
           ! Local message passing
           !$omp parallel do
 
-          !$acc parallel copy(iLevelMin, iLevelMax)
+          !$acc update device(nBufferS_P, nBufferR_P)
+
+          !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
+          !$acc copy(iLevelMin, iLevelMax)
           !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
@@ -589,8 +576,7 @@ contains
 
           call timing_start('buffer_to_state')
 
-          ! To call buffer_to_state on a GPU, !!!
-          ! the following construct doesn't work:
+!!! To call buffer_to_state on a GPU, the following construct doesn't work:
           ! acc serial
           ! ...
           ! acc end serial
@@ -600,6 +586,7 @@ contains
 
           !$acc parallel num_gangs(1) num_workers(1) vector_length(1) &
           !$acc copy(nBufferR_P, BufferR_I, nVar)
+          ! acc copy(nBufferR_P, nVar)
           call buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
                UseTime, TimeOld_B, Time_B)
           !$acc end parallel
@@ -619,11 +606,6 @@ contains
 
     if(UseHighResChange) &
          deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
-
-    !$omp parallel
-    if(allocated(Slope_VGI)) deallocate(Slope_VGI)
-    !$omp end parallel
-
     call test_stop(NameSub, Dotest)
     call timing_stop('batl_pass')
   contains
@@ -827,11 +809,9 @@ contains
                      State_VGB(iVarR,i,j,k,iBlockRecv) = &
                           BufferR_I(iBufferR+iVarR)
                   enddo
-
                   iBufferR = iBufferR + nVar
                end do; end do; end do
             end if
-
             if(iBufferR >= sum(nBufferR_P(0:iProcSend))) EXIT
          end do
       end do
@@ -1110,7 +1090,7 @@ contains
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
     !$acc routine vector
 
-    use BATL_mpi, ONLY: iProc, nProc
+    use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
          MaxDim, nDim, jDim_, kDim_, &
          iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
@@ -1252,21 +1232,18 @@ contains
                 endif
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
-                call do_restrict( &
-                     iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                call do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, &
                      nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                      Time_B, TimeOld_B)
              elseif(DiLevel == -1)then
                 ! Send prolonged data to finer neighbor
-                call do_prolong( &
-                     iDir, jDir, kDir, iNodeSend, iBlockSend, &
+                call do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, &
                      nVar, nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, &
                      Time_B, TimeOld_B)
              endif
           end do ! iDir
        end do ! jDir
     end do ! kDir
-
   contains
     !==========================================================================
     subroutine corrected_do_equal
@@ -1762,6 +1739,10 @@ contains
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
+      !      if(iBlockSend==iBlockTest .or. iBlockRecv==iBlockTest)then
+      !         call test_start(NameSub, DoTest)
+      !      end if
+
       ! Skip blocks with a time level outside the range
       if(UseTimeLevel .and. present(iLevelMin))then
          if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
@@ -1829,6 +1810,7 @@ contains
          if(nDim > 1) DiR = sign(1, iRMax - iRMin)
          if(nDim > 2) DjR = sign(1, jRMax - jRMin)
          if(nDim > 2) DkR = sign(1, kRMax - kRMin)
+
          if(present(Time_B)) &
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
 
@@ -1844,7 +1826,7 @@ contains
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
          else
 #ifdef _OPENACC
-            !$acc loop vector collapse(3) private(iR,jR,kR)
+            !$acc loop vector collapse(3)
             do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
                iR = iRMin + DiR*(iS-iSMin)
                jR = jRMin + DjR*(jS-jSMin)
@@ -1859,6 +1841,7 @@ contains
 #endif
          end if
       else
+         ! Put data into the send buffer
          iBufferS = iBufferS_P(iProcRecv)
 
          BufferS_I(            iBufferS+1) = iBlockRecv
@@ -1885,14 +1868,16 @@ contains
             end do
             iBufferS = iBufferS + nVar
          end do; end do; end do
+
          iBufferS_P(iProcRecv) = iBufferS
+
       end if
     end subroutine do_equal
     !==========================================================================
     subroutine do_restrict(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
       !$acc routine vector
-      use BATL_mpi, ONLY: iProc, nProc
+      use BATL_mpi, ONLY: iProc
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
 
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
@@ -1975,9 +1960,11 @@ contains
 
       if(DoCountOnly .and. (&
            (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
-           (UseHighResChange .and. &
-           (iSendStage == 1 .or. iSendStage == 4)))) then
+           (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
+           then
          ! This part iS unused when nProc == 1
+#ifndef _OPENACC
+
          ! For high resolution change, finer block only receives data
          ! when iSendStage = 1.
 
@@ -1996,9 +1983,10 @@ contains
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
+#endif
       end if
 
-      ! If this is the pure prolongation stage, all we did was counting
+      ! If this iS the pure prolongation stage, all we did was counting
       if(iSendStage == 2 .and. .not. UseHighResChange) RETURN
 
       ! For high resolution change, the finer block receives data from
@@ -2022,13 +2010,16 @@ contains
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
       if(DoCountOnly)then
-         ! This part is unused when nProc == 1
+         ! This part iS unused when nProc == 1
+#ifndef _OPENACC
+
          ! Number of reals to send to the other processor
          nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
               + 1 + 2*nDim
          if(present(Time_B)) nSize = nSize + 1
          nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
          RETURN
+#endif
       end if
 
       if(IsAxisNode)then
@@ -2075,7 +2066,7 @@ contains
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
             WeightNew = 1 - WeightOld
 
-            !$acc loop vector collapse(3) private(iS1,iS2,jS1,jS2,kS1,kS2)
+            !$acc loop vector collapse(3)
             do kR = kRMin, kRMax, DkR
                do jR = jRMin, jRMax, DjR
                   do iR = iRMin, iRMax, DiR
@@ -2111,8 +2102,8 @@ contains
                   end do
                end do
             end do
-         else ! usetime
-            ! No time interpolation/extrapolation is needed
+         else
+            ! No time interpolation/extrapolation iS needed
             if(UseHighResChange) then
 #ifndef _OPENACC
                if(.not.IsAccurate_B(iBlockSend)) &
@@ -2138,7 +2129,7 @@ contains
                enddo
 #endif
             else
-               !$acc loop vector collapse(3) private(iS1,iS2,jS1,jS2,kS1,kS2)
+               !$acc loop vector collapse(3)
                do kR = kRMin, kRMax, DkR
                   do jR = jRMin, jRMax, DjR
                      do iR = iRMin, iRMax, DiR
@@ -2200,7 +2191,7 @@ contains
                enddo
             enddo
          endif
-#endif
+
          iBufferS = iBufferS_P(iProcRecv)
 
          BufferS_I(            iBufferS+1) = iBlockRecv
@@ -2218,22 +2209,19 @@ contains
             BufferS_I(iBufferS) = Time_B(iBlockSend)
          end if
 
-         !$acc loop seq collapse(3) private(kS1, kS2, jS1, jS2, iS1, iS2)
          do kR = kRMin, kRMax, DkR
+            kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
+            kS2 = kS1 + kRatioRestr - 1
             do jR = jRMin, jRMax, DjR
+               jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
+               jS2 = jS1 + jRatioRestr - 1
                do iR = iRMin, iRMax, DiR
-                  kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
-                  kS2 = kS1 + kRatioRestr - 1
-                  jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
-                  jS2 = jS1 + jRatioRestr - 1
                   iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
                   iS2 = iS1 + iRatioRestr - 1
                   if(UseHighResChange) then
-#ifndef _OPENACC
                      do iVar = 1, nVar
                         BufferS_I(iBufferS+iVar) = State_VG(iVar,iR,jR,kR)
                      end do
-#endif
                   else if(UseMin) then
                      do iVar = 1, nVar
                         BufferS_I(iBufferS+iVar) = &
@@ -2259,7 +2247,9 @@ contains
             end do
          end do
          iBufferS_P(iProcRecv) = iBufferS
+#endif
       end if
+
     end subroutine do_restrict
     !==========================================================================
     subroutine do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
@@ -2286,8 +2276,20 @@ contains
       real, dimension(MaxDim):: Xyz_D, dI_D, dJ_D, dK_D, dR_D, &
            PositionMinR_D, PositionMaxR_D, CoordMinR_D, CoordMaxR_D, &
            CellSizeR_D, CoordR_D
+
+#ifndef _OPENACC
+      ! Slopes for 2nd order prolongation.
+      real :: Slope_VG(nVar,1-nWidth:nI+nWidth,&
+           1-nWidth*jDim_:nJ+nWidth*jDim_,1-nWidth*kDim_:nK+nWidth*kDim_)
+#else
+!!! Computed prolonged state to be put in send buffer
+      real :: Slope_VG(nVar)
+#endif
+      integer :: iVarS
+
       logical :: UseSimpleWeights
-      integer :: iVar, iVarS
+
+      integer :: iVar
       integer:: nWidthProlongS_D(MaxDim), iDim
       real:: CoarseCell_III(5,5,5)
       integer:: i5,j5,k5, iDir1, jDir1, kDir1
@@ -2303,518 +2305,703 @@ contains
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
+
       UseSimpleWeights = UseSimpleProlongation .or. &
            nDim == 1 .or. nDimAmr < nDim &
            .or. IsCartesianGrid .or. IsRotatedCartesian .or. IsRoundCube
+
       iGang = 1
 #ifdef _OPENACC
       iGang = iBlockSend
 #endif
-      ! Loop through the subfaces or subedges
-      ! this doesn't work: acc loop seq collapse(3)
-      !$acc loop seq collapse(3) &
-      !$acc      private(KSend, kRecv, jSend, jRecv, kSend, kRecv)
-      do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio; &
-           do jSide = (1-jDir)/2, 1-(1+jDir)/2, 3-jRatio; &
-           do iSide = (1-iDir)/2, 1-(1+iDir)/2, 3-iRatio
 
+      ! Loop through the subfaces or subedges
+      do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio
          kSend = (3*kDir + 3 + kSide)/2
          kRecv = kSend - 3*kDir
-         jSend = (3*jDir + 3 + jSide)/2
-         jRecv = jSend - 3*jDir
-         iSend = (3*iDir + 3 + iSide)/2
-         iRecv = iSend - 3*iDir
+         do jSide = (1-jDir)/2, 1-(1+jDir)/2, 3-jRatio
+            jSend = (3*jDir + 3 + jSide)/2
+            jRecv = jSend - 3*jDir
+            do iSide = (1-iDir)/2, 1-(1+iDir)/2, 3-iRatio
+               iSend = (3*iDir + 3 + iSide)/2
+               iRecv = iSend - 3*iDir
 
-         iNodeRecv = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
+               iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
 
-         ! Skip blocks with a time level outside the range
-         if(UseTimeLevel .and. present(iLevelMin))then
-            if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
-                 iTimeLevel_A(iNodeSend) < iLevelMin) CYCLE
-         end if
+               ! Skip blocks with a time level outside the range
+               if(UseTimeLevel .and. present(iLevelMin))then
+                  if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
+                       iTimeLevel_A(iNodeSend) < iLevelMin) CYCLE
+               end if
 
-         iProcRecv  = iTree_IA(Proc_,iNodeRecv)
+               iProcRecv  = iTree_IA(Proc_,iNodeRecv)
 
-         if(iProc == iProcRecv .eqv. DoRemote) CYCLE
+               if(iProc == iProcRecv .eqv. DoRemote) CYCLE
 
-         iBlockRecv = iTree_IA(Block_,iNodeRecv)
-#ifndef _OPENACC
-         if(iSendStage == 4 .and. nK > 1 .and. &
-              abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
-            ! Do_prolongation for edge/corner ghost cells and for
-            ! some special face cells.
-            DoSendFace = is_only_corner_fine(iNodeRecv,-iDir,-jDir,-kDir)
-            if(.not. DoSendFace) CYCLE
-         endif
-#endif
-         ! For part implicit and part steady schemes
-         if(Unused_BP(iBlockRecv,iProcRecv)) CYCLE
-
-         ! No need to count data for local copy
-         if(DoCountOnly .and. iProc == iProcRecv) CYCLE
-
-         if(DoCountOnly .and. (.not. UseHighResChange .and. &
-              iSendStage == 1 .or. &
-              (UseHighResChange .and. iSendStage == 2)))then
-            ! This processor will receive a restricted buffer from
-            ! the other processor and the "recv" direction of the
-            ! restriction will be the same as the "send" direction for
-            ! this prolongation: iSend,kSend,jSend = 0..3
-            iRMin = iRestrictR_DII(1,iSend,Min_)
-            iRMax = iRestrictR_DII(1,iSend,Max_)
-            jRMin = iRestrictR_DII(2,jSend,Min_)
-            jRMax = iRestrictR_DII(2,jSend,Max_)
-            kRMin = iRestrictR_DII(3,kSend,Min_)
-            kRMax = iRestrictR_DII(3,kSend,Max_)
-
-            nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
-                 + 1 + 2*nDim
-            if(present(Time_B)) nSize = nSize + 1
-            nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
-         end if
-
-         ! For 2nd order prolongation no prolongation iS done in stage 1
-         if(.not. UseHighResChange .and. iSendStage < nProlongOrder) &
-              CYCLE
-
-         ! For HighResChange, only do restriction in stage 2.
-         if(UseHighResChange .and. iSendStage == 2) CYCLE
-
-         ! Receiving range depends on iRecv,kRecv,jRecv = 0..3
-         iRMin = iProlongR_DII(1,iRecv,Min_)
-         iRMax = iProlongR_DII(1,iRecv,Max_)
-         jRMin = iProlongR_DII(2,jRecv,Min_)
-         jRMax = iProlongR_DII(2,jRecv,Max_)
-         kRMin = iProlongR_DII(3,kRecv,Min_)
-         kRMax = iProlongR_DII(3,kRecv,Max_)
-
-         if(DoCountOnly)then
-            ! Number of reals to send to the other processor
-            nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
-                 + 1 + 2*nDim
-            if(present(Time_B)) nSize = nSize + 1
-            nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
-            CYCLE
-         end if
-
-         if(IsAxisNode)then
-            if(IsLatitudeAxis)then
-               kRMin = iProlongR_DII(3,kSend,Max_)
-               kRMax = iProlongR_DII(3,kSend,Min_)
-            elseif(IsSphericalAxis)then
-               jRMin = iProlongR_DII(2,jSend,Max_)
-               jRMax = iProlongR_DII(2,jSend,Min_)
-            elseif(IsCylindricalAxis)then
-               iRMin = iProlongR_DII(1,0,Max_)
-               iRMax = iProlongR_DII(1,0,Min_)
-            end if
-         end if
-
-         if(nDim > 1) DiR = sign(1, iRMax - iRMin)
-         if(nDim > 2) DjR = sign(1, jRMax - jRMin)
-         if(nDim > 2) DkR = sign(1, kRMax - kRMin)
+               iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
 #ifndef _OPENACC
-         if(UseHighResChange .and. iSendStage == 4) then
-            ! The values set in set_range are used for iSendStage == 1,
-            ! Which iS first order prolongtion. Now, for high order
-            ! prolongation, some values need to be corrected.
-            nWidthProlongS_D(1:nDim) = 1 + (nWidth-1)/iRatio_D(1:nDim)
-
-            iProlongS_DII(:,0,Min_) = 1
-            iProlongS_DII(:,0,Max_) = nWidthProlongS_D
-            iProlongS_DII(:,1,Min_) = 1
-            iProlongS_DII(:,1,Max_) = nIjk_D/iRatio_D
-            iProlongS_DII(:,2,Min_) = nIjk_D/iRatio_D + 1
-            iProlongS_DII(:,2,Max_) = nIjk_D
-            iProlongS_DII(:,3,Min_) = nIjk_D + 1 - nWidthProlongS_D
-            iProlongS_DII(:,3,Max_) = nIjk_D
-
-            if(DoSendCorner)then
-               ! Face + two edges + corner or edge + one corner
-               ! are sent/recv together from fine to coarse block
-               do iDim = 1, nDim
-                  if(iRatio_D(iDim) == 1)CYCLE
-                  ! The extension iS by nWidth/2 rounded upwards
-                  ! independent of
-                  ! the value of nCoarseLayers. There iS no need to send
-                  ! two coarse layers into corner/edge ghost cells.
-                  iProlongS_DII(iDim,1,Max_) = &
-                       iProlongS_DII(iDim,1,Max_) + (nWidth+1)/2
-                  iProlongS_DII(iDim,2,Min_) = &
-                       iProlongS_DII(iDim,2,Min_) - (nWidth+1)/2
-               end do
-            end if
-         endif
+               if(iSendStage == 4 .and. nK > 1 .and. &
+                    abs(iDir)+abs(jDir)+abs(kDir) == 1 ) then
+                  ! Do_prolongation for edge/corner ghost cells and for
+                  ! some special face cells.
+                  DoSendFace = is_only_corner_fine(iNodeRecv,-iDir,-jDir,-kDir)
+                  if(.not. DoSendFace) CYCLE
+               endif
 #endif
 
-         ! Sending range depends on iSend,jSend,kSend = 0..3
-         iSMin = iProlongS_DII(1,iSend,Min_)
-         iSMax = iProlongS_DII(1,iSend,Max_)
-         jSMin = iProlongS_DII(2,jSend,Min_)
-         jSMax = iProlongS_DII(2,jSend,Max_)
-         kSMin = iProlongS_DII(3,kSend,Min_)
-         kSMax = iProlongS_DII(3,kSend,Max_)
+               ! For part implicit and part steady schemes
+               if(Unused_BP(iBlockRecv,iProcRecv)) CYCLE
 
-         iRatioRestr = iRatio
-         jRatioRestr = jRatio
-         kRatioRestr = kRatio
-         if(iSendStage /= 4 .and. nCoarseLayer > 1)then
-            if(iDir /= 0) iRatioRestr = 1
-            if(jDir /= 0) jRatioRestr = 1
-            if(kDir /= 0) kRatioRestr = 1
-         end if
+               ! No need to count data for local copy
+               if(DoCountOnly .and. iProc == iProcRecv) CYCLE
 
-         Slope_VGI(:,:,:,:,iGang)= 0.0
-         if(nProlongOrder == 2)then
-            ! Add up 2nd order corrections for all AMR dimensions
-            ! Use simple interpolation, should be OK for ghost cells
-            if(.not.UseSimpleWeights .and. iProcRecv /= iProc)then
-               call get_tree_position(iNodeRecv, &
-                    PositionMinR_D, PositionMaxR_D)
-               CoordMinR_D = CoordMin_D + DomainSize_D*PositionMinR_D
-               CoordMaxR_D = CoordMin_D + DomainSize_D*PositionMaxR_D
-               CellSizeR_D = (CoordMaxR_D - CoordMinR_D)/nIjk_D
-            end if
-            !$acc loop vector collapse(3) private(iS,iS1,jS,jS1,kS,kS1)
-            do kR = kRMin, kRMax, DkR
-               do jR = jRMin, jRMax, DjR
-                  do iR = iRMin, iRMax, DiR
-                     ! For kRatio = 1 simple shift:
-                     ! kS = kSMin + |kR - kRMin|
-                     ! For kRatio = 2 coarsen both
-                     ! kR and kRMin before shift
-                     ! We add 9 both to kR and kRMin
-                     ! before dividing by kRatio
-                     ! so that all values remain positive
-                     ! and get rounded down.
-                     ! This works up to nG=10 ghost cells:
-                     ! likely to be enough.
-                     kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
-                     ! DkR=+1:
-                     ! interpolate left for odd kR, right for even kR
-                     ! DkR=-1:
-                     ! interpolate left for even kR, right for odd kR
-                     if(kRatio == 1) kS1 = kS
-                     if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
+#ifndef _OPENACC
+               if(DoCountOnly .and. (.not. UseHighResChange .and. &
+                    iSendStage == 1 .or. &
+                    (UseHighResChange .and. iSendStage == 2)))then
+                  ! This processor will receive a restricted buffer from
+                  ! the other processor and the "recv" direction of the
+                  ! restriction will be the same as the "send" direction for
+                  ! this prolongation: iSend,kSend,jSend = 0..3
+                  iRMin = iRestrictR_DII(1,iSend,Min_)
+                  iRMax = iRestrictR_DII(1,iSend,Max_)
+                  jRMin = iRestrictR_DII(2,jSend,Min_)
+                  jRMax = iRestrictR_DII(2,jSend,Max_)
+                  kRMin = iRestrictR_DII(3,kSend,Min_)
+                  kRMax = iRestrictR_DII(3,kSend,Max_)
 
-                     jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
-                     if(jRatio == 1) jS1 = jS
-                     if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
+                  nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
+                       + 1 + 2*nDim
+                  if(present(Time_B)) nSize = nSize + 1
+                  nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
+               end if
+#endif
 
-                     iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
-                     if(iRatio == 1) iS1 = iS
-                     if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+               ! For 2nd order prolongation no prolongation iS done in stage 1
+               if(.not. UseHighResChange .and. iSendStage < nProlongOrder) &
+                    CYCLE
 
-                     if(UseMin)then
-                        ! Store min value of the stencil into Slope_VG
-                        Slope_VGI(:,iR,jR,kR,iGang) = min( &
-                             State_VGB(:,iS,jS,kS,iBlockSend), &
-                             State_VGB(:,iS1,jS,kS,iBlockSend), &
-                             State_VGB(:,iS,jS1,kS,iBlockSend), &
-                             State_VGB(:,iS,jS,kS1,iBlockSend)  )
-                        CYCLE
-                     elseif(UseMax)then
-                        ! Store max value of the stencil into Slope_VG
-                        Slope_VGI(:,iR,jR,kR,iGang) = max( &
-                             State_VGB(:,iS,jS,kS,iBlockSend), &
-                             State_VGB(:,iS1,jS,kS,iBlockSend), &
-                             State_VGB(:,iS,jS1,kS,iBlockSend), &
-                             State_VGB(:,iS,jS,kS1,iBlockSend)  )
-                        CYCLE
-                     end if
+               ! For HighResChange, only do restriction in stage 2.
+               if(UseHighResChange .and. iSendStage == 2) CYCLE
 
-                     if(UseSimpleWeights)then
-                        ! For Cartesian-like grids the weights are 0.25
-                        if(iRatio == 2) WeightI = 0.25
-                        if(jRatio == 2) WeightJ = 0.25
-                        if(kRatio == 2) WeightK = 0.25
-                     else
-                        ! The weights are area/volume fractions
-                        Xyz_D= Xyz_DGB(:,iS,jS,kS,iBlockSend)
-                        dI_D = Xyz_DGB(:,iS1,jS,kS,iBlockSend) - Xyz_D
-                        dJ_D = Xyz_DGB(:,iS,jS1,kS,iBlockSend) - Xyz_D
-                        dK_D = Xyz_DGB(:,iS,jS,kS1,iBlockSend) - Xyz_D
+               ! Receiving range depends on iRecv,kRecv,jRecv = 0..3
+               iRMin = iProlongR_DII(1,iRecv,Min_)
+               iRMax = iProlongR_DII(1,iRecv,Max_)
+               jRMin = iProlongR_DII(2,jRecv,Min_)
+               jRMax = iProlongR_DII(2,jRecv,Max_)
+               kRMin = iProlongR_DII(3,kRecv,Min_)
+               kRMax = iProlongR_DII(3,kRecv,Max_)
 
-                        if(iProcRecv == iProc)then
-                           dR_D = Xyz_DGB(:,iR,jR,kR,iBlockRecv) - Xyz_D
-                        else
-                           CoordR_D = CoordMinR_D + &
-                                ([iR,jR,kR] - 0.5)*CellSizeR_D
-                           call coord_to_xyz(CoordR_D, dR_D)
-                           dR_D = dR_D - Xyz_D
-                        end if
+#ifndef _OPENACC
+               if(DoCountOnly)then
+                  ! Number of reals to send to the other processor
+                  nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
+                       + 1 + 2*nDim
+                  if(present(Time_B)) nSize = nSize + 1
+                  nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
+                  CYCLE
+               end if
 
-                        ! The max(0.0, and the normalization to 1
-                        ! avoids extrapolation when the
-                        ! receiving point iS outside the sending
-                        ! polyhedron. Remove these for exact
-                        ! second order test.
-                        if(nDim == 2)then
-                           InvV = 1/ &
-                                (dI_D(1)*dJ_D(2)-dI_D(2)*dJ_D(1))
-                           WeightI = max(0.0, InvV* &
-                                (dR_D(1)*dJ_D(2)-dR_D(2)*dJ_D(1)))
-                           WeightJ = max(0.0, InvV* &
-                                (dI_D(1)*dR_D(2)-dI_D(2)*dR_D(1)))
-                           Weight = WeightI + WeightJ
-                           if(Weight > 1)then
-                              WeightI = WeightI / Weight
-                              WeightJ = WeightJ / Weight
-                           end if
-                        else
-                           InvV = 1/ &
-                                sum(dI_D*cross_product(dJ_D,dK_D))
-                           WeightI = max(0.0, InvV* &
-                                sum(dR_D*cross_product(dJ_D,dK_D)))
-                           WeightJ = max(0.0, InvV* &
-                                sum(dI_D*cross_product(dR_D,dK_D)))
-                           WeightK = max(0.0, InvV* &
-                                sum(dI_D*cross_product(dJ_D,dR_D)))
+               if(IsAxisNode)then
+                  if(IsLatitudeAxis)then
+                     kRMin = iProlongR_DII(3,kSend,Max_)
+                     kRMax = iProlongR_DII(3,kSend,Min_)
+                  elseif(IsSphericalAxis)then
+                     jRMin = iProlongR_DII(2,jSend,Max_)
+                     jRMax = iProlongR_DII(2,jSend,Min_)
+                  elseif(IsCylindricalAxis)then
+                     iRMin = iProlongR_DII(1,0,Max_)
+                     iRMax = iProlongR_DII(1,0,Min_)
+                  end if
+               end if
+#endif
 
-                           Weight  = WeightI + WeightJ + WeightK
-                           if(Weight > 1.0)then
-                              WeightI = WeightI / Weight
-                              WeightJ = WeightJ / Weight
-                              WeightK = WeightK / Weight
-                           end if
+               if(nDim > 1) DiR = sign(1, iRMax - iRMin)
+               if(nDim > 2) DjR = sign(1, jRMax - jRMin)
+               if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
-                        end if
-                     end if
-
-                     if(iRatio == 2) Slope_VGI(:,iR,jR,kR,iGang) = &
-                          Slope_VGI(:,iR,jR,kR,iGang) + WeightI* &
-                          ( State_VGB(:,iS1,jS,kS,iBlockSend) &
-                          - State_VGB(:,iS ,jS,kS,iBlockSend) )
-
-                     if(jRatio == 2) Slope_VGI(:,iR,jR,kR,iGang) = &
-                          Slope_VGI(:,iR,jR,kR,iGang) + WeightJ* &
-                          ( State_VGB(:,iS,jS1,kS,iBlockSend) &
-                          - State_VGB(:,iS,jS ,kS,iBlockSend) )
-
-                     if(kRatio == 2) Slope_VGI(:,iR,jR,kR,iGang) = &
-                          Slope_VGI(:,iR,jR,kR,iGang) + WeightK* &
-                          ( State_VGB(:,iS,jS,kS1,iBlockSend) &
-                          - State_VGB(:,iS,jS,kS ,iBlockSend) )
-                  end do
-               end do
-            end do
-         end if ! nProlongOrder = 2
-         !#endif
-
-         if(iProc == iProcRecv)then
-            if(present(Time_B)) then
-               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
-            end if
-
-            if(UseTime)then
-               ! Interpolate/extrapolate ghost cells in time
-               WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
-                    /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
-               WeightNew = 1 - WeightOld
-
-               !$acc loop vector collapse(3) private(iS,jS,kS)
-               do kR = kRMin, kRMax, DkR
-                  do jR = jRMin, jRMax, DjR
-                     do iR = iRMin, iRMax, DiR
-                        ! For kRatio = 1 simple shift:
-                        ! kS = kSMin+kR-kRMin
-                        ! For kRatio = 2 coarsen both
-                        ! kR and kRMin before shift
-                        kS = kSMin + abs((kR+9)/kRatioRestr &
-                             -           (kRMin+9)/kRatioRestr)
-
-                        jS = jSMin + abs((jR+9)/jRatioRestr &
-                             -           (jRMin+9)/jRatioRestr)
-
-                        iS = iSMin + abs((iR+9)/iRatioRestr &
-                             -           (iRMin+9)/iRatioRestr)
-
-                        State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                             WeightOld*State_VGB(:,iR,jR,kR,iBlockRecv)+&
-                             WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend)&
-                             + Slope_VGI(:,iR,jR,kR,iGang))
-                     end do
-                  end do
-               end do
-            else ! UseTime is false
+#ifndef _OPENACC
                if(UseHighResChange .and. iSendStage == 4) then
-#ifndef _OPENACC
-                  iDir1 = 0; jDir1 = 0; kDir1 = 0
-                  i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 = max(5*Dk,1)
-                  do kR = kRMin, kRMax, DkR
-                     kS = kSMin + abs((kR+9)/kRatioRestr &
-                          -           (kRMin+9)/kRatioRestr)
-                     ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
-                     ! kR may be negative (1-nK),
-                     ! so kR+2*nK will be always positive.
-                     if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
-                     do jR = jRMin, jRMax, DjR
-                        jS = jSMin + abs((jR+9)/jRatioRestr &
-                             -           (jRMin+9)/jRatioRestr)
-                        if(jRatioRestr == 2) jDir1 = 2*mod(jR+2*nJ,2) - 1
-                        do iR = iRMin, iRMax, DiR
-                           iS = iSMin + abs((iR+9)/iRatioRestr &
-                                -           (iRMin+9)/iRatioRestr)
-                           if(iRatioRestr == 2) &
-                                iDir1 = 2*mod(iR+2*nI,2) - 1
+                  ! The values set in set_range are used for iSendStage == 1,
+                  ! Which iS first order prolongtion. Now, for high order
+                  ! prolongation, some values need to be corrected.
+                  nWidthProlongS_D(1:nDim) = 1 + (nWidth-1)/iRatio_D(1:nDim)
 
-                           if(IsAccurateFace_GB(iR,jR,kR,iBlockRecv))&
-                                CYCLE
+                  iProlongS_DII(:,0,Min_) = 1
+                  iProlongS_DII(:,0,Max_) = nWidthProlongS_D
+                  iProlongS_DII(:,1,Min_) = 1
+                  iProlongS_DII(:,1,Max_) = nIjk_D/iRatio_D
+                  iProlongS_DII(:,2,Min_) = nIjk_D/iRatio_D + 1
+                  iProlongS_DII(:,2,Max_) = nIjk_D
+                  iProlongS_DII(:,3,Min_) = nIjk_D + 1 - nWidthProlongS_D
+                  iProlongS_DII(:,3,Max_) = nIjk_D
 
-                           do iVar = 1, nVar
-                              CoarseCell_III(1:i5,1:j5,1:k5) = &
-                                   State_VGB(iVar,&
-                                   iS-2*iDir1:iS+2*iDir1:sign(1,iDir1),&
-                                   jS-2*jDir1:jS+2*jDir1:sign(1,jDir1),&
-                                   kS-2*kDir1:kS+2*kDir1:sign(1,kDir1),&
-                                   iBlockSend)
-
-                              State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                                   prolong_high_order_amr&
-                                   (CoarseCell_III,&
-                                   IsPositiveIn=IsPositive_V(iVar))
-                           enddo
-
-                        end do ! iR
-                     end do ! jR
-                  end do ! kR
+                  if(DoSendCorner)then
+                     ! Face + two edges + corner or edge + one corner
+                     ! are sent/recv together from fine to coarse block
+                     do iDim = 1, nDim
+                        if(iRatio_D(iDim) == 1)CYCLE
+                        ! The extension iS by nWidth/2 rounded upwards
+                        ! independent of
+                        ! the value of nCoarseLayers. There iS no need to send
+                        ! two coarse layers into corner/edge ghost cells.
+                        iProlongS_DII(iDim,1,Max_) = &
+                             iProlongS_DII(iDim,1,Max_) + (nWidth+1)/2
+                        iProlongS_DII(iDim,2,Min_) = &
+                             iProlongS_DII(iDim,2,Min_) - (nWidth+1)/2
+                     end do
+                  end if
+               endif
 #endif
-               else ! not using high res change
-                  !$acc loop vector collapse(3) private(iS,jS,kS)
+
+               ! Sending range depends on iSend,jSend,kSend = 0..3
+               iSMin = iProlongS_DII(1,iSend,Min_)
+               iSMax = iProlongS_DII(1,iSend,Max_)
+               jSMin = iProlongS_DII(2,jSend,Min_)
+               jSMax = iProlongS_DII(2,jSend,Max_)
+               kSMin = iProlongS_DII(3,kSend,Min_)
+               kSMax = iProlongS_DII(3,kSend,Max_)
+
+               iRatioRestr = iRatio
+               jRatioRestr = jRatio
+               kRatioRestr = kRatio
+               if(iSendStage /= 4 .and. nCoarseLayer > 1)then
+                  if(iDir /= 0) iRatioRestr = 1
+                  if(jDir /= 0) jRatioRestr = 1
+                  if(kDir /= 0) kRatioRestr = 1
+               end if
+
+#ifdef _OPENACC
+               if(iProc == iProcRecv)then
+                  !$acc loop vector collapse(3)
                   do kR = kRMin, kRMax, DkR
                      do jR = jRMin, jRMax, DjR
                         do iR = iRMin, iRMax, DiR
-                           kS = kSMin + abs((kR+9)/kRatioRestr &
-                                -           (kRMin+9)/kRatioRestr)
+                           iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
+                           jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
+                           kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                           if(nProlongOrder == 2) then
+                              ! For kRatio = 1 simple shift:
+                              !    kS = kSMin + |kR - kRMin|
+                              ! For kRatio = 2 coarsen both
+                              ! kR and kRMin before shift
+                              ! We add 9 both to kR and kRMin
+                              ! before dividing by kRatio
+                              ! so that all values remain
+                              ! positive and get rounded down.
+                              ! This works up to nG=10 ghost cells:
+                              ! likely to be enough.
 
-                           jS = jSMin + abs((jR+9)/jRatioRestr &
-                                -           (jRMin+9)/jRatioRestr)
+                              ! DkR=+1:
+                              ! interpolate left for odd kR, right for even kR
+                              ! DkR=-1:
+                              ! interpolate left for even kR, right for odd kR
+                              if(kRatio == 1) kS1 = kS
+                              if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
 
-                           iS = iSMin + abs((iR+9)/iRatioRestr &
-                                -           (iRMin+9)/iRatioRestr)
+                              if(jRatio == 1) jS1 = jS
+                              if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
 
-                           if(nProlongOrder==2 .and. &
-                                (UseMin .or. UseMax))then
-                              ! Assign min/max value stored in Slope_VG
-                              State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   Slope_VGI(:,iR,jR,kR,iGang)
-                              !#endif
+                              if(iRatio == 1) iS1 = iS
+                              if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+
+                              if(UseMin)then
+                                 State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
+                                      State_VGB(:,iS,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              elseif(UseMax)then
+                                 State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
+                                      State_VGB(:,iS,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              else
+                                 ! For Cartesian-like grids the weights are 0.25
+                                 if(iRatio == 2) WeightI = 0.25
+                                 if(jRatio == 2) WeightJ = 0.25
+                                 if(kRatio == 2) WeightK = 0.25
+
+                                 State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                      State_VGB(:,iS,jS,kS,iBlockSend)
+
+                                 if(iRatio == 2) &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                      + WeightI* &
+                                      ( State_VGB(:,iS1,jS,kS,iBlockSend) &
+                                      - State_VGB(:,iS ,jS,kS,iBlockSend) )
+
+                                 if(jRatio == 2) &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                      + WeightJ* &
+                                      ( State_VGB(:,iS,jS1,kS,iBlockSend) &
+                                      - State_VGB(:,iS,jS ,kS,iBlockSend) )
+
+                                 if(kRatio == 2) &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                      State_VGB(:,iR,jR,kR,iBlockRecv) &
+                                      + WeightK* &
+                                      ( State_VGB(:,iS,jS,kS1,iBlockSend) &
+                                      - State_VGB(:,iS,jS,kS ,iBlockSend) )
+
+                              end if
                            else
+                              ! nProlongOrder == 1
                               State_VGB(:,iR,jR,kR,iBlockRecv) = &
-                                   State_VGB(:,iS,jS,kS,iBlockSend) &
-                                   + Slope_VGI(:,iR,jR,kR,iGang)
-                           end if
+                                   State_VGB(:,iS,jS,kS,iBlockSend)
+                           endif
+
                         end do
                      end do
                   end do
-               end if ! HighRes
-            end if ! UseTime
-         else ! iProc /= iProcRecv
-            iBufferS = iBufferS_P(iProcRecv)
 
-            BufferS_I(            iBufferS+1) = iBlockRecv
-            BufferS_I(            iBufferS+2) = iRMin
-            BufferS_I(            iBufferS+3) = iRMax
-            if(nDim > 1)BufferS_I(iBufferS+4) = jRMin
-            if(nDim > 1)BufferS_I(iBufferS+5) = jRMax
-            if(nDim > 2)BufferS_I(iBufferS+6) = kRMin
-            if(nDim > 2)BufferS_I(iBufferS+7) = kRMax
+               else !iProc /= iProcRecv
 
-            iBufferS = iBufferS + 1 + 2*nDim
+                  iBufferS = iBufferS_P(iProcRecv)
 
-#ifndef _OPENACC
-            if(present(Time_B))then
-               iBufferS = iBufferS + 1
-               BufferS_I(iBufferS) = Time_B(iBlockSend)
-            end if
-#endif
+                  BufferS_I(            iBufferS+1) = iBlockRecv
+                  BufferS_I(            iBufferS+2) = iRMin
+                  BufferS_I(            iBufferS+3) = iRMax
+                  if(nDim > 1)BufferS_I(iBufferS+4) = jRMin
+                  if(nDim > 1)BufferS_I(iBufferS+5) = jRMax
+                  if(nDim > 2)BufferS_I(iBufferS+6) = kRMin
+                  if(nDim > 2)BufferS_I(iBufferS+7) = kRMax
 
-            if(UseHighResChange .and. iSendStage == 4) then
-#ifndef _OPENACC
-               iDir1 = 0; jDir1 = 0; kDir1 = 0
-               i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 =  max(5*Dk,1)
-               do kR = kRMin, kRMax, DkR
-                  kS = kSMin + abs((kR+9)/kRatioRestr &
-                       -           (kRMin+9)/kRatioRestr)
-                  ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
-                  ! kR may be negative (1-nK), kR+2*nK will be positive.
-                  if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
-                  do jR = jRMin, jRMax, DjR
-                     jS = jSMin + abs((jR+9)/jRatioRestr &
-                          -           (jRMin+9)/jRatioRestr)
-                     if(jRatioRestr == 2) jDir1 = 2*mod(jR+2*nJ,2) - 1
-                     do iR = iRMin, iRMax, DiR
-                        iS = iSMin + abs((iR+9)/iRatioRestr &
-                             -           (iRMin+9)/iRatioRestr)
-                        if(iRatioRestr == 2) iDir1 = 2*mod(iR+2*nI,2) - 1
+                  iBufferS = iBufferS + 1 + 2*nDim
 
-                        do iVar = 1, nVar
-                           CoarseCell_III(1:i5,1:j5,1:k5) = &
-                                State_VGB(iVar,&
-                                iS-2*iDir1:iS+2*iDir1:sign(1,iDir1),&
-                                jS-2*jDir1:jS+2*jDir1:sign(1,jDir1),&
-                                kS-2*kDir1:kS+2*kDir1:sign(1,kDir1),&
-                                iBlockSend)
+!!! if present(TimeB) omitted
+!!! HighOrderResChange omitted
 
-                           BufferS_I(iBufferS+iVar)=&
-                                prolong_high_order_amr&
-                                (CoarseCell_III,&
-                                IsPositiveIn=IsPositive_V(iVar))
+                  !!! Sequential loop here
+                  !$acc loop seq collapse(3)
+                  do kR = kRMin, kRMax, DkR
+                     do jR = jRMin, jRMax, DjR
+                        do iR = iRMin, iRMax, DiR
+                           iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
+                           jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
+                           kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                           if(nProlongOrder == 2) then
+                              ! For kRatio = 1 simple shift:
+                              !    kS = kSMin + |kR - kRMin|
+                              ! For kRatio = 2 coarsen both
+                              ! kR and kRMin before shift
+                              ! We add 9 both to kR and kRMin
+                              ! before dividing by kRatio
+                              ! so that all values remain
+                              ! positive and get rounded down.
+                              ! This works up to nG=10 ghost cells:
+                              ! likely to be enough.
 
-                        enddo
-                        iBufferS = iBufferS + nVar
-                     end do ! iR
-                  end do ! jR
-               end do ! kR
-#endif
-            else ! not using high res change
-               ! loop is serial backward for dependency on iBufferS
-               !$acc loop seq collapse(3) !private(iS, jS, kS)
-               do kR = kRMin, kRMax, DkR
-                  do jR=jRMin, jRMax, DjR
-                     do iR = iRMin, iRMax, DiR
-                        kS = kSMin + abs((kR+9)/kRatioRestr &
-                             -           (kRMin+9)/kRatioRestr)
-                        jS = jSMin + abs((jR+9)/jRatioRestr &
-                             -           (jRMin+9)/jRatioRestr)
-                        iS = iSMin + abs((iR+9)/iRatioRestr &
-                             -           (iRMin+9)/iRatioRestr)
-                        if(nProlongOrder==2 .and. (UseMin.or.UseMax))then
-                           ! Assign min/max value stored in Slope_VG
-#ifdef _OPENACC !!! subarray assignment using ":" fails on acc
+                              ! DkR=+1:
+                              ! interpolate left for odd kR, right for even kR
+                              ! DkR=-1:
+                              ! interpolate left for even kR, right for odd kR
+                              if(kRatio == 1) kS1 = kS
+                              if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
+
+                              if(jRatio == 1) jS1 = jS
+                              if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
+
+                              if(iRatio == 1) iS1 = iS
+                              if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+
+                              if(UseMin)then
+                                 Slope_VG(:) =  min( &
+                                      State_VGB(:,iS,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              elseif(UseMax)then
+                                 Slope_VG(:) =  min( &
+                                      State_VGB(:,iS,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                      State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              else
+                                 ! For Cartesian-like grids the weights are 0.25
+                                 if(iRatio == 2) WeightI = 0.25
+                                 if(jRatio == 2) WeightJ = 0.25
+                                 if(kRatio == 2) WeightK = 0.25
+
+                                 Slope_VG(:) = State_VGB(:,iS,jS,kS,iBlockSend)
+
+                                 if(iRatio == 2) &
+                                      Slope_VG(:) = &
+                                      Slope_VG(:) &
+                                      + WeightI* &
+                                      ( State_VGB(:,iS1,jS,kS,iBlockSend) &
+                                      - State_VGB(:,iS ,jS,kS,iBlockSend) )
+
+                                 if(jRatio == 2) &
+                                      Slope_VG(:) = &
+                                      Slope_VG(:) &
+                                      + WeightJ* &
+                                      ( State_VGB(:,iS,jS1,kS,iBlockSend) &
+                                      - State_VGB(:,iS,jS ,kS,iBlockSend) )
+
+                                 if(kRatio == 2) &
+                                      Slope_VG(:) = &
+                                      Slope_VG(:) &
+                                      + WeightK* &
+                                      ( State_VGB(:,iS,jS,kS1,iBlockSend) &
+                                      - State_VGB(:,iS,jS,kS ,iBlockSend) )
+
+                              end if
+                           else
+                              ! nProlongOrder == 1
+                              Slope_VG(:) = &
+                                   State_VGB(:,iS,jS,kS,iBlockSend)
+                           endif
+
+                           !Prolonged state is already in Slope_VG
                            !$acc loop vector
                            do iVarS = 1,nVar
                               BufferS_I(iBufferS+iVarS)= &
-                                   Slope_VGI(iVarS,iR,jR,kR,iGang)
+                                   Slope_VG(iVarS)
                            end do
-#else
-                           BufferS_I(iBufferS+1:iBufferS+nVar)= &
-                                Slope_VGI(:,iR,jR,kR,iGang)
-#endif
-                        else
-#ifdef _OPENACC !!! subarray assignment using ":" fails on acc
-                           !$acc loop vector
-                           do iVarS = 1, nVar
-                              BufferS_I(iBufferS+iVarS)= &
-                                   State_VGB(iVarS,iS,jS,kS,iBlockSend) &
-                                   + Slope_VGI(iVarS,iR,jR,kR,iGang)
-                           end do
-#else
-                           BufferS_I(iBufferS+1:iBufferS+nVar)= &
-                                State_VGB(:,iS,jS,kS,iBlockSend) &
-                                + Slope_VGI(:,iR,jR,kR,iGang)
-#endif
-                        end if
-                        iBufferS = iBufferS + nVar
+
+                           iBufferS = iBufferS + nVar
+
+                        end do
                      end do
                   end do
-               end do
-            endif ! UseHighResChange
 
-            iBufferS_P(iProcRecv) = iBufferS
-         end if
-      end do; end do; end do
+                  iBufferS_P(iProcRecv) = iBufferS
+
+               end if
+#else
+               Slope_VG = 0.0
+               if(nProlongOrder == 2)then
+                  ! Add up 2nd order corrections for all AMR dimensions
+                  ! Use simple interpolation, should be OK for ghost cells
+
+                  if(.not.UseSimpleWeights .and. iProcRecv /= iProc)then
+                     call get_tree_position(iNodeRecv, &
+                          PositionMinR_D, PositionMaxR_D)
+                     CoordMinR_D = CoordMin_D + DomainSize_D*PositionMinR_D
+                     CoordMaxR_D = CoordMin_D + DomainSize_D*PositionMaxR_D
+                     CellSizeR_D = (CoordMaxR_D - CoordMinR_D)/nIjk_D
+                  end if
+
+                  do kR = kRMin, kRMax, DkR
+                     do jR = jRMin, jRMax, DjR
+                        do iR = iRMin, iRMax, DiR
+                           ! For kRatio = 1 simple shift:
+                           ! kS = kSMin + |kR - kRMin|
+                           ! For kRatio = 2 coarsen both
+                           ! kR and kRMin before shift
+                           ! We add 9 both to kR and kRMin
+                           ! before dividing by kRatio
+                           ! so that all values remain positive
+                           ! and get rounded down.
+                           ! This works up to nG=10 ghost cells:
+                           ! likely to be enough.
+                           kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                           ! DkR=+1:
+                           ! interpolate left for odd kR, right for even kR
+                           ! DkR=-1:
+                           ! interpolate left for even kR, right for odd kR
+                           if(kRatio == 1) kS1 = kS
+                           if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
+
+                           jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
+                           if(jRatio == 1) jS1 = jS
+                           if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
+
+                           iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
+                           if(iRatio == 1) iS1 = iS
+                           if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+
+                           if(UseMin)then
+                              ! Store min value of the stencil into Slope_VG
+                              Slope_VG(:,iR,jR,kR) = min( &
+                                   State_VGB(:,iS,jS,kS,iBlockSend), &
+                                   State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                   State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                   State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              CYCLE
+                           elseif(UseMax)then
+                              ! Store max value of the stencil into Slope_VG
+                              Slope_VG(:,iR,jR,kR) = max( &
+                                   State_VGB(:,iS,jS,kS,iBlockSend), &
+                                   State_VGB(:,iS1,jS,kS,iBlockSend), &
+                                   State_VGB(:,iS,jS1,kS,iBlockSend), &
+                                   State_VGB(:,iS,jS,kS1,iBlockSend)  )
+                              CYCLE
+                           end if
+
+                           if(UseSimpleWeights)then
+                              ! For Cartesian-like grids the weights are 0.25
+                              if(iRatio == 2) WeightI = 0.25
+                              if(jRatio == 2) WeightJ = 0.25
+                              if(kRatio == 2) WeightK = 0.25
+                           else
+                              ! The weights are area/volume fractions
+                              Xyz_D= Xyz_DGB(:,iS,jS,kS,iBlockSend)
+                              dI_D = Xyz_DGB(:,iS1,jS,kS,iBlockSend) - Xyz_D
+                              dJ_D = Xyz_DGB(:,iS,jS1,kS,iBlockSend) - Xyz_D
+                              dK_D = Xyz_DGB(:,iS,jS,kS1,iBlockSend) - Xyz_D
+
+                              if(iProcRecv == iProc)then
+                                 dR_D = Xyz_DGB(:,iR,jR,kR,iBlockRecv) - Xyz_D
+                              else
+                                 CoordR_D = CoordMinR_D + &
+                                      ([iR,jR,kR] - 0.5)*CellSizeR_D
+                                 call coord_to_xyz(CoordR_D, dR_D)
+                                 dR_D = dR_D - Xyz_D
+                              end if
+
+                              ! The max(0.0, and the normalization to 1
+                              ! avoids extrapolation when the
+                              ! receiving point iS outside the sending
+                              ! polyhedron. Remove these for exact
+                              ! second order test.
+                              if(nDim == 2)then
+                                 InvV = 1/ &
+                                      (dI_D(1)*dJ_D(2)-dI_D(2)*dJ_D(1))
+                                 WeightI = max(0.0, InvV* &
+                                      (dR_D(1)*dJ_D(2)-dR_D(2)*dJ_D(1)))
+                                 WeightJ = max(0.0, InvV* &
+                                      (dI_D(1)*dR_D(2)-dI_D(2)*dR_D(1)))
+                                 Weight = WeightI + WeightJ
+                                 if(Weight > 1)then
+                                    WeightI = WeightI / Weight
+                                    WeightJ = WeightJ / Weight
+                                 end if
+                              else
+                                 InvV = 1/ &
+                                      sum(dI_D*cross_product(dJ_D,dK_D))
+                                 WeightI = max(0.0, InvV* &
+                                      sum(dR_D*cross_product(dJ_D,dK_D)))
+                                 WeightJ = max(0.0, InvV* &
+                                      sum(dI_D*cross_product(dR_D,dK_D)))
+                                 WeightK = max(0.0, InvV* &
+                                      sum(dI_D*cross_product(dJ_D,dR_D)))
+
+                                 Weight  = WeightI + WeightJ + WeightK
+                                 if(Weight > 1.0)then
+                                    WeightI = WeightI / Weight
+                                    WeightJ = WeightJ / Weight
+                                    WeightK = WeightK / Weight
+                                 end if
+
+                              end if
+                           end if
+
+                           if(iRatio == 2) Slope_VG(:,iR,jR,kR) = &
+                                Slope_VG(:,iR,jR,kR) + WeightI* &
+                                ( State_VGB(:,iS1,jS,kS,iBlockSend) &
+                                - State_VGB(:,iS ,jS,kS,iBlockSend) )
+
+                           if(jRatio == 2) Slope_VG(:,iR,jR,kR) = &
+                                Slope_VG(:,iR,jR,kR) + WeightJ* &
+                                ( State_VGB(:,iS,jS1,kS,iBlockSend) &
+                                - State_VGB(:,iS,jS ,kS,iBlockSend) )
+
+                           if(kRatio == 2) Slope_VG(:,iR,jR,kR) = &
+                                Slope_VG(:,iR,jR,kR) + WeightK* &
+                                ( State_VGB(:,iS,jS,kS1,iBlockSend) &
+                                - State_VGB(:,iS,jS,kS ,iBlockSend) )
+                        end do
+                     end do
+                  end do
+               end if ! nProlongOrder = 2
+
+               if(iProc == iProcRecv)then
+
+                  if(present(Time_B)) &
+                       UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
+                  if(UseTime)then
+                     ! Interpolate/extrapolate ghost cells in time
+                     WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
+                          /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
+                     WeightNew = 1 - WeightOld
+
+                     !$acc loop vector collapse(3)
+                     do kR = kRMin, kRMax, DkR
+                        do jR = jRMin, jRMax, DjR
+                           do iR = iRMin, iRMax, DiR
+                              ! For kRatio = 1 simple shift:
+                              ! kS = kSMin+kR-kRMin
+                              ! For kRatio = 2 coarsen both
+                              ! kR and kRMin before shift
+                              kS = kSMin + abs((kR+9)/kRatioRestr &
+                                   -           (kRMin+9)/kRatioRestr)
+
+                              jS = jSMin + abs((jR+9)/jRatioRestr &
+                                   -           (jRMin+9)/jRatioRestr)
+
+                              iS = iSMin + abs((iR+9)/iRatioRestr &
+                                   -           (iRMin+9)/iRatioRestr)
+                              State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                   WeightOld*State_VGB(:,iR,jR,kR,iBlockRecv)+&
+                                   WeightNew*(State_VGB(:,iS,jS,kS,iBlockSend)&
+                                   + Slope_VG(:,iR,jR,kR))
+                           end do
+                        end do
+                     end do
+                  else
+                     if(UseHighResChange .and. iSendStage == 4) then
+                        iDir1 = 0; jDir1 = 0; kDir1 = 0
+                        i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 = max(5*Dk,1)
+                        do kR = kRMin, kRMax, DkR
+                           kS = kSMin + abs((kR+9)/kRatioRestr &
+                                -           (kRMin+9)/kRatioRestr)
+                           ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
+                           ! kR may be negative (1-nK),
+                           ! so kR+2*nK will be always positive.
+                           if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
+                           do jR = jRMin, jRMax, DjR
+                              jS = jSMin + abs((jR+9)/jRatioRestr &
+                                   -           (jRMin+9)/jRatioRestr)
+                              if(jRatioRestr == 2) jDir1 = 2*mod(jR+2*nJ,2) - 1
+                              do iR = iRMin, iRMax, DiR
+                                 iS = iSMin + abs((iR+9)/iRatioRestr &
+                                      -           (iRMin+9)/iRatioRestr)
+                                 if(iRatioRestr == 2) &
+                                      iDir1 = 2*mod(iR+2*nI,2) - 1
+
+                                 if(IsAccurateFace_GB(iR,jR,kR,iBlockRecv))&
+                                      CYCLE
+
+                                 do iVar = 1, nVar
+                                    CoarseCell_III(1:i5,1:j5,1:k5) = &
+                                         State_VGB(iVar,&
+                                         iS-2*iDir1:iS+2*iDir1:sign(1,iDir1),&
+                                         jS-2*jDir1:jS+2*jDir1:sign(1,jDir1),&
+                                         kS-2*kDir1:kS+2*kDir1:sign(1,kDir1),&
+                                         iBlockSend)
+
+                                    State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
+                                         prolong_high_order_amr&
+                                         (CoarseCell_III,&
+                                         IsPositiveIn=IsPositive_V(iVar))
+                                 enddo
+
+                              end do ! iR
+                           end do ! jR
+                        end do ! kR
+                     else
+                        !$acc loop vector collapse(3)
+                        do kR = kRMin, kRMax, DkR
+                           do jR = jRMin, jRMax, DjR
+                              do iR = iRMin, iRMax, DiR
+                                 kS = kSMin + abs((kR+9)/kRatioRestr &
+                                      -           (kRMin+9)/kRatioRestr)
+
+                                 jS = jSMin + abs((jR+9)/jRatioRestr &
+                                      -           (jRMin+9)/jRatioRestr)
+
+                                 iS = iSMin + abs((iR+9)/iRatioRestr &
+                                      -           (iRMin+9)/iRatioRestr)
+
+                                 if(nProlongOrder==2 .and. &
+                                      (UseMin .or. UseMax))then
+                                    ! Assign min/max value stored in Slope_VG
+                                    State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                         Slope_VG(:,iR,jR,kR)
+                                 else
+                                    State_VGB(:,iR,jR,kR,iBlockRecv) = &
+                                         State_VGB(:,iS,jS,kS,iBlockSend) &
+                                         + Slope_VG(:,iR,jR,kR)
+                                 end if
+                              end do
+                           end do
+                        end do
+
+                     end if ! HighRes
+                  end if ! UseTime
+               else ! iProc /= iProcRecv
+                  iBufferS = iBufferS_P(iProcRecv)
+
+                  BufferS_I(            iBufferS+1) = iBlockRecv
+                  BufferS_I(            iBufferS+2) = iRMin
+                  BufferS_I(            iBufferS+3) = iRMax
+                  if(nDim > 1)BufferS_I(iBufferS+4) = jRMin
+                  if(nDim > 1)BufferS_I(iBufferS+5) = jRMax
+                  if(nDim > 2)BufferS_I(iBufferS+6) = kRMin
+                  if(nDim > 2)BufferS_I(iBufferS+7) = kRMax
+
+                  iBufferS = iBufferS + 1 + 2*nDim
+                  if(present(Time_B))then
+                     iBufferS = iBufferS + 1
+                     BufferS_I(iBufferS) = Time_B(iBlockSend)
+                  end if
+
+                  if(UseHighResChange .and. iSendStage == 4) then
+                     iDir1 = 0; jDir1 = 0; kDir1 = 0
+                     i5 = max(5*Di,1); j5 = max(5*Dj,1); k5 =  max(5*Dk,1)
+                     do kR = kRMin, kRMax, DkR
+                        kS = kSMin + abs((kR+9)/kRatioRestr &
+                             -           (kRMin+9)/kRatioRestr)
+                        ! kDir = -1 if kR iS even; kDir = 1 if kR iS odd.
+                        ! kR may be negative (1-nK), kR+2*nK will be positive.
+                        if(kRatioRestr == 2) kDir1 = 2*mod(kR+2*nK,2) - 1
+                        do jR = jRMin, jRMax, DjR
+                           jS = jSMin + abs((jR+9)/jRatioRestr &
+                                -           (jRMin+9)/jRatioRestr)
+                           if(jRatioRestr == 2) jDir1 = 2*mod(jR+2*nJ,2) - 1
+                           do iR = iRMin, iRMax, DiR
+                              iS = iSMin + abs((iR+9)/iRatioRestr &
+                                   -           (iRMin+9)/iRatioRestr)
+                              if(iRatioRestr == 2) iDir1 = 2*mod(iR+2*nI,2) - 1
+
+                              do iVar = 1, nVar
+                                 CoarseCell_III(1:i5,1:j5,1:k5) = &
+                                      State_VGB(iVar,&
+                                      iS-2*iDir1:iS+2*iDir1:sign(1,iDir1),&
+                                      jS-2*jDir1:jS+2*jDir1:sign(1,jDir1),&
+                                      kS-2*kDir1:kS+2*kDir1:sign(1,kDir1),&
+                                      iBlockSend)
+
+                                 BufferS_I(iBufferS+iVar)=&
+                                      prolong_high_order_amr&
+                                      (CoarseCell_III,&
+                                      IsPositiveIn=IsPositive_V(iVar))
+
+                              enddo
+                              iBufferS = iBufferS + nVar
+                           end do ! iR
+                        end do ! jR
+                     end do ! kR
+
+                  else
+                     do kR = kRMin, kRMax, DkR
+                        kS = kSMin + abs((kR+9)/kRatioRestr &
+                             -           (kRMin+9)/kRatioRestr)
+                        do jR=jRMin, jRMax, DjR
+                           jS = jSMin + abs((jR+9)/jRatioRestr &
+                                -           (jRMin+9)/jRatioRestr)
+                           do iR = iRMin, iRMax, DiR
+                              iS = iSMin + abs((iR+9)/iRatioRestr &
+                                   -           (iRMin+9)/iRatioRestr)
+
+                              if(nProlongOrder==2 .and. (UseMin.or.UseMax))then
+                                 ! Assign min/max value stored in Slope_VG
+                                 BufferS_I(iBufferS+1:iBufferS+nVar)= &
+                                      Slope_VG(:,iR,jR,kR)
+                              else
+                                 BufferS_I(iBufferS+1:iBufferS+nVar)= &
+                                      State_VGB(:,iS,jS,kS,iBlockSend) &
+                                      + Slope_VG(:,iR,jR,kR)
+                              end if
+                              iBufferS = iBufferS + nVar
+                           end do
+                        end do
+                     end do
+                  endif ! UseHighResChange
+
+                  iBufferS_P(iProcRecv) = iBufferS
+               end if
+#endif
+            end do
+         end do
+      end do
+
     end subroutine do_prolong
     !==========================================================================
     subroutine calc_accurate_coarsened_block(iBlock)
