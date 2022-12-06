@@ -571,7 +571,7 @@ contains
 
           call timing_start('buffer_to_state')
 
-!!! To call buffer_to_state on a GPU, 
+!!! To call buffer_to_state on a GPU,
 !!! the following construct doesn't work:
           ! acc serial
           ! ...
@@ -2555,7 +2555,7 @@ contains
                      end do
                   end do
 
-               else !iProc /= iProcRecv
+               else ! iProc /= iProcRecv
 
                   iBufferS = iBufferS_P(iProcRecv)
 
@@ -2647,7 +2647,7 @@ contains
                               Slope_V = State_VGB(:,iS,jS,kS,iBlockSend)
                            endif
 
-                           !Prolonged state is already in Slope_V
+                           ! Prolonged state is already in Slope_V
                            !$acc loop vector
                            do iVarS = 1, nVar
                               BufferS_I(iBufferS+iVarS)= Slope_V(iVarS)
