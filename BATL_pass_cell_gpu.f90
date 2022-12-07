@@ -2494,13 +2494,13 @@ contains
                               ! DkR=-1:
                               ! interpolate left for even kR, right for odd kR
                               if(kRatio == 1) kS1 = kS
-                              if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
+                              if(kRatio == 2) kS1 = kS + DkR*(1-2*modulo(kR,2))
 
                               if(jRatio == 1) jS1 = jS
-                              if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
+                              if(jRatio == 2) jS1 = jS + DjR*(1-2*modulo(jR,2))
 
                               if(iRatio == 1) iS1 = iS
-                              if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+                              if(iRatio == 2) iS1 = iS + DiR*(1-2*modulo(iR,2))
 
                               if(UseMin)then
                                  State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
@@ -2515,7 +2515,7 @@ contains
                                       State_VGB(:,iS,jS1,kS,iBlockSend), &
                                       State_VGB(:,iS,jS,kS1,iBlockSend)  )
                               else
-                                 ! For Cartesian-like grids the weights are 0.25
+                                 ! For Cartesian grids the weights are 0.25
                                  if(iRatio == 2) WeightI = 0.25
                                  if(jRatio == 2) WeightJ = 0.25
                                  if(kRatio == 2) WeightK = 0.25
@@ -2601,13 +2601,13 @@ contains
                               ! DkR=-1:
                               ! interpolate left for even kR, right for odd kR
                               if(kRatio == 1) kS1 = kS
-                              if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
+                              if(kRatio == 2) kS1 = kS + DkR*(1-2*modulo(kR,2))
 
                               if(jRatio == 1) jS1 = jS
-                              if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
+                              if(jRatio == 2) jS1 = jS + DjR*(1-2*modulo(jR,2))
 
                               if(iRatio == 1) iS1 = iS
-                              if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
+                              if(iRatio == 2) iS1 = iS + DiR*(1-2*modulo(iR,2))
 
                               if(UseMin)then
                                  Slope_V =  min( &

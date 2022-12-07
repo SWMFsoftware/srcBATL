@@ -243,7 +243,6 @@ contains
     ! Initialize the tree assuming MaxBlockIn blocks per processor
 
     integer, intent(in) :: MaxBlockIn ! Max number of blocks per processor
-
     !--------------------------------------------------------------------------
     if(allocated(iTree_IA)) RETURN
 
@@ -293,7 +292,6 @@ contains
 
   end subroutine init_tree
   !============================================================================
-
   subroutine set_tree_param(UseUniformAxisIn)
 
     logical, optional:: UseUniformAxisIn
@@ -311,9 +309,7 @@ contains
 
   end subroutine set_tree_param
   !============================================================================
-
   subroutine clean_tree
-
     !--------------------------------------------------------------------------
     if(.not.allocated(iTree_IA)) RETURN
     deallocate(iTree_IA, iNodeMorton_I, iMortonNode_A, &
@@ -331,7 +327,6 @@ contains
 
   end subroutine clean_tree
   !============================================================================
-
   integer function i_node_new()
 
     ! Find a skipped element in the iTree_IA array
@@ -358,7 +353,6 @@ contains
 
   end function i_node_new
   !============================================================================
-
   subroutine set_tree_root(nRootIn_D)
 
     integer, optional, intent(in) :: nRootIn_D(nDim)
@@ -403,7 +397,6 @@ contains
     !$acc update device(nRoot_D)
   end subroutine set_tree_root
   !============================================================================
-
   subroutine refine_tree_node(iNode, iTypeNode_A)
 
     integer, intent(in) :: iNode
@@ -475,7 +468,6 @@ contains
 
   end subroutine refine_tree_node
   !============================================================================
-
   subroutine coarsen_tree_node(iNode, iTypeNode_A)
 
     integer, intent(in) :: iNode
@@ -506,7 +498,6 @@ contains
 
   end subroutine coarsen_tree_node
   !============================================================================
-
   subroutine adapt_tree(iTypeNode_A)
 
     use BATL_size, ONLY: iRatio, jRatio, kRatio
@@ -910,7 +901,6 @@ contains
 
       integer, intent(in):: iNode
       integer:: jNode
-
       !------------------------------------------------------------------------
       jNode = iNode
       do
@@ -927,7 +917,6 @@ contains
 
       integer, intent(in):: iNode
       integer:: jNode
-
       !------------------------------------------------------------------------
       jNode = iNode
       do
@@ -948,7 +937,6 @@ contains
 
       integer, intent(in):: iNode
       integer:: jNode, jNodeParent, jNodeChild_I(nChild)
-
       !------------------------------------------------------------------------
       jNode = iNode
       do
@@ -961,7 +949,6 @@ contains
       end do
     end subroutine cancel_axis_coarsening
     !==========================================================================
-
   end subroutine adapt_tree
   !============================================================================
   subroutine get_tree_position(iNode, PositionMin_D, PositionMax_D)
@@ -988,7 +975,6 @@ contains
 
   end subroutine get_tree_position
   !============================================================================
-
   subroutine find_tree_node(CoordIn_D, iNode)
     !$acc routine seq
 
@@ -1038,7 +1024,6 @@ contains
 
   end subroutine find_tree_node
   !============================================================================
-
   subroutine find_tree_cell(Coord_D, iNode, iCell_D, CellDistance_D, &
        UseGhostCell)
     !$acc routine seq
@@ -1062,7 +1047,6 @@ contains
 
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
     real:: CellCoord_D(MaxDim)
-
     !--------------------------------------------------------------------------
     call find_tree_node(Coord_D, iNode)
 
@@ -1170,7 +1154,6 @@ contains
 
   end function is_point_inside_node
   !============================================================================
-
   subroutine find_neighbor_for_anynode(iNode, DiLevelNei_III)
     ! Find neighbours for any node in this processor or not.
 
@@ -1308,7 +1291,6 @@ contains
 
   end subroutine find_neighbor_for_anynode
   !============================================================================
-
   subroutine find_neighbor(iBlock)
 
     use BATL_size, ONLY: iRatio_D
@@ -1467,7 +1449,6 @@ contains
 
   end subroutine find_neighbor
   !============================================================================
-
   subroutine find_axis_neighbor
 
     ! Set iNodeAxisNei_A array for axis neighbor in +phi direction.
@@ -1475,7 +1456,6 @@ contains
 
     integer:: iNode, jNode, iLevel, iCoord, MaxCoord
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim), Coord_D(MaxDim)
-
     !--------------------------------------------------------------------------
     if(.not.IsAnyAxis) RETURN
 
@@ -1512,7 +1492,6 @@ contains
 
   end subroutine find_axis_neighbor
   !============================================================================
-
   subroutine compact_tree(iTypeNode_A)
 
     integer, intent(inout), optional:: iTypeNode_A(MaxNode)
@@ -1583,48 +1562,86 @@ contains
 
   end subroutine compact_tree
   !============================================================================
+  subroutine write_tree_file(NameFile, IsFormattedIn)
 
-  subroutine write_tree_file(NameFile)
+    ! Write tree information into a file
 
-    use ModIoUnit, ONLY: UnitTmp_
+    use ModUtilities, ONLY: UnitTmp_, open_file, close_file
     use BATL_mpi, ONLY: iProc, barrier_mpi
 
     character(len=*), intent(in):: NameFile
+    logical, optional:: IsFormattedIn
 
-    ! Write tree information into a file
+    logical:: IsFormatted
+    integer:: iNode, iInfo
     !--------------------------------------------------------------------------
     call compact_tree
 
     if(iProc == 0)then
-       open(UnitTmp_, file=NameFile, status='replace', form='unformatted')
-
-       write(UnitTmp_) nDim, nInfo, nNode
-       write(UnitTmp_) iRatio_D(1:nDim)
-       write(UnitTmp_) nRoot_D(1:nDim)
-       write(UnitTmp_) iTree_IA(1:nInfo,1:nNode)
-
-       close(UnitTmp_)
+       IsFormatted = .false.
+       if(present(IsFormattedIn)) IsFormatted = IsFormattedIn
+       if(IsFormatted)then
+          call open_file(file=NameFile, status='replace')
+          write(UnitTmp_,'(a)') 'BATL tree information after #START'
+          write(UnitTmp_,'(a)') 'Line 1: nDim, nInfo, nNode'
+          write(UnitTmp_,'(a)') 'Line 2: iRatio_D(nDim)  AMR ratio'
+          write(UnitTmp_,'(a)') 'Line 3: nRoot_D(nDim)   Number of root blocks'
+          write(UnitTmp_,'(a)') 'Rest  : iTree_IA(nInfo,iNode)   in nNode rows'
+          do iInfo = 1, nInfo
+             write(UnitTmp_,'(a,i2.2,a)') &
+                  'Column', iInfo, ': '//NameTreeInfo_I(iInfo)
+          end do
+          write(UnitTmp_,'(a)') '#START'
+          write(UnitTmp_,'(3i10)') nDim, nInfo, nNode
+          write(UnitTmp_,'(3i10)') iRatio_D(1:nDim)
+          write(UnitTmp_,'(3i10)') nRoot_D(1:nDim)
+          do iNode = 1, nNode
+             write(UnitTmp_,'(100i10)') iTree_IA(:,iNode)
+          end do
+       else
+          call open_file(file=NameFile, status='replace', form='unformatted')
+          write(UnitTmp_) nDim, nInfo, nNode
+          write(UnitTmp_) iRatio_D(1:nDim)
+          write(UnitTmp_) nRoot_D(1:nDim)
+          write(UnitTmp_) iTree_IA(1:nInfo,1:nNode)
+       end if
+       call close_file
     end if
     call barrier_mpi
 
   end subroutine write_tree_file
   !============================================================================
-
-  subroutine read_tree_file(NameFile)
-
-    use ModIoUnit, ONLY: UnitTmp_
-
-    character(len=*), intent(in):: NameFile
+  subroutine read_tree_file(NameFile, IsFormattedIn)
 
     ! Read tree information from a file
 
-    integer :: nDimIn, nInfoIn, nNodeIn, iRatioIn_D(nDim), nRootIn_D(nDim)
+    use ModUtilities, ONLY: UnitTmp_, open_file, close_file
+
+    character(len=*),  intent(in):: NameFile
+    logical, optional, intent(in):: IsFormattedIn
+
+    logical:: IsFormatted
+    integer:: iNode, iLine
+    character(len=100):: StringLine
+    integer:: nDimIn, nInfoIn, nNodeIn, iRatioIn_D(nDim), nRootIn_D(nDim)
     character(len=*), parameter:: NameSub = 'read_tree_file'
     !--------------------------------------------------------------------------
+    IsFormatted = .false.
+    if(present(IsFormattedIn)) IsFormatted = IsFormattedIn
 
-    open(UnitTmp_, file=NameFile, status='old', form='unformatted')
+    if(IsFormatted)then
+       call open_file(file=NameFile, status='old')
+       ! Skip header
+       do iLine = 1, 6 + nInfo
+          read(UnitTmp_, *) StringLine
+          if(StringLine == '#START') EXIT
+       end do
 
-    read(UnitTmp_) nDimIn, nInfoIn, nNodeIn
+       read(UnitTmp_, *) nDimIn, nInfoIn, nNodeIn
+    else
+       call open_file(file=NameFile, status='old', form='unformatted')
+       read(UnitTmp_) nDimIn, nInfoIn, nNodeIn
+    end if
     if(nDimIn /= nDim)then
        write(*,*) NameSub,' nDimIn, nDim=',nDimIn, nDim
        call CON_stop(NameSub//' nDim is different in tree file!')
@@ -1637,25 +1654,35 @@ contains
        write(*,*) NameSub,' nNodeIn, MaxNode=',nNodeIn, MaxNode
        call CON_stop(NameSub//' too many nodes in tree file!')
     end if
-    read(UnitTmp_) iRatioIn_D
+    if(IsFormatted)then
+       read(UnitTmp_, *) iRatioIn_D
+       read(UnitTmp_, *) nRootIn_D
+    else
+       read(UnitTmp_) iRatioIn_D
+       read(UnitTmp_) nRootIn_D
+    end if
     if( any(iRatioIn_D /= iRatio_D(1:nDim)) )then
        write(*,*) NameSub, &
             ' iRatioIn_D=', iRatioIn_D,' iRatio_D=', iRatio_D(1:nDim)
        call CON_stop(NameSub//' iRatio_D is different in tree file!')
     end if
-    read(UnitTmp_) nRootIn_D
 
     call set_tree_root(nRootIn_D)
 
-    read(UnitTmp_) iTree_IA(:,1:nNodeIn)
-    close(UnitTmp_)
+    if(IsFormatted)then
+       do iNode = 1, nNodeIn
+          read(UnitTmp_,*) iTree_IA(:,iNode)
+       end do
+    else
+       read(UnitTmp_) iTree_IA(:,1:nNodeIn)
+    end if
+    call close_file
 
     ! Set nLevelMin and nLevelMax
     call order_tree
 
   end subroutine read_tree_file
   !============================================================================
-
   subroutine distribute_tree(DoMove, iTypeBalance_A, iTypeNode_A)
 
     ! Order tree with the space filling curve then
@@ -1797,7 +1824,6 @@ contains
     !$acc update device(Unused_BP)
   end subroutine distribute_tree
   !============================================================================
-
   subroutine move_tree(iTypeNode_A)
 
     ! Finish the load balancing (with or without data movement)
@@ -1921,7 +1947,6 @@ contains
 
     integer, intent(in) :: iNode
     integer :: iChild
-
     !--------------------------------------------------------------------------
     nNode = max(nNode, iNode)
 
@@ -1950,7 +1975,6 @@ contains
     ! are advanced.
 
     integer:: i, n
-
     !--------------------------------------------------------------------------
     if(iStage == 1)then
        ! All blocks are advanced in the first stage
@@ -1980,7 +2004,6 @@ contains
 
   end function min_tree_level
   !============================================================================
-
   function di_level_nei(iDir, jDir, kDir, iBlock, DoResChangeOnly) &
        RESULT(DiLevel)
 
@@ -2021,7 +2044,6 @@ contains
 
   end function di_level_nei
   !============================================================================
-
   subroutine set_tree_periodic(IsOn)
 
     logical, intent(in):: IsOn
@@ -2091,7 +2113,6 @@ contains
     !$acc update device(DiLevelNei_IIIB)
   end subroutine set_tree_periodic
   !============================================================================
-
   subroutine show_tree(String, DoShowNei, DoShowTimeLevel)
 
     character(len=*), intent(in):: String
@@ -2147,6 +2168,5 @@ contains
 
   end subroutine show_tree
   !============================================================================
-
 end module BATL_tree
 !==============================================================================
