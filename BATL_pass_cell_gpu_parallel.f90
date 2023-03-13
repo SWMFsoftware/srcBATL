@@ -142,15 +142,15 @@ module BATL_pass_cell
   integer, allocatable :: nMsgSend(:)
   !$omp threadprivate(nMsgSend_B, iRank0_B, nMsgSend)
   !$acc declare create(nMsgSend_B, iRank0_B, nMsgSend)
-  
-  integer :: iMsgSend !loop index for comms
-  !acc declare create(SendMap_BI)
+
+  integer :: iMsgSend ! loop index for comms
+  ! acc declare create(SendMap_BI)
 
   logical :: DoCountOnly2
   !$acc declare create(DoCountOnly2)
 
-  !structured buffer array for do_equal
-  !should be called _BI but unchanged for now
+  ! structured buffer array for do_equal
+  ! should be called _BI but unchanged for now
   real, allocatable :: BufferS_BI(:,:)
   real, allocatable :: BufferR_BI(:,:)
   !$acc declare create(BufferS_BI, BufferR_BI)
@@ -240,7 +240,7 @@ contains
     !$acc declare create(MaxMsgSend)
 
     integer :: iTag
-    
+
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
@@ -346,7 +346,7 @@ contains
        else
           nMsgSend_B = 0
        end if
-       
+
        if (.not. allocated(iRank0_B)) then
           allocate(iRank0_B(nBlock,0:nProc-1))
           iRank0_B = 0
@@ -379,7 +379,7 @@ contains
     endif
 
     call timing_stop('init_pass')
-    
+
     nSendStage = nProlongOrder
 
     if(UseHighResChange) then
@@ -492,7 +492,7 @@ contains
 
           do iCountOnly = 1, 2
 !!! dev
-             !count first time to find out nMsgSend
+             ! count first time to find out nMsgSend
              DoCountOnly = iCountOnly == 1
              !$acc update device(DoCountOnly)
 
@@ -507,19 +507,19 @@ contains
 !                nBufferS_P = 0
 !             else
 !                ! Make buffers large enough
-                !acc update host(nBufferR_P, nBufferS_P)
+                ! acc update host(nBufferR_P, nBufferS_P)
 !                if(sum(nBufferR_P) > MaxBufferR) then
 !                   if(allocated(BufferR_I)) deallocate(BufferR_I)
 !                   MaxBufferR = sum(nBufferR_P)
 !                   allocate(BufferR_I(MaxBufferR))
-                   !acc update device(BufferR_I)
+                   ! acc update device(BufferR_I)
 !                end if
 
 !                if(sum(nBufferS_P) > MaxBufferS) then
 !                   if(allocated(BufferS_I)) deallocate(BufferS_I)
 !                   MaxBufferS = sum(nBufferS_P)
 !                   allocate(BufferS_I(MaxBufferS))
-                   !acc update device(BufferS_I)
+                   ! acc update device(BufferS_I)
 !                end if
 
                 ! Initialize buffer indexes for storing data into BufferS_I
@@ -532,7 +532,7 @@ contains
 !!! end: orig
 
              if(DoCountOnly) then
-                !this is not done on GPU
+                ! this is not done on GPU
                 do iBlockSend = 1, nBlock
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., &
@@ -569,14 +569,13 @@ contains
                   call timing_stop('alloc_buffer_pass')
                 end if
 
-                
                 if (.not. allocated(iRequestS_I))&
                      allocate(iRequestS_I(1:nProc-1))
                 if (.not. allocated(iRequestR_I))&
                      allocate(iRequestR_I(1:nProc-1))
-                
+
                 CYCLE
-                
+
              end if
 
              if(UseOpenACC) then
@@ -620,7 +619,7 @@ contains
                   10, iComm, iRequestS_I(iRequestS),iError)
           end do
           !$acc end host_data
-          
+
           iRequestR = 0
           !$acc host_data use_device(BufferR_BI)
           do iMsgSend = 0, nProc-1
@@ -635,32 +634,32 @@ contains
 
 !!! start: orig
           ! post sends
-          !iRequestS = 0
-          !iBufferS  = 1
-          !do iProcRecv = 0, nProc-1
+          ! iRequestS = 0
+          ! iBufferS  = 1
+          ! do iProcRecv = 0, nProc-1
           !   if(nBufferS_P(iProcRecv) == 0) CYCLE
           !   iRequestS = iRequestS + 1
-             !acc host_data use_device(BufferS_I)
+             ! acc host_data use_device(BufferS_I)
 !             call MPI_isend(BufferS_I(iBufferS), nBufferS_P(iProcRecv), &
 !                  MPI_REAL, iProcRecv, 10, iComm, iRequestS_I(iRequestS), &
 !                  iError)
-             !acc end host_data
+             ! acc end host_data
           !   iBufferS = iBufferS + nBufferS_P(iProcRecv)
-          !end do
+          ! end do
 
           ! post requests
-          !iRequestR = 0
-          !iBufferR  = 1
-          !do iProcSend = 0, nProc-1
+          ! iRequestR = 0
+          ! iBufferR  = 1
+          ! do iProcSend = 0, nProc-1
           !   if(nBufferR_P(iProcSend) == 0) CYCLE
           !   iRequestR = iRequestR + 1
-             !acc host_data use_device(BufferR_I)
+             ! acc host_data use_device(BufferR_I)
 !             call MPI_irecv(BufferR_I(iBufferR), nBufferR_P(iProcSend), &
 !                  MPI_REAL, iProcSend, 10, iComm, iRequestR_I(iRequestR), &
 !                  iError)
-             !acc end host_data
+             ! acc end host_data
           !   iBufferR = iBufferR + nBufferR_P(iProcSend)
-          !end do
+          ! end do
 
           call timing_start('local_mp_pass')
 
@@ -700,7 +699,7 @@ contains
 
           !!! var name change required
           do iMsgSend = 0, nProc-1
-             if(iMsgSend == iProc) CYCLE   
+             if(iMsgSend == iProc) CYCLE
              !$acc parallel copyin(nVar, iMsgSend)
              !$acc loop gang
              do iBlockSend = 1, MaxMsgSend !!! var name change required
@@ -725,7 +724,7 @@ contains
     end if
 
     call timing_stop('part1_pass')
-    
+
     if(UseHighResChange) &
          deallocate(State_VIIIB, IsAccurate_B, IsAccurateFace_GB, IsPositive_V)
     call test_stop(NameSub, Dotest)
@@ -939,8 +938,8 @@ contains
       end do
 
     end subroutine buffer_to_state
-
     !==========================================================================
+
     subroutine buffer_to_state_parallel(iProcSend, iMsgSend, nSizeMax, &
          BufferR_BI,&
          nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
@@ -950,19 +949,19 @@ contains
       use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
       use BATL_test, ONLY: iTest, jTest, kTest, iBlockTest, iVarTest
       use BATL_mpi, ONLY: iProc, nProc
-      
+
       integer, intent(in)::iProcSend
       integer, intent(in)::iMsgSend
       integer, intent(in)::nSizeMax
       real, intent(in)::BufferR_BI(:,0:)
-      
+
       integer, intent(in)::nVar
       integer, intent(in)::nG
       real,    intent(inout)::State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
 
 !!! the following not implemented
-      logical, intent(inout)::UseTime 
+      logical, intent(inout)::UseTime
       real,    optional, intent(in)::TimeOld_B(MaxBlock)
       real,    optional, intent(in)::Time_B(MaxBlock)
 
@@ -1023,13 +1022,13 @@ contains
     end subroutine buffer_to_state_parallel
     !==========================================================================
     subroutine set_range
-      !acc routine seq
+      ! acc routine seq
       integer:: iDir, kDir ,jDir
-      
+
       integer:: nWidthProlongS_D(MaxDim), iDim
-      !------------------------------------------------------------------------
       !$omp parallel
 !!! dev: compute max buffer size
+      !------------------------------------------------------------------------
       do iDim = 1,MaxDim
          if (iDim == 1) then
             nSize_DI(iDim,-1) = nG
@@ -1052,7 +1051,7 @@ contains
          ! Do not message pass in ignored dimensions
          if(nDim < 3 .and. kDir /= 0) CYCLE
 
-         !if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
+         ! if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
          !     kDir == -1 .and. &
          !     CoordMin_DB(Lat_,iBlockSend) < -cHalfPi + 1e-8 .or. &
          !     kDir == +1 .and. &
@@ -1064,7 +1063,7 @@ contains
             if(.not.DoSendCorner .and. jDir /= 0 .and. kDir /= 0) &
                  CYCLE
 
-            !if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
+            ! if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
             !     jDir == -1 .and. &
             !     CoordMin_DB(Theta_,iBlockSend) < 1e-8 .or. &
             !     jDir == +1 .and. &
@@ -1078,21 +1077,21 @@ contains
                if(.not.DoSendCorner .and. iDir /= 0 .and. &
                     (jDir /= 0 .or.  kDir /= 0)) CYCLE
 
-               !if(nDim > 1 .and. IsCylindricalAxis) IsAxisNode = &
+               ! if(nDim > 1 .and. IsCylindricalAxis) IsAxisNode = &
                !     iDir == -1 .and. iTree_IA(Coord1_,iNodeSend) == 1
 
                ! Level difference = own_level - neighbor_level
-               !DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
+               ! DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
 
                ! Skip if the receiving block grid level iS not
                ! in range. Time levels of the receiving block(s)
                ! will be checked later if UseTimeLevel iS true.
-               !if(present(iLevelMin) .and. .not.UseTimeLevel)then
+               ! if(present(iLevelMin) .and. .not.UseTimeLevel)then
                !   if(iLevelSend - DiLevel < iLevelMin) CYCLE
-               !end if
-               !if(present(iLevelMax) .and. .not.UseTimeLevel)then
+               ! end if
+               ! if(present(iLevelMax) .and. .not.UseTimeLevel)then
                !   if(iLevelSend - DiLevel > iLevelMax) CYCLE
-               !end if
+               ! end if
                nSize_III(iDir, jDir, kDir) = &
                     nSize_DI(1,iDir)*nSize_DI(2,jDir)*nSize_DI(3,kDir)
             end do
@@ -1393,7 +1392,7 @@ contains
     ! If DoRemote iS true, send info to blocks on other cores
     logical, intent(in):: DoRemote
 
-    !optional arguments
+    ! optional arguments
     real,    intent(in),optional:: TimeOld_B(MaxBlock)
     real,    intent(in),optional:: Time_B(MaxBlock)
     integer, intent(in),optional:: iLevelMin, iLevelMax
@@ -1402,7 +1401,7 @@ contains
     integer, intent(inout),optional:: nMsgSend_B(nBlock, 0:nProc-1)
     integer, intent(inout),optional:: iRank0_B(nBlock, 0:nProc-1)
     integer, intent(in), optional:: nSizeMax
-    !integer, intent(inout),optional:: SendMap_BI(nMsgSend,7)
+    ! integer, intent(inout),optional:: SendMap_BI(nMsgSend,7)
     !!! sync device and host
     ! Local variables
 
@@ -1431,10 +1430,10 @@ contains
     integer:: iSend, jSend, kSend
     integer:: iNodeRecv, iProcRecv, iBlockRecv
     integer:: iProcSend
-    integer:: iMsg(0:nProc-1) !reset for every block
+    integer:: iMsg(0:nProc-1) ! reset for every block
     !--------------------------------------------------------------------------
-    iMsg = 0 !resets for every block, +1 for every loop
-    
+    iMsg = 0 ! resets for every block, +1 for every loop
+
     iNodeSend = iNode_B(iBlockSend)
 
     ! Skip if the sending block level iS not in the level range
@@ -1452,7 +1451,7 @@ contains
 
     IsAxisNode = .false.
     UseTime = .false.
-    
+
     !$acc loop seq
     do kDir = -1, 1
        ! Do not message pass in ignored dimensions
@@ -1516,11 +1515,11 @@ contains
              if(iSendStage == 4 .and. DiLevel == 0) CYCLE
 
 !!! count TWICE on cpu
-             
+
 !             write(*,*)'msg_pass_blk, iProc, DoCountOnly, DoCountOnly2=',&
 !                  iProc, DoCountOnly, DoCountOnly2
-             
-             !firt time: find out each block does how many comms
+
+             ! firt time: find out each block does how many comms
              if(DoCountOnly)then
 !                write(*,*)'100'
                 iSend = (3*iDir + 3)/2
@@ -1537,7 +1536,7 @@ contains
                 end if
                 CYCLE
              end if
-             
+
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
                 if(iSendStage == 3) then
@@ -2055,7 +2054,7 @@ contains
 
       logical :: DoTest
 
-      !!!dev !the rank of this send
+      !!! dev !the rank of this send
 #ifdef _OPENACC
       integer:: iS, jS, kS, iR, jR, kR
 #endif
@@ -2069,7 +2068,7 @@ contains
       jSend = (3*jDir + 3)/2
       kSend = (3*kDir + 3)/2
 
-      !iNodeSend is passed in
+      ! iNodeSend is passed in
       iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
 
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
@@ -2097,7 +2096,7 @@ contains
 !!! e.g. iDir,jDir,kDir = (1,0,0): send nj*nk*nG
       ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
       ! iDir,jDir,kDir = (1,0,1): send nG*nj*nG
-      ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk 
+      ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
       ! need to compute the maximum # of numbers passed
       iRMin = iEqualR_DII(1,iDir,Min_)
       iRMax = iEqualR_DII(1,iDir,Max_)
@@ -2106,7 +2105,7 @@ contains
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
 
-!!!dev
+!!! dev
       ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
 #ifndef _OPENACC
       if(iSendStage == 3) then
@@ -2190,7 +2189,7 @@ contains
               (1+2*nDim+nVar*nSizeMax)
          iMsg(iProcRecv) = iMsg(iProcRecv) + 1
 
-         BufferS_BI(iBufferS, iProcRecv) = iBlockRecv         
+         BufferS_BI(iBufferS, iProcRecv) = iBlockRecv
          BufferS_BI(iBufferS+1, iProcRecv) = iRMin
          BufferS_BI(iBufferS+2, iProcRecv) = iRMax
          if(nDim > 1)BufferS_BI(iBufferS+3, iProcRecv) = jRMin
@@ -2198,7 +2197,7 @@ contains
          if(nDim > 2)BufferS_BI(iBufferS+5, iProcRecv) = kRMin
          if(nDim > 2)BufferS_BI(iBufferS+6, iProcRecv) = kRMax
 
-         iBufferS = iBufferS + 2*nDim !iBufferS is 1 before updating
+         iBufferS = iBufferS + 2*nDim ! iBufferS is 1 before updating
 
 #ifndef _OPENACC
 !         if(present(Time_B))then
@@ -2206,12 +2205,12 @@ contains
 !            BufferS_I(iBufferS) = Time_B(iBlockSend)
 !         end if
 #endif
-         
+
          !$acc loop seq collapse(3)
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
             !$acc loop seq
             do iVarS = 1, nVar
-               !BufferS_I(iBufferS+iVarS) = State_VGB(iVarS,i,j,k,iBlockSend)
+               ! BufferS_I(iBufferS+iVarS) = State_VGB(iVarS,i,j,k,iBlockSend)
                BufferS_BI(iBufferS+iVarS, iProcRecv) =&
                     State_VGB(iVarS,i,j,k,iBlockSend)
             end do
