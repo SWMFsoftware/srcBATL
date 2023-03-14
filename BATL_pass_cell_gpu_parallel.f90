@@ -612,24 +612,24 @@ contains
           iRequestS = 0
           !$acc host_data use_device(BufferS_BI)
           !!! var name change needed
-          do iMsgSend = 0, nProc-1
-             if(iMsgSend == iProc) CYCLE
+          do iProcSend = 0, nProc-1
+             if(iProcSend == iProc) CYCLE
              iRequestS = iRequestS + 1
-             call MPI_isend(BufferS_BI(1,iMsgSend), &
-                  nMsgSend_P(iMsgSend) * (1+2*nDim+nVar*nSizeMax),&
-                  MPI_REAL, iMsgSend, &
+             call MPI_isend(BufferS_BI(1,iProcSend), &
+                  nMsgSend_P(iProcSend) * (1+2*nDim+nVar*nSizeMax),&
+                  MPI_REAL, iProcSend, &
                   10, iComm, iRequestS_I(iRequestS),iError)
           end do
           !$acc end host_data
 
           iRequestR = 0
           !$acc host_data use_device(BufferR_BI)
-          do iMsgSend = 0, nProc-1
-             if(iProc == iMsgSend) CYCLE
+          do iProcSend = 0, nProc-1
+             if(iProc == iProcSend) CYCLE
              iRequestR = iRequestR + 1
-             call MPI_irecv(BufferR_BI(1,iMsgSend),&
-                  nMsgSend_P(iMsgSend)*(1+2*nDim+nVar*nSizeMax),&
-                  MPI_REAL, iMsgSend, &
+             call MPI_irecv(BufferR_BI(1,iProcSend),&
+                  nMsgSend_P(iProcSend)*(1+2*nDim+nVar*nSizeMax),&
+                  MPI_REAL, iProcSend, &
                   10, iComm, iRequestR_I(iRequestR),iError)
           end do
           !$acc end host_data
@@ -701,12 +701,12 @@ contains
           call timing_start('buffer_to_state')
 
           !!! var name change required
-          do iMsgSend = 0, nProc-1
-             if(iMsgSend == iProc) CYCLE
-             !$acc parallel copyin(nVar, iMsgSend)
+          do iProcSend = 0, nProc-1
+             if(iProcSend == iProc) CYCLE
+             !$acc parallel copyin(nVar, iProcSend)
              !$acc loop gang
-             do iBlockSend = 1, MaxMsgSend !!! var name change required
-                call buffer_to_state_parallel(iMsgSend, iBlockSend, &
+             do iMsgSend = 1, MaxMsgSend !!! var name change required
+                call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      nSizeMax, BufferR_BI,&
                   nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
              end do
