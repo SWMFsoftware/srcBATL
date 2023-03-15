@@ -142,9 +142,9 @@ module BATL_pass_cell
   integer, allocatable :: nMsgSend_P(:)
   !$omp threadprivate(nMsgSend_BP, iRank0_BP, nMsgSend_P)
   !$acc declare create(nMsgSend_BP, iRank0_BP, nMsgSend_P)
-  
-  integer :: iMsgSend !loop index for comms
-  !acc declare create(SendMap_BI)
+
+  integer :: iMsgSend ! loop index for comms
+  ! acc declare create(SendMap_BI)
 
   logical :: DoCountOnly2
   !$acc declare create(DoCountOnly2)
@@ -346,7 +346,7 @@ contains
        else
           nMsgSend_BP = 0
        end if
-       
+
        if (.not. allocated(iRank0_BP)) then
           allocate(iRank0_BP(nBlock,0:nProc-1))
           iRank0_BP = 0
@@ -1432,10 +1432,10 @@ contains
     integer:: iSend, jSend, kSend
     integer:: iNodeRecv, iProcRecv, iBlockRecv
     integer:: iProcSend
-    integer:: iMsg_P(0:nProc-1) !reset for every block
+    integer:: iMsg_P(0:nProc-1) ! reset for every block
     !--------------------------------------------------------------------------
-    iMsg_P = 0 !resets for every block, +1 for every loop
-    
+    iMsg_P = 0 ! resets for every block, +1 for every loop
+
     ! Skip if the sending block level iS not in the level range
     if(present(iLevelMin) .and. .not.UseTimeLevel)then
        iLevelSend = iTree_IA(Level_,iNodeSend)
@@ -2053,7 +2053,7 @@ contains
 
       logical :: DoTest
 
-      !!! dev !the rank of this send
+      !!! dev ! the rank of this send
 #ifdef _OPENACC
       integer:: iS, jS, kS, iR, jR, kR
 #endif
