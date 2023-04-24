@@ -1611,14 +1611,13 @@ contains
 
   end subroutine write_tree_file
   !============================================================================
-  subroutine read_tree_file(NameFile, IsFormattedIn)
+  subroutine read_tree_file(NameFile)
 
     ! Read tree information from a file
 
     use ModUtilities, ONLY: UnitTmp_, open_file, close_file
 
     character(len=*),  intent(in):: NameFile
-    logical, optional, intent(in):: IsFormattedIn
 
     logical:: IsFormatted
     integer:: iNode, iLine
@@ -1626,16 +1625,13 @@ contains
     integer:: nDimIn, nInfoIn, nNodeIn, iRatioIn_D(nDim), nRootIn_D(nDim)
     character(len=*), parameter:: NameSub = 'read_tree_file'
     !--------------------------------------------------------------------------
-    if(present(IsFormattedIn))then
-       IsFormatted = IsFormattedIn
-    else
-       ! Try reading the file as formatted first
-       call open_file(file=NameFile, status='old')
-       read(UnitTmp_,*) StringLine
-       call close_file
-       ! Check the line.
-       IsFormatted = StringLine(1:4) == 'BATL'
-    end if
+    ! Try reading the file as formatted first
+    call open_file(file=NameFile, status='old')
+    read(UnitTmp_,*) StringLine
+    call close_file
+    ! Check the line: if it reads BATL, it is a text file.
+    IsFormatted = StringLine(1:4) == 'BATL'
+
     if(IsFormatted)then
        call open_file(file=NameFile, status='old')
        ! Skip header
