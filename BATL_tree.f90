@@ -1629,13 +1629,12 @@ contains
     if(present(IsFormattedIn))then
        IsFormatted = IsFormattedIn
     else
-       ! Try reading the file as unformatted first
-       IsFormatted = .false.
-       call open_file(file=NameFile, status='old', form='unformatted')
-       read(UnitTmp_) nDimIn, nInfoIn, nNodeIn
-       ! Check the values. If they make no sense assume ascii format.
-       if(nDimIn /= nDim .or. nInfoIn /= nInfo) IsFormatted = .true.
+       ! Try reading the file as formatted first
+       call open_file(file=NameFile, status='old')
+       read(UnitTmp_,*) StringLine
        call close_file
+       ! Check the line.
+       IsFormatted = StringLine(1:4) == 'BATL'
     end if
     if(IsFormatted)then
        call open_file(file=NameFile, status='old')
