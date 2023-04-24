@@ -1626,9 +1626,17 @@ contains
     integer:: nDimIn, nInfoIn, nNodeIn, iRatioIn_D(nDim), nRootIn_D(nDim)
     character(len=*), parameter:: NameSub = 'read_tree_file'
     !--------------------------------------------------------------------------
-    IsFormatted = .false.
-    if(present(IsFormattedIn)) IsFormatted = IsFormattedIn
-
+    if(present(IsFormattedIn))then
+       IsFormatted = IsFormattedIn
+    else
+       ! Try reading the file as unformatted first
+       IsFormatted = .false.
+       call open_file(file=NameFile, status='old', form='unformatted')
+       read(UnitTmp_) nDimIn, nInfoIn, nNodeIn
+       ! Check the values. If they make no sense assume ascii format.
+       if(nDimIn /= nDim .or. nInfoIn /= nInfo) IsFormatted = .true.
+       call close_file
+    end if
     if(IsFormatted)then
        call open_file(file=NameFile, status='old')
        ! Skip header
@@ -1636,7 +1644,6 @@ contains
           read(UnitTmp_, *) StringLine
           if(StringLine == '#START') EXIT
        end do
-
        read(UnitTmp_, *) nDimIn, nInfoIn, nNodeIn
     else
        call open_file(file=NameFile, status='old', form='unformatted')
