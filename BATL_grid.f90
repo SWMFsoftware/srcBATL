@@ -109,7 +109,6 @@ contains
     logical:: UseRadius, UseDegree
     real   :: Unit
     !--------------------------------------------------------------------------
-
     if(.not. DoInitializeGrid) RETURN
 
     DoInitializeGrid = .false.
@@ -226,7 +225,6 @@ contains
   end subroutine init_grid
   !============================================================================
   subroutine clean_grid
-
     !--------------------------------------------------------------------------
     if(DoInitializeGrid) RETURN
 
@@ -247,7 +245,6 @@ contains
 
   end subroutine clean_grid
   !============================================================================
-
   subroutine create_grid_block(iBlock, iNodeIn, DoFixFace, DoFaceOnly)
 
     use ModNumConst, ONLY: cHalfPi
@@ -825,12 +822,10 @@ contains
 
     end function volume4
     !==========================================================================
-
     subroutine correct_geometry_high_order
       ! Jiang, Yan, Chi-Wang Shu, and Mengping Zhang. "Free-stream preserving o
       ! finite difference schemes on curvilinear meshes." Brown University,
       ! Scientific Computing Group, Report 10 (2013): 2013.
-
       !------------------------------------------------------------------------
       call calc_metrics(iBlock)
       call coef_cart_to_noncart(iBlock)
@@ -838,10 +833,8 @@ contains
 
     end subroutine correct_geometry_high_order
     !==========================================================================
-
   end subroutine create_grid_block
   !============================================================================
-
   subroutine average_grid_node(iBlock, nVar, Var_VN)
 
     integer, intent(in)   :: iBlock
@@ -948,7 +941,6 @@ contains
 
   end subroutine average_grid_node
   !============================================================================
-
   subroutine fix_grid_res_change
 
     ! Fix 3D curvilinear grid at resolution changes so that faces match
@@ -974,7 +966,6 @@ contains
 
   end subroutine fix_grid_res_change
   !============================================================================
-
   subroutine create_grid
 
     ! create the grid: coordinates, face normals, cell volumes etc.
@@ -1004,7 +995,6 @@ contains
 
   end subroutine create_grid
   !============================================================================
-
   subroutine show_grid_block(iBlock)
 
     integer, intent(in):: iBlock
@@ -1044,7 +1034,6 @@ contains
 
   end subroutine show_grid_block
   !============================================================================
-
   subroutine show_grid_cell(NameCell, i, j, k, iBlock)
 
     ! Show information about cell i, j, k, iBlock described by NameCell
@@ -1056,7 +1045,6 @@ contains
 
     integer:: iDim, iSide, Di, Dj, Dk, i1, j1, k1, i2, k2, j2
     integer:: DiLevel, iNodeNei, iNodeNei_I(4)
-
     !--------------------------------------------------------------------------
     write(*,*)
     write(*,*) NameCell,', Used_GB=', Used_GB(i,j,k,iBlock)
@@ -1116,14 +1104,12 @@ contains
 
   end subroutine show_grid_cell
   !============================================================================
-
   subroutine show_grid_proc
 
     ! Show all blocks sequentially on the calling processor
 
     integer:: iBlock
     !--------------------------------------------------------------------------
-
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
        call show_grid_block(iBlock)
@@ -1131,7 +1117,6 @@ contains
 
   end subroutine show_grid_proc
   !============================================================================
-
   subroutine show_grid
 
     use BATL_mpi, ONLY: iProc, nProc, barrier_mpi
@@ -1140,7 +1125,6 @@ contains
     ! must be called from all processors of the MPI communicator iComm!
 
     integer:: iPe
-
     !--------------------------------------------------------------------------
     call barrier_mpi
     do iPe = 0, nProc - 1
@@ -1179,10 +1163,20 @@ contains
     real:: CoordTree_D(MaxDim), Coord_D(MaxDim)
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
     integer:: iNode
+    logical, parameter:: DoDebug = .false.
+
+    ! Convert to generalized coordinates if necessary
+
+    ! DoDebug = maxval(abs(XyzIn_D - [-289.4, 205.6, 206.4])) < 0.01
 
     character(len=*), parameter:: NameSub = 'find_grid_block'
     !--------------------------------------------------------------------------
-    ! Convert to generalized coordinates if necessary
+    if(DoDebug)then
+       write(*,*) NameSub,' starting with XyzIn_D=', XyzIn_D, IsCartesianGrid
+       write(*,*) NameSub,' present(iCellOut_D)=', present(iCellOut_D)
+       write(*,*) NameSub,' present(DistOut_D)=', present(DistOut_D)
+    end if
+
     if(IsCartesianGrid)then
        Coord_D = XyzIn_D
     else
@@ -1190,6 +1184,12 @@ contains
     end if
     ! Calculate normalized coordinates for tree search
     CoordTree_D = (Coord_D - CoordMin_D)/(DomainSize_D)
+
+    if(DoDebug)then
+       write(*,*) NameSub,' Coord_D    =', Coord_D
+       write(*,*) NameSub,' CoordMin_D =', CoordMin_D
+       write(*,*) NameSub,' CoordTree_D=', CoordTree_D
+    end if
 
     if(any(CoordTree_D < 0.0) .or. any(CoordTree_D > 1.0))then
        iBlockOut = Unset_
@@ -1202,8 +1202,13 @@ contains
     if(present(iCellOut_D))then
        call find_tree_cell(CoordTree_D, iNode, iCellOut_D, DistOut_D, &
             UseGhostCell)
+       if(DoDebug) then
+          write(*,*) NameSub,' iNode, iCellOut_D=', iNode, iCellOut_D
+          if(present(DistOut_D)) write(*,*) NameSub,' DistOut_D=', DistOut_D
+       end if
     else
        call find_tree_node(CoordTree_D, iNode)
+       if(DoDebug) write(*,*) NameSub,' iNode=', iNode
     end if
 
     ! Check if point was found
@@ -1223,6 +1228,11 @@ contains
          present(CellSizeOut_D))then
 
        call get_tree_position(iNode, PositionMin_D, PositionMax_D)
+
+       if(DoDebug)then
+          write(*,*) NameSub,' PositionMin_D=', PositionMin_D
+          write(*,*) NameSub,' PositionMax_D=', PositionMax_D
+       end if
 
        if(present(CoordMinBlockOut_D))&
             CoordMinBlockOut_D = CoordMin_D + PositionMin_D*DomainSize_D
@@ -1386,7 +1396,6 @@ contains
 
   end function maxval_grid
   !============================================================================
-
   subroutine interpolate_grid(Xyz_D, nCell, iCell_DI, Weight_I)
 
     ! Find the grid cells surrounding the point Xyz_D.
@@ -1636,7 +1645,6 @@ contains
 
   end subroutine interpolate_grid
   !============================================================================
-
   subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I, &
        IsSecondOrder)
 
@@ -1681,7 +1689,6 @@ contains
 
   end subroutine interpolate_grid_amr
   !============================================================================
-
   subroutine interpolate_grid_amr_gc(XyzIn_D, &
        nCell, iCell_DI, Weight_I, IsSecondOrder)
 
@@ -1725,7 +1732,6 @@ contains
 
   end subroutine interpolate_grid_amr_gc
   !============================================================================
-
   subroutine interpolate_grid_amr_gc_iblock(XyzIn_D, iBlock, &
        nCell, iCell_DI, Weight_I, IsSecondOrder)
 
@@ -2335,7 +2341,6 @@ contains
     integer:: iDimCart, iDimNonCart, iSub1, iSub2, iCart1, iCart2, i, j, k
     real:: CartValue1_I(1:7), CartValue2_I(1:7)
     !--------------------------------------------------------------------------
-
     if(.not. allocated(CellCoef_DDGB)) then
        allocate(CellCoef_DDGB(&
             nDim,nDim,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
@@ -2441,7 +2446,6 @@ contains
 
   end subroutine coef_cart_to_noncart
   !============================================================================
-
   subroutine calc_metrics(iBlock)
     ! Eq (10).
 
@@ -2496,6 +2500,5 @@ contains
     endif
   end subroutine calc_metrics
   !============================================================================
-
 end module BATL_grid
 !==============================================================================
