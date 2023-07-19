@@ -1417,11 +1417,11 @@ contains
 
     integer:: iCellTmp_DI(0:nDim,2*2**nDim), iCell_I(2*2**nDim)
     real   :: WeightTmp_I(2*2**nDim)
-    
+
     logical, parameter:: DoTest = .false.
+    ! Convert to generalized coordinates if necessary
     character(len=*), parameter:: NameSub = 'interpolate_grid'
     !--------------------------------------------------------------------------
-    ! Convert to generalized coordinates if necessary
     if(IsCartesianGrid)then
        Coord_D = Xyz_D
     else
@@ -1657,7 +1657,7 @@ contains
        Weight_I(1:nCell) = WeightTmp_I(1:nCell)
        iCell_DI(:,1:nCell) = iCellTmp_DI(:,1:nCell)
     end if
-       
+
   end subroutine interpolate_grid
   !============================================================================
   subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I, &
