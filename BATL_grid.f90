@@ -8,7 +8,7 @@ module BATL_grid
   use BATL_tree
   use BATL_geometry
   use BATL_high_order
-
+  use ModSort, ONLY: sort_quick
   use ModUtilities, ONLY: CON_stop
 #ifdef _OPENACC
   use ModUtilities, ONLY: norm2
@@ -1415,6 +1415,9 @@ contains
     integer:: iBlock, iDim, DiLevel, iCell_D(MaxDim), iCell, i_D(MaxDim)
     integer:: i, j, k, iLo, jLo, kLo, iHi, jHi, kHi
 
+    integer:: iCellTmp_DI(0:nDim,2*2**nDim), iCell_I(2*2**nDim)
+    real   :: WeightTmp_I(2*2**nDim)
+    
     logical, parameter:: DoTest = .false.
     character(len=*), parameter:: NameSub = 'interpolate_grid'
     !--------------------------------------------------------------------------
@@ -1596,7 +1599,7 @@ contains
           write(*,*) NameSub,' iLo, iHi, jLo, jHi=',iLo, iHi, jLo, jHi
        end if
 
-       ! Calculate the weights and store it together with index information
+       ! Calculate the weights and store them together with index information
        do k = kLo, kHi; do j = jLo, jHi; do i = iLo, iHi
           iCell_D = [ i, j, k ]
 
@@ -1612,27 +1615,26 @@ contains
 
           nCell = nCell + 1
 
-          if(nCell > 2**nDim)then
-             if(nCell == 2**nDim+1)then
-                write(*,*)'ERROR in ',NameSub,': too many cells!'
-                write(*,*)'iProc,iBlock,nDim=',iProc,iBlock,nDim
-                write(*,*)'iLo,iHi,jLo,jHi,kLo,kHi=',iLo,iHi,jLo,jHi,kLo,kHi
-                write(*,*)'Coord_D=',Coord_D(1:nDim)
-                i_D = 1
-                do iCell = 1, 2**nDim
-                   i_D(1:nDim) = iCell_DI(1:nDim,iCell)
-                   write(*,*)'iCell, iCell_DI(:,i), weight, Xyz=', &
-                        iCell, iCell_DI(:,iCell), Weight_I(iCell), &
-                        Xyz_DGB(1:nDim,i_D(1),i_D(2),i_D(3),iCell_DI(0,iCell))
-                end do
-             end if
+          if(nCell > 2*2**nDim)then
+             write(*,*)'ERROR in ',NameSub,': too many cells!'
+             write(*,*)'iProc,iBlock,nDim=',iProc,iBlock,nDim
+             write(*,*)'iLo,iHi,jLo,jHi,kLo,kHi=',iLo,iHi,jLo,jHi,kLo,kHi
+             write(*,*)'Coord_D=',Coord_D(1:nDim)
+             i_D = 1
+             do iCell = 1, 2*2**nDim
+                i_D(1:nDim) = iCellTmp_DI(1:nDim,iCell)
+                write(*,*)'iCell, iCell_DI(:,i), weight, Xyz=', &
+                     iCell, iCellTmp_DI(:,iCell), WeightTmp_I(iCell), &
+                     Xyz_DGB(1:nDim,i_D(1),i_D(2),i_D(3),iCellTmp_DI(0,iCell))
+             end do
              write(*,*)'iCell, iCell_DI(:,i), weight=', &
                   nCell, iBlock, iCell_D(1:nDim), Weight, &
                   Xyz_DGB(1:nDim,i,j,k,iBlock)
+             call CON_stop(NameSub//': Too many cells to interpolate from')
           else
-             Weight_I(nCell)   = Weight
-             iCell_DI(0,nCell) = iBlock
-             iCell_DI(1:nDim,nCell) = iCell_D(1:nDim)
+             WeightTmp_I(nCell)   = Weight
+             iCellTmp_DI(0,nCell) = iBlock
+             iCellTmp_DI(1:nDim,nCell) = iCell_D(1:nDim)
           end if
           if(DoTest)write(*,*) NameSub,' nCell, CoordCell, Weight=', &
                nCell, CoordCell_D(1:nDim), Weight
@@ -1640,9 +1642,22 @@ contains
        end do; end do; end do
     end do LOOPBLOCK
 
-    if(nCell > 2**nDim) call CON_stop(NameSub// &
-         ': too many cells to interpolate from')
-
+    if(nCell > 2**nDim) then
+       ! Sort weights. The largest 2**nDim should be used
+       ! write(*,*)'!!! nCell, WeightTmp_I=', nCell, WeightTmp_I(1:nCell)
+       call sort_quick(nCell, -WeightTmp_I, iCell_I)
+       do iCell = 1, 2**nDim
+          Weight_I(iCell)   = WeightTmp_I(iCell_I(iCell))
+          iCell_DI(:,iCell) = iCellTmp_DI(:,iCell_I(iCell))
+       end do
+       ! write(*,*)'!!! iCell_I=', iCell_I(1:nCell)
+       ! write(*,*)'!!! Weight_I=', Weight_I
+       nCell = 2**nDim
+    else
+       Weight_I(1:nCell) = WeightTmp_I(1:nCell)
+       iCell_DI(:,1:nCell) = iCellTmp_DI(:,1:nCell)
+    end if
+       
   end subroutine interpolate_grid
   !============================================================================
   subroutine interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I, &
