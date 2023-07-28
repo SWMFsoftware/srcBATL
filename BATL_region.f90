@@ -396,19 +396,11 @@ contains
     call read_var('StringShape', StringShape)
     StringShape = adjustl(StringShape)
 
-    ! Check for TypeCoordIn, only hgr/HGR, hgi/HGI and GSE is supported now
-    if (index(StringShape, 'hgr') > 0) then
-       i = index(StringShape, 'hgr')
-       StringShape = StringShape(1:i-1)//StringShape(i+3:)
-       TypeCoordIn = 'hgr'
-    elseif(index(StringShape, 'HGR') > 0) then
+    ! Check for TypeCoordIn, only HGR, HGI and GSE is supported now
+    if(index(StringShape, 'HGR') > 0) then
        i = index(StringShape, 'HGR')
        StringShape = StringShape(1:i-1)//StringShape(i+3:)
        TypeCoordIn = 'HGR'
-    elseif(index(StringShape, 'hgi') > 0) then
-       i = index(StringShape, 'hgi')
-       StringShape = StringShape(1:i-1)//StringShape(i+3:)
-       TypeCoordIn = 'hgi'
     elseif(index(StringShape, 'HGI') > 0) then
        i = index(StringShape, 'HGI')
        StringShape = StringShape(1:i-1)//StringShape(i+3:)
@@ -417,7 +409,7 @@ contains
        i = index(StringShape, 'GSE')
        StringShape = StringShape(1:i-1)//StringShape(i+3:)
        TypeCoordIn = 'GSE'
-    endif
+    end if
 
     ! StringShape is in lower case except for TypeCoordIn
     call lower_case(StringShape)
