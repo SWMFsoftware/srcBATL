@@ -15,6 +15,7 @@ module BATL_region
        nINode, nJNode, nKNode
   use ModUtilities, ONLY: CON_stop
   use omp_lib
+  use CON_axes, ONLY: dLongitudeHgr, dLongitudeHgi, XyzPlanetHgi_D
 
   implicit none
 
@@ -44,7 +45,7 @@ module BATL_region
   logical, public :: IsNewGeoParam =.false.
 
   ! Lengths of strings
-  integer, parameter:: lNameArea = 20, lNameRegion = 30
+  integer, parameter:: lNameArea = 20, lNameRegion = 30, lTypeCoord = 3
 
   type, public :: AreaType
      character(lNameRegion):: NameRegion
@@ -59,6 +60,7 @@ module BATL_region
      logical               :: DoRotate
      real, allocatable     :: Rotate_DD(:,:)
      logical               :: IsSimple
+     character(lTypeCoord) :: TypeCoordIn
   end type AreaType
 
   ! List of all geometric regions defined
@@ -341,6 +343,7 @@ contains
     use ModNumConst,       ONLY: cDegToRad
     use ModCoordTransform, ONLY: &
          rot_matrix, rot_matrix_x, rot_matrix_y, rot_matrix_z
+    use ModUtilities, ONLY : lower_case
 
     character(len=*),  intent(inout) :: NameCommand
     logical, optional, intent(in)    :: UseStrictIn
@@ -359,6 +362,7 @@ contains
     logical :: DoStretch     = .false.
 
     character(lNameRegion):: NameRegion
+    character(lTypeCoord) :: TypeCoordIn
     integer :: i, iDim
 
     real    :: AreaResolution  = 0.0
@@ -375,6 +379,8 @@ contains
     NameRegion     = 'NULL'
     AreaResolution = 0.0
     nLevelArea     = 0
+    TypeCoordIn    =''
+
     if(index(NameCommand, "REGION") > 0) then
        ! Read name of region for #REGION (or #AMRREGION) command
        call read_var('NameRegion', NameRegion, IsLowerCase=.true.)
@@ -387,8 +393,26 @@ contains
        ! Requesting 0 level refinement is meaningless
        if(nLevelArea <= 0) RETURN
     end if
-    call read_var('StringShape', StringShape, IsLowerCase=.true.)
+    call read_var('StringShape', StringShape)
     StringShape = adjustl(StringShape)
+
+    ! Check for TypeCoordIn, only HGR, HGI and GSE is supported now
+    if(index(StringShape, 'HGR') > 0) then
+       i = index(StringShape, 'HGR')
+       StringShape = StringShape(1:i-1)//StringShape(i+3:)
+       TypeCoordIn = 'HGR'
+    elseif(index(StringShape, 'HGI') > 0) then
+       i = index(StringShape, 'HGI')
+       StringShape = StringShape(1:i-1)//StringShape(i+3:)
+       TypeCoordIn = 'HGI'
+    elseif(index(StringShape, 'GSE') > 0) then
+       i = index(StringShape, 'GSE')
+       StringShape = StringShape(1:i-1)//StringShape(i+3:)
+       TypeCoordIn = 'GSE'
+    end if
+
+    ! StringShape is in lower case except for TypeCoordIn
+    call lower_case(StringShape)
 
     ! 'init' or 'initial' means that the initial resolution is set,
     ! and no area is created.
@@ -440,6 +464,7 @@ contains
     Area%Taper    = 0.0
     Area%Weight   = -1.0
     Area%DoRotate = .false.
+    Area%TypeCoordIn = ''
 
     ! Check for the word rotated in the name
     i = index(StringShape, 'rotated')
@@ -603,8 +628,9 @@ contains
                rot_matrix_y(-yRotateArea*cDegToRad)),&
                rot_matrix_x(-xRotateArea*cDegToRad))
        end if
-
     end if
+
+    if (TypeCoordIn /= '') Area%TypeCoordIn=TypeCoordIn
 
   end subroutine read_region_param
   !============================================================================
