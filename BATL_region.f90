@@ -512,24 +512,25 @@ contains
     call set_i_par_perp
     select case(NameShape)
     case("box_gen")
-       do iDim = 1, nDim
-          call read_var("CoordMinBox", XyzStartArea_D(iDim))
-       end do
-       do iDim = 1, nDim
-          call read_var("CoordMaxBox", XyzEndArea_D(iDim))
-       end do
+       call              read_var("Coord1MinBox", XyzStartArea_D(1))
+       if(nDim > 1) call read_var("Coord2MinBox", XyzStartArea_D(2))
+       if(nDim > 2) call read_var("Coord3MinBox", XyzStartArea_D(3))
+       call              read_var("Coord1MaxBox", XyzEndArea_D(1))
+       if(nDim > 1) call read_var("Coord2MaxBox", XyzEndArea_D(2))
+       if(nDim > 2) call read_var("Coord3MaxBox", XyzEndArea_D(3))
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
        Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
        Area%NameShape = "brick_gen"
 
     case("box")
-       do iDim = 1, nDim
-          call read_var("XyzMinBox", XyzStartArea_D(iDim))
-       end do
-       do iDim = 1, nDim
-          call read_var("XyzMaxBox", XyzEndArea_D(iDim))
-       end do
+       call              read_var("xMinBox", XyzStartArea_D(1))
+       if(nDim > 1) call read_var("yMinBox", XyzStartArea_D(2))
+       if(nDim > 2) call read_var("zMinBox", XyzStartArea_D(3))
+       call              read_var("xMaxBox", XyzEndArea_D(1))
+       if(nDim > 1) call read_var("yMaxBox", XyzEndArea_D(2))
+       if(nDim > 2) call read_var("zMaxBox", XyzEndArea_D(3))
+
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
        Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
