@@ -511,7 +511,19 @@ contains
     ! Read shape parameters
     call set_i_par_perp
     select case(NameShape)
-    case("box", "box_gen")
+    case("box_gen")
+       do iDim = 1, nDim
+          call read_var("CoordMinBox", XyzStartArea_D(iDim))
+       end do
+       do iDim = 1, nDim
+          call read_var("CoordMaxBox", XyzEndArea_D(iDim))
+       end do
+       ! Convert to center and size information
+       Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
+       Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
+       Area%NameShape = "brick_gen"
+
+    case("box")
        do iDim = 1, nDim
           call read_var("XyzMinBox", XyzStartArea_D(iDim))
        end do
@@ -521,13 +533,7 @@ contains
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
        Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
-
-       ! Overwrite name with brick
-       if(NameShape == "box_gen")then
-          Area%NameShape = "brick_gen"
-       else
-          Area%NameShape = "brick"
-       end if
+       Area%NameShape = "brick"
 
     case("brick", "brick_gen")
        do iDim = 1, nDim
