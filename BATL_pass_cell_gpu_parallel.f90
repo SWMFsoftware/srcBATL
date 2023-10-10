@@ -2665,7 +2665,7 @@ contains
 
       logical :: DoTest
 
-      !!! dev !the rank of this send
+      !!! dev ! the rank of this send
 #ifdef _OPENACC
       integer:: iS, jS, kS, iR, jR, kR
 #endif
