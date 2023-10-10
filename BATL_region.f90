@@ -10,7 +10,7 @@ module BATL_region
   ! Also read the initial grid refinement resolution/level.
 
   use BATL_mpi,  ONLY: iProc
-  use BATL_size, ONLY: nDim, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
+  use BATL_size, ONLY: nDim, Dim1_, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
        nI, nJ, nK, nIJK, MinI, MinJ, MinK, MaxI, MaxJ, MaxK, MaxIJK,&
        nINode, nJNode, nKNode
   use ModUtilities, ONLY: CON_stop
@@ -512,24 +512,24 @@ contains
     call set_i_par_perp
     select case(NameShape)
     case("box_gen")
-       call              read_var("Coord1MinBox", XyzStartArea_D(1))
-       if(nDim > 1) call read_var("Coord2MinBox", XyzStartArea_D(2))
-       if(nDim > 2) call read_var("Coord3MinBox", XyzStartArea_D(3))
-       call              read_var("Coord1MaxBox", XyzEndArea_D(1))
-       if(nDim > 1) call read_var("Coord2MaxBox", XyzEndArea_D(2))
-       if(nDim > 2) call read_var("Coord3MaxBox", XyzEndArea_D(3))
+       call              read_var("Coord1MinBox", XyzStartArea_D(Dim1_))
+       if(nDim > 1) call read_var("Coord2MinBox", XyzStartArea_D(Dim2_))
+       if(nDim > 2) call read_var("Coord3MinBox", XyzStartArea_D(Dim3_))
+       call              read_var("Coord1MaxBox", XyzEndArea_D(Dim1_))
+       if(nDim > 1) call read_var("Coord2MaxBox", XyzEndArea_D(Dim2_))
+       if(nDim > 2) call read_var("Coord3MaxBox", XyzEndArea_D(Dim3_))
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
        Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
        Area%NameShape = "brick_gen"
 
     case("box")
-       call              read_var("xMinBox", XyzStartArea_D(1))
-       if(nDim > 1) call read_var("yMinBox", XyzStartArea_D(2))
-       if(nDim > 2) call read_var("zMinBox", XyzStartArea_D(3))
-       call              read_var("xMaxBox", XyzEndArea_D(1))
-       if(nDim > 1) call read_var("yMaxBox", XyzEndArea_D(2))
-       if(nDim > 2) call read_var("zMaxBox", XyzEndArea_D(3))
+       call              read_var("xMinBox", XyzStartArea_D(Dim1_))
+       if(nDim > 1) call read_var("yMinBox", XyzStartArea_D(Dim2_))
+       if(nDim > 2) call read_var("zMinBox", XyzStartArea_D(Dim3_))
+       call              read_var("xMaxBox", XyzEndArea_D(Dim1_))
+       if(nDim > 1) call read_var("yMaxBox", XyzEndArea_D(Dim2_))
+       if(nDim > 2) call read_var("zMaxBox", XyzEndArea_D(Dim3_))
 
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
