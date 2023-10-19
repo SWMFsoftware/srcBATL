@@ -10,7 +10,7 @@ module BATL_region
   ! Also read the initial grid refinement resolution/level.
 
   use BATL_mpi,  ONLY: iProc
-  use BATL_size, ONLY: nDim, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
+  use BATL_size, ONLY: nDim, Dim1_, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
        nI, nJ, nK, nIJK, MinI, MinJ, MinK, MaxI, MaxJ, MaxK, MaxIJK,&
        nINode, nJNode, nKNode
   use ModUtilities, ONLY: CON_stop
@@ -511,23 +511,30 @@ contains
     ! Read shape parameters
     call set_i_par_perp
     select case(NameShape)
-    case("box", "box_gen")
-       do iDim = 1, nDim
-          call read_var("XyzMinBox", XyzStartArea_D(iDim))
-       end do
-       do iDim = 1, nDim
-          call read_var("XyzMaxBox", XyzEndArea_D(iDim))
-       end do
+    case("box_gen")
+       call              read_var("Coord1MinBox", XyzStartArea_D(Dim1_))
+       if(nDim > 1) call read_var("Coord2MinBox", XyzStartArea_D(Dim2_))
+       if(nDim > 2) call read_var("Coord3MinBox", XyzStartArea_D(Dim3_))
+       call              read_var("Coord1MaxBox", XyzEndArea_D(Dim1_))
+       if(nDim > 1) call read_var("Coord2MaxBox", XyzEndArea_D(Dim2_))
+       if(nDim > 2) call read_var("Coord3MaxBox", XyzEndArea_D(Dim3_))
        ! Convert to center and size information
        Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
        Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
+       Area%NameShape = "brick_gen"
 
-       ! Overwrite name with brick
-       if(NameShape == "box_gen")then
-          Area%NameShape = "brick_gen"
-       else
-          Area%NameShape = "brick"
-       end if
+    case("box")
+       call              read_var("xMinBox", XyzStartArea_D(Dim1_))
+       if(nDim > 1) call read_var("yMinBox", XyzStartArea_D(Dim2_))
+       if(nDim > 2) call read_var("zMinBox", XyzStartArea_D(Dim3_))
+       call              read_var("xMaxBox", XyzEndArea_D(Dim1_))
+       if(nDim > 1) call read_var("yMaxBox", XyzEndArea_D(Dim2_))
+       if(nDim > 2) call read_var("zMaxBox", XyzEndArea_D(Dim3_))
+
+       ! Convert to center and size information
+       Area%Center_D= 0.5*   (XyzStartArea_D + XyzEndArea_D)
+       Area%Size_D  = 0.5*abs(XyzEndArea_D - XyzStartArea_D)
+       Area%NameShape = "brick"
 
     case("brick", "brick_gen")
        do iDim = 1, nDim
