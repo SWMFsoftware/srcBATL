@@ -60,7 +60,7 @@ module BATL_lib
   public:: UseTest2Cell, UseTest2Xyz
   public:: iProcTest2, iBlockTest2, iTest2, jTest2, kTest2
   public:: XyzTestCell2_D, xTest2, yTest2, zTest2
-  public:: iVarTest, NameVarTest, iDimTest, iSideTest
+  public:: iVarTest, NameVarTest, iDimTest, iSideTest, iPixTest, jPixTest
 
   ! Inherited from BATL_region
   public:: nInitialAmrLevel

@@ -49,6 +49,7 @@ module BATL_test
   ! iSideTest: -1 means test left state, 1 means right state, 0 means both
   integer, public:: iSideTest = 0
   integer, public:: iVarTest = 1                       ! variable index to test
+  integer, public:: iPixTest =-1, jPixTest = -1        ! pixel to test
   character(len=20), public:: NameVarTest = ''         ! variable name to test
 
   !$acc declare create(iTest, jTest, kTest, iBlockTest, iProcTest)
