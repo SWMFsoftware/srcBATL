@@ -118,6 +118,9 @@ contains
     case("#TESTVARINDEX")
        call read_var('iVarTest', iVarTest)
        iVarTest = max(1, iVarTest)
+    case("#TESTPIX")
+       call read_var('iPixTest', iPixTest)
+       call read_var('jPixTest', jPixTest)
     case default
        call CON_stop(NameSub//': unknown command='//NameCommand)
     end select
