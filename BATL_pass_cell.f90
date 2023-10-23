@@ -2562,7 +2562,7 @@ contains
                                    State_VGB(:,iS,jS1,kS,iBlockSend), &
                                    State_VGB(:,iS,jS,kS1,iBlockSend)  )
                            elseif(UseMax)then
-                              State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
+                              State_VGB(:,iR,jR,kR,iBlockRecv) =  max( &
                                    State_VGB(:,iS,jS,kS,iBlockSend), &
                                    State_VGB(:,iS1,jS,kS,iBlockSend), &
                                    State_VGB(:,iS,jS1,kS,iBlockSend), &
