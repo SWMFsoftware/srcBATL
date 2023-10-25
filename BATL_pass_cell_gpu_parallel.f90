@@ -142,10 +142,12 @@ module BATL_pass_cell
   !$omp threadprivate( UseTime )
   !$acc declare create(UseTime)
 
-  ! memory maps for parallel message pass
-  integer, allocatable :: nMsgSend_BP(:,:)
-  integer, allocatable :: iMsgInit_BP(:,:) !(starting rank-1) of msgs for block B
+  ! number of messages sent to another processor
   integer, allocatable :: nMsgSend_P(:)
+  ! number of messages sent to another processor from a given block
+  integer, allocatable :: nMsgSend_BP(:,:)
+  ! starting index-1 of msgs for block B to processor P
+  integer, allocatable :: iMsgInit_BP(:,:)
   !$omp threadprivate(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
   !$acc declare create(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
 
