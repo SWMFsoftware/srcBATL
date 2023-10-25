@@ -575,7 +575,7 @@ contains
                    allocate(iBufferR_IP(MaxMsgSend,0:nProc-1))
                    iBufferR_IP=0
                 end if
-                
+
                 !$acc update device(nMsgSend_P, MaxMsgSend, iMsgInit_BP, &
                 !$acc nMsgSend_BP,&
                 !$acc nVarSend_IP, iBufferS_IP, iBufferR_IP, iMsgDir_BPI)
@@ -638,7 +638,7 @@ contains
                       !$acc update device(BufferR_IP)
                    end if
                    call timing_stop('alloc_buffer_pass')
-                   
+
                end if
 
                if (.not. allocated(iRequestS_I))&
@@ -687,7 +687,7 @@ contains
           end do ! iCountOnly
 
           call timing_stop('remote_pass')
-          
+
           iRequestS = 0
           !$acc host_data use_device(BufferS_IP, iBufferS_IP)
           do iProcSend = 0, nProc-1
@@ -719,7 +719,7 @@ contains
                   11, iComm, iRequestRMap_I(iRequestR),iError)
           end do
           !$acc end host_data
-          
+
           ! Local message passing
           call timing_start('local_mp_pass')
           !$omp parallel do
@@ -1016,7 +1016,7 @@ contains
          nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
       !$acc routine vector
 
-      !Copy buffer into recv block of State_VGB message by message in parallel
+      ! Copy buffer into recv block of State_VGB message by message in parallel
       use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
       use BATL_test, ONLY: iTest, jTest, kTest, iBlockTest, iVarTest
       use BATL_mpi, ONLY: iProc, nProc
@@ -1056,7 +1056,7 @@ contains
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
 
       if (iBlockRecv==0) then
-         !iMsg is empty on this processor
+         ! iMsg is empty on this processor
          RETURN
       end if
 
@@ -1089,9 +1089,9 @@ contains
 
       integer:: nWidthProlongS_D(MaxDim), iDim
       !$omp parallel
-      !------------------------------------------------------------------------
 !!! dev: compute max buffer size for all messages (equal resolution)
 !!! This may no longer be needed
+      !------------------------------------------------------------------------
       do iDim = 1,MaxDim
          if (iDim == 1) then
             nSize_DI(iDim,-1) = nG
@@ -1599,7 +1599,7 @@ contains
                 if(iProcRecv /= iProcSend) then
                    iMsgDir_BPI(iBlockSend,iProcRecv,IntDir) =&
                         nMsgSend_BP(iBlockSend,iProcRecv)
-                   
+
                    ! ranks in nMsgSend_BP start from 0
                    nMsgSend_BP(iBlockSend, iProcRecv) = &
                         nMsgSend_BP(iBlockSend, iProcRecv)+1
@@ -2336,7 +2336,7 @@ contains
       integer :: DiR, DjR, DkR
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
-      
+
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
       ! if the receiver block fills into the
@@ -3090,7 +3090,7 @@ contains
 
                end if
 #else
-               !NOACC
+               ! NOACC
                Slope_VG = 0.0
                if(nProlongOrder == 2)then
                   ! Add up 2nd order corrections for all AMR dimensions
