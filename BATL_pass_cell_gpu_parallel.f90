@@ -385,7 +385,7 @@ contains
        end if
 
        if (.not. allocated(iMsgDir_IBP))then
-          !Convert (kSend,jSend,iSend) to 0-63
+          ! Convert (kSend,jSend,iSend) to 0-63
           allocate(iMsgDir_IBP(0:4**nDim-1,nBlock,0:nProc-1))
           iMsgDir_IBP = -1
        else
@@ -1102,7 +1102,7 @@ contains
             nSize_DI(iDim,1) = nG
          end if
       end do
-      
+
 !!! dev: compute max buffer size for all messages (equal resolution)
 !!! This may no longer be needed
 
@@ -1586,7 +1586,7 @@ contains
                 iNodeRecv = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
                 iProcRecv = iTree_IA(Proc_,iNodeRecv)
                 iProcSend = iTree_IA(Proc_,iNodeSend)
-                
+
                 ! convert (iSend,jSend,kSend) to 0-63 using base 4
                 IntDir = iSend
                 if(nDim>1) IntDir = IntDir + 4 * jSend
@@ -1618,7 +1618,7 @@ contains
                 IntDir = iSend
                 if(nDim>1) IntDir = IntDir + 4 * jSend
                 if(nDim>2) IntDir = IntDir + 16* kSend
-                
+
                 if(iProcSend == iProc .and. iProcRecv /= iProcSend)then
                    iMsg_P(iProcRecv) = iMsg_P(iProcRecv)+1
                    iMsg = iMsgInit_BP(iBlockSend,iProcRecv)+&
