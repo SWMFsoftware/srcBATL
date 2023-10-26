@@ -142,10 +142,12 @@ module BATL_pass_cell
   !$omp threadprivate( UseTime )
   !$acc declare create(UseTime)
 
-  ! memory maps for parallel message pass
-  integer, allocatable :: nMsgSend_BP(:,:)
-  integer, allocatable :: iMsgInit_BP(:,:) !(starting rank-1) of msgs for block B
+  ! number of messages sent to another processor
   integer, allocatable :: nMsgSend_P(:)
+  ! number of messages sent to another processor from a given block
+  integer, allocatable :: nMsgSend_BP(:,:)
+  ! starting index-1 of msgs for block B to processor P
+  integer, allocatable :: iMsgInit_BP(:,:)
   !$omp threadprivate(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
   !$acc declare create(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
 
@@ -168,8 +170,8 @@ module BATL_pass_cell
 
   ! the rank of msg in direction I (0-26)
   ! from Block B to Processor P
-  integer, allocatable :: iMsgDir_BPI(:,:,:)
-  !$acc declare create(iMsgDir_BPI)
+  integer, allocatable :: iMsgDir_IBP(:,:,:)
+  !$acc declare create(iMsgDir_IBP)
 contains
   !============================================================================
   subroutine message_pass_real(nVar, nG, State_VGB, &
@@ -382,21 +384,14 @@ contains
           nSizeBuffer_P = 0
        end if
 
-       if (.not. allocated(iMsgDir_BPI))then
-          if(nDim==1)then
-             allocate(iMsgDir_BPI(nBlock,0:nProc-1,0:2))
-             iMsgDir_BPI = -1
-          else if(nDim==2)then
-             allocate(iMsgDir_BPI(nBlock,0:nProc-1,0:8))
-             iMsgDir_BPI = -1
-          else
-             allocate(iMsgDir_BPI(nBlock,0:nProc-1,0:26))
-             iMsgDir_BPI = -1
-          end if
+       if (.not. allocated(iMsgDir_IBP))then
+          !Convert (kSend,jSend,iSend) to 0-63
+          allocate(iMsgDir_IBP(0:4**nDim-1,nBlock,0:nProc-1))
+          iMsgDir_IBP = -1
        else
-          iMsgDir_BPI = -1
+          iMsgDir_IBP = -1
        end if
-       !$acc update device(nMsgSend_BP, iMsgInit_BP, nMsgSend_P, iMsgDir_BPI)
+       !$acc update device(nMsgSend_BP, iMsgInit_BP, nMsgSend_P, iMsgDir_IBP)
     end if
 
     if(UseOpenACC) then
@@ -552,7 +547,7 @@ contains
                         .true., &
                         TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                         UseOpenACCIn, &
-                        nMsgSend_BP, iMsgDir_BPI=iMsgDir_BPI)
+                        nMsgSend_BP, iMsgDir_IBP=iMsgDir_IBP)
                 end do
 
                 nMsgSend_P = SUM(nMsgSend_BP, DIM=1)
@@ -578,7 +573,7 @@ contains
 
                 !$acc update device(nMsgSend_P, MaxMsgSend, iMsgInit_BP, &
                 !$acc nMsgSend_BP,&
-                !$acc nVarSend_IP, iBufferS_IP, iBufferR_IP, iMsgDir_BPI)
+                !$acc nVarSend_IP, iBufferS_IP, iBufferR_IP, iMsgDir_IBP)
 
                 call timing_stop('Count_1')
                 CYCLE
@@ -594,7 +589,7 @@ contains
                         TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                         UseOpenACCIn, &
                         nMsgSend_BP, iMsgInit_BP, nVarSend_IP, nSizeMax, &
-                        MaxSize_I, iMsgDir_BPI=iMsgDir_BPI)
+                        MaxSize_I, iMsgDir_IBP=iMsgDir_IBP)
                 end do
                 !$acc end parallel
 
@@ -670,7 +665,7 @@ contains
                         TimeOld_B, Time_B, iLevelMin, iLevelMax,&
                         UseOpenACCIN, &
                         nMsgSend_BP, iMsgInit_BP, nVarSend_IP, nSizeMax, &
-                        MaxSize_I, iBufferS_IP, iMsgDir_BPI)
+                        MaxSize_I, iBufferS_IP, iMsgDir_IBP)
                 end do ! iBlockSend
                 !$acc end parallel
              else
@@ -681,7 +676,7 @@ contains
                         TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                         iMsgInit_BP=iMsgInit_BP, nVarSend_IP=nVarSend_IP,&
                         nSizeMax=nSizeMax, MaxSize_I=MaxSize_I,&
-                        iBufferS_IP=iBufferS_IP, iMsgDir_BPI=iMsgDir_BPI)
+                        iBufferS_IP=iBufferS_IP, iMsgDir_IBP=iMsgDir_IBP)
                 end do ! iBlockSend
              end if
           end do ! iCountOnly
@@ -1089,8 +1084,6 @@ contains
 
       integer:: nWidthProlongS_D(MaxDim), iDim
       !$omp parallel
-!!! dev: compute max buffer size for all messages (equal resolution)
-!!! This may no longer be needed
       !------------------------------------------------------------------------
       do iDim = 1,MaxDim
          if (iDim == 1) then
@@ -1109,6 +1102,9 @@ contains
             nSize_DI(iDim,1) = nG
          end if
       end do
+      
+!!! dev: compute max buffer size for all messages (equal resolution)
+!!! This may no longer be needed
 
       do kDir = -1, 1
          ! Do not message pass in ignored dimensions
@@ -1154,7 +1150,7 @@ contains
          nMsgSizeDir_II(1,3) = nG * nG * nG
       end if
       MaxSize_I = MAXVAL(nMsgSizeDir_II, DIM=1)
-      ! maxsize_i(1)=max size face; (2)=max size edge; (3)=maxsize corner
+      ! maxsize_i(1)=maxsize face; (2)=maxsize edge; (3)=maxsize corner
 
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
       iEqualS_DII(:,-1,Min_) = 1
@@ -1426,7 +1422,7 @@ contains
        DoRemote, TimeOld_B, Time_B, &
        iLevelMin, iLevelMax, UseOpenACCIn, &
        nMsgSend_BP, iMsgInit_BP, nVarSend_IP, nSizeMax, MaxSize_I,&
-       iBufferS_IP, iMsgDir_BPI)
+       iBufferS_IP, iMsgDir_IBP)
     !$acc routine vector
 
     use BATL_mpi, ONLY: iProc, nProc
@@ -1466,7 +1462,7 @@ contains
     integer, intent(in), optional:: nSizeMax
     integer, intent(in), optional:: MaxSize_I(3)
     integer, intent(in), optional:: iBufferS_IP(:,0:)
-    integer, intent(inout), optional:: iMsgDir_BPI(:,0:,0:)
+    integer, intent(inout), optional:: iMsgDir_IBP(0:,:,0:)
 
     ! Local variables
     logical :: UseOpenACC
@@ -1581,11 +1577,6 @@ contains
              ! Remote high order prolongation
              if(iSendStage == 4 .and. DiLevel == 0) CYCLE
 
-             !!! convert (iDir,jDir,kDir) to 0-26 using base 3
-             IntDir = iDir + 1
-             if(nDim>1) IntDir = IntDir + 3*(jDir+1)
-             if(nDim>2) IntDir = IntDir + 9*(kDir+1)
-
              ! firt time: find out each block does how many comms
              if(DoCountOnly)then
                 iSend = (3*iDir + 3)/2
@@ -1595,9 +1586,14 @@ contains
                 iNodeRecv = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
                 iProcRecv = iTree_IA(Proc_,iNodeRecv)
                 iProcSend = iTree_IA(Proc_,iNodeSend)
+                
+                ! convert (iSend,jSend,kSend) to 0-63 using base 4
+                IntDir = iSend
+                if(nDim>1) IntDir = IntDir + 4 * jSend
+                if(nDim>2) IntDir = IntDir + 16* kSend
 
                 if(iProcRecv /= iProcSend) then
-                   iMsgDir_BPI(iBlockSend,iProcRecv,IntDir) =&
+                   iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) =&
                         nMsgSend_BP(iBlockSend,iProcRecv)
 
                    ! ranks in nMsgSend_BP start from 0
@@ -1617,10 +1613,16 @@ contains
                 iProcRecv = iTree_IA(Proc_,iNodeRecv)
                 iProcSend = iTree_IA(Proc_,iNodeSend)
 
+                ! convert (iSend,jSend,kSend) to 0-63 using base 4
+                ! Dulplicate DoCountOnly1 for now, adapting for reschange
+                IntDir = iSend
+                if(nDim>1) IntDir = IntDir + 4 * jSend
+                if(nDim>2) IntDir = IntDir + 16* kSend
+                
                 if(iProcSend == iProc .and. iProcRecv /= iProcSend)then
                    iMsg_P(iProcRecv) = iMsg_P(iProcRecv)+1
                    iMsg = iMsgInit_BP(iBlockSend,iProcRecv)+&
-                        iMsgDir_BPI(iBlockSend,iProcRecv,IntDir)+1
+                        iMsgDir_IBP(IntDir,iBlockSend,iProcRecv)+1
                    nVarSend_IP(iMsg, iProcRecv)=&
                         1+2*nDim+nVar*MaxSize_I(abs(iDir)+abs(jDir)+abs(kDir))
                 end if
@@ -1641,7 +1643,7 @@ contains
                               DoRemote, IsAxisNode, iLevelMIn, Time_B, &
                               TimeOld_B,&
                               iMsgInit_BP(iBlockSend,:) , iMsg_P, iBufferS_IP,&
-                              iMsgDir_BPI)
+                              iMsgDir_IBP)
                       else
                          call do_equal(iDir, jDir, kDir,&
                               iNodeSend, iBlockSend, nVar, nG, State_VGB, &
@@ -2110,7 +2112,7 @@ contains
     !==========================================================================
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B, &
-         iMsgInit_P, iMsg_P, iBufferS_IP, iMsgDir_BPI)
+         iMsgInit_P, iMsg_P, iBufferS_IP, iMsgDir_IBP)
       !$acc routine vector
       use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
            iBlockTest, iVarTest, iDimTest, iSideTest
@@ -2131,7 +2133,7 @@ contains
       integer, optional, intent(in):: iMsgInit_P(0:nProc-1)
       integer, optional, intent(inout):: iMsg_P(0:nProc-1)
       integer, optional, intent(in):: iBufferS_IP(:,0:)
-      integer, optional, intent(in):: iMsgDir_BPI(:,0:,0:)
+      integer, optional, intent(in):: iMsgDir_IBP(0:,:,0:)
 
       integer :: iBufferS, iVarS, i, j, k, nSize, nWithin
       real    :: WeightOld, WeightNew
@@ -2265,12 +2267,13 @@ contains
          end if
       else
 
-         IntDir = iDir + 1
-         if(nDim>1) IntDir = IntDir + 3*(jDir+1)
-         if(nDim>2) IntDir = IntDir + 9*(kDir+1)
+         ! convert (iSend,jSend,kSend) to 0-63 using base 4
+         IntDir = iSend
+         if(nDim>1) IntDir = IntDir + 4 * jSend
+         if(nDim>2) IntDir = IntDir + 16* kSend
 
          iMsgGlob = iMsgInit_P(iProcRecv) + &
-              iMsgDir_BPI(iBlockSend, iProcRecv, IntDir) + 1
+              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv) + 1
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
