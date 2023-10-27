@@ -1881,6 +1881,8 @@ contains
           if(.not.Unused_B(iBlock)) nBlock = max(nBlock, iBlock)
        end if
 
+       !$acc update device(nBlock)
+
     end do
     ! Now that we removed children of coarsened blocks, compact the tree
     call compact_tree(iTypeNode_A)
