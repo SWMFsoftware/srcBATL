@@ -254,7 +254,7 @@ contains
 
 !!! dev
     integer :: nMsgSend = 0
-    integer :: nMsgSendCap = 0 !dynamic array capacity
+    integer :: nMsgSendCap = 0 ! dynamic array capacity
     !$acc declare create(nMsgSend)
 
     integer :: iTag
@@ -573,22 +573,22 @@ contains
 !                        SUM(nMsgSend_BP(1:(iBlockSend-1),:),DIM=1)
 !                   write(*,*)'iBlockSend,iMsgInit=',iBlockSend,&
 !                        iMsgInit_BP(iBlockSend,:)
-                   
-                   !dynamically manage array sizes for each block counted
+
+                   ! dynamically manage array sizes for each block counted
                    if(nMsgSend + 4**nDim > nMsgSendCap) then
                       call timing_start('resize_arrays')
 !                      write(*,*)'Capacity changes from ',nMsgSendCap,' to ',&
 !                           2*nMsgSendCap
-                      !enlarge capacity
+                      ! enlarge capacity
                       nMsgSendCap = 2*nMsgSendCap
-                      !copy old to new
+                      ! copy old to new
                       nVarSendTemp_IP=nVarSend_IP
                       iBufferSTemp_IP=iBufferS_IP
-                      !decallocate old arrays
+                      ! decallocate old arrays
                       deallocate(nVarSend_IP)
                       deallocate(iBufferS_IP)
                       deallocate(iBufferR_IP)
-                      !allocate larger arrays
+                      ! allocate larger arrays
                       allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
                       allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
                       allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
@@ -599,17 +599,17 @@ contains
                            nVarSendTemp_IP
                       iBufferS_IP(1:nMsgSendCap/2,:)=&
                            iBufferSTemp_IP
-                      !deallocate temp arrays
+                      ! deallocate temp arrays
                       deallocate(nVarSendTemp_IP)
                       deallocate(iBufferSTemp_IP)
-                      !allocate new temp arrays
+                      ! allocate new temp arrays
                       allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
                       allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
                       call timing_stop('resize_arrays')
                    end if
                 end do
-                
-                !allocate buffers
+
+                ! allocate buffers
                 if (nCapBuffer == 0) then
                    call timing_start('alloc_buffer')
                    nCapBuffer = nSizeBuffer
@@ -1602,11 +1602,11 @@ contains
                    ! ranks in nMsgSend_BP start from 0
                    nMsgSend_BP(iBlockSend, iProcRecv) = &
                         nMsgSend_BP(iBlockSend, iProcRecv)+1
-                   !cumulative number of messages sent per processor
-                   !controls the size of dynamic arrays
+                   ! cumulative number of messages sent per processor
+                   ! controls the size of dynamic arrays
                    ! in thie serial loop, nMsgSend_P is also iMsgSend_P
                    nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv)+1
-                   !size of this message -- depending on DiLevel
+                   ! size of this message -- depending on DiLevel
                    if(DiLevel == 0)then ! equal resolution
                       ! For nDim<3, only ijkDir = 0 is allowed. This lead to
                       ! ijkSMin = ijkSMax = 1.
@@ -1616,16 +1616,16 @@ contains
                       jSMax = iEqualS_DII(2,jDir,Max_)
                       kSMin = iEqualS_DII(3,kDir,Min_)
                       kSMax = iEqualS_DII(3,kDir,Max_)
-                      
+
                       nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
                            1+2*nDim+nVar*&
                            (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
                    end if
-                   !cumulative number of variables sent per processor
-                   !controls the size of buffers
+                   ! cumulative number of variables sent per processor
+                   ! controls the size of buffers
                    nSizeBuffer_P(iProcRecv) = nSizeBuffer_P(iProcRecv)+&
                         nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
-                   
+
                    if(nMsgSend_P(iProcRecv)==1) then
                       iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
                    end if
@@ -1636,9 +1636,9 @@ contains
 !                        nMsgSend_P(iProcRecv),&
 !                        iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv),&
 !                        iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
-                end if !iProcRecv/=iProcSend                
-                CYCLE !next direction                
-             end if !DoCountOnly
+                end if ! iProcRecv/=iProcSend
+                CYCLE ! next direction
+             end if ! DoCountOnly
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -2281,15 +2281,15 @@ contains
          ! convert (iSend,jSend,kSend) to 0-63 using base 4
          IntDir = iSend
          if(nDim>1) IntDir = IntDir + 4 * jSend
-         if(nDim>2) IntDir = IntDir + 16* kSend         
-         
+         if(nDim>2) IntDir = IntDir + 16* kSend
+
          iMsgGlob = iMsgInit_P(iProcRecv) + &
               iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
 !         if(iProc==1)write(*,*)'iMsgDir,iMsgInit,iMsgGlob,iBuffer=',&
 !              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv),&
 !              iMsgInit_P(iProcRecv),iMsgGlob,iBufferS
-         
+
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
          BufferS_IP(iBufferS+2, iProcRecv) = iRMax
