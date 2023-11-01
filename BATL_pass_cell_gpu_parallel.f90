@@ -162,9 +162,6 @@ module BATL_pass_cell
   integer :: iMsgSend ! loop index for messages
   !$acc declare create(nVarSend_IP, iBufferS_IP, iBufferR_IP)
 
-  logical :: DoCountOnly2 = .false.
-  !$acc declare create(DoCountOnly2)
-
   ! structured buffer array for do_equal
   real, allocatable :: BufferS_IP(:,:)
   real, allocatable :: BufferR_IP(:,:)
@@ -1499,6 +1496,7 @@ contains
     integer:: iBuffer ! starting index of a message
     integer:: iMsg_P(0:nProc-1) ! counter, resets for every block
     integer:: IntDir
+    integer:: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax ! for computing msg size
     !--------------------------------------------------------------------------
     iMsg_P = 0 ! resets for every block, +1 for every loop/message
 
@@ -1608,10 +1606,21 @@ contains
                    !controls the size of dynamic arrays
                    ! in thie serial loop, nMsgSend_P is also iMsgSend_P
                    nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv)+1
-                   !size of this message -- the following is an estimate
-                   !!!consider getting rid of intermediate arrays
-                   nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
-                        1+2*nDim+nVar*MaxSize_I(abs(iDir)+abs(jDir)+abs(kDir))
+                   !size of this message -- depending on DiLevel
+                   if(DiLevel == 0)then ! equal resolution
+                      ! For nDim<3, only ijkDir = 0 is allowed. This lead to
+                      ! ijkSMin = ijkSMax = 1.
+                      iSMin = iEqualS_DII(1,iDir,Min_)
+                      iSMax = iEqualS_DII(1,iDir,Max_)
+                      jSMin = iEqualS_DII(2,jDir,Min_)
+                      jSMax = iEqualS_DII(2,jDir,Max_)
+                      kSMin = iEqualS_DII(3,kDir,Min_)
+                      kSMax = iEqualS_DII(3,kDir,Max_)
+                      
+                      nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
+                           1+2*nDim+nVar*&
+                           (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
+                   end if
                    !cumulative number of variables sent per processor
                    !controls the size of buffers
                    nSizeBuffer_P(iProcRecv) = nSizeBuffer_P(iProcRecv)+&
