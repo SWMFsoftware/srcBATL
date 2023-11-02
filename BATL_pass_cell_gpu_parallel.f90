@@ -151,17 +151,16 @@ module BATL_pass_cell
   !$omp threadprivate(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
   !$acc declare create(nMsgSend_BP, iMsgInit_BP, nMsgSend_P)
 
-  integer, allocatable :: nVarSend_IP(:,:)
+  integer, allocatable :: nVarSend_IP(:,:), nVarSendTemp_IP(:,:)
   ! Parallel version of iBuffer
-  integer, allocatable :: iBufferS_IP(:,:)
-  integer, allocatable :: iBufferR_IP(:,:)
+  integer, allocatable :: iBufferS_IP(:,:), iBufferSTemp_IP(:,:)
+  integer, allocatable :: iBufferR_IP(:,:), iBufferRTemp_IP(:,:)
   integer, allocatable :: nSizeBuffer_P(:)
   integer :: nSizeBuffer
+  ! Buffer array capacity
+  integer :: nCapBuffer = 0
   integer :: iMsgSend ! loop index for messages
   !$acc declare create(nVarSend_IP, iBufferS_IP, iBufferR_IP)
-
-  logical :: DoCountOnly2
-  !$acc declare create(DoCountOnly2)
 
   ! structured buffer array for do_equal
   real, allocatable :: BufferS_IP(:,:)
@@ -254,8 +253,9 @@ contains
     logical :: UseOpenACC
 
 !!! dev
-    integer :: MaxMsgSend = 0
-    !$acc declare create(MaxMsgSend)
+    integer :: nMsgSend = 0
+    integer :: nMsgSendCap = 0 !dynamic array capacity
+    !$acc declare create(nMsgSend)
 
     integer :: iTag
 
@@ -392,6 +392,16 @@ contains
           iMsgDir_IBP = -1
        end if
        !$acc update device(nMsgSend_BP, iMsgInit_BP, nMsgSend_P, iMsgDir_IBP)
+       if(nMsgSendCap ==0) then
+          nMsgSendCap = 4**nDim
+          ! Initially, allocate arrays and their copies
+          ! We can get rid of nVarSend_IP but have a messier Count loop.
+          allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
+          allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
+          allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
+          allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
+          allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
+       end if
     end if
 
     if(UseOpenACC) then
@@ -521,6 +531,9 @@ contains
     else
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
+          ! Second order prolongation needs two stages:
+          ! first stage fills in equal and coarser ghost cells
+          ! second stage uses these to prolong and fill in finer ghost cells
           if(UseHighResChange) then
              State_VIIIB = 0
              IsAccurate_B = .false.
@@ -528,18 +541,14 @@ contains
 
           call timing_start('remote_pass')
 
-          do iCountOnly = 1, 3
-             ! count first time to find out nMsgSend
-             ! count second time in parallel to construct message map
+          do iCountOnly = 1, 2
+             ! Count only once for
+             !   1. nMsgSend_P, which is the size of memory maps
+             !   2. nSizeBuffer_P, which is the size of the buffers
+             ! The size of the memory maps can change dynamically when nMsgSend
+             ! changes, which mostly happens in the initial pass.
              DoCountOnly = iCountOnly == 1
-             DoCountOnly2 = iCountOnly == 2
-
-             !$acc update device(DoCountOnly, DoCountOnly2)
-
-             ! Second order prolongation needs two stages:
-             ! first stage fills in equal and coarser ghost cells
-             ! second stage uses these to prolong and fill in finer ghost cells
-
+             !$acc update device(DoCountOnly)
              if(DoCountOnly) then
                 call timing_start('Count_1')
                 do iBlockSend = 1, nBlock
@@ -547,108 +556,103 @@ contains
                         .true., &
                         TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                         UseOpenACCIn, &
-                        nMsgSend_BP, iMsgDir_IBP=iMsgDir_IBP)
+                        nMsgSend_BP=nMsgSend_BP, nVarSend_IP=nVarSend_IP,&
+                        MaxSize_I=MaxSize_I, iBufferS_IP=iBufferS_IP,&
+                        iMsgDir_IBP=iMsgDir_IBP)
+
+                   ! update nMsgSend and nSizeBuffer for each block
+                   nMsgSend = maxval(nMsgSend_P)
+                   nSizeBuffer = maxval(nSizeBuffer_P)
+
+                   ! Keeping track of the initial message index for each block
+                   ! is needed for parallel construction of the send buffer.
+                   if(iBlockSend == 1)iMsgInit_BP(iBlockSend,:) = 1
+                   if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
+                        iMsgInit_BP(iBlockSend,:)+nMsgSend_BP(iBlockSend,:)
+!                   iMsgInit_BP(iBlockSend,:) = &
+!                        SUM(nMsgSend_BP(1:(iBlockSend-1),:),DIM=1)
+!                   write(*,*)'iBlockSend,iMsgInit=',iBlockSend,&
+!                        iMsgInit_BP(iBlockSend,:)
+                   
+                   !dynamically manage array sizes for each block counted
+                   if(nMsgSend + 4**nDim > nMsgSendCap) then
+                      call timing_start('resize_arrays')
+!                      write(*,*)'Capacity changes from ',nMsgSendCap,' to ',&
+!                           2*nMsgSendCap
+                      !enlarge capacity
+                      nMsgSendCap = 2*nMsgSendCap
+                      !copy old to new
+                      nVarSendTemp_IP=nVarSend_IP
+                      iBufferSTemp_IP=iBufferS_IP
+                      !decallocate old arrays
+                      deallocate(nVarSend_IP)
+                      deallocate(iBufferS_IP)
+                      deallocate(iBufferR_IP)
+                      !allocate larger arrays
+                      allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
+                      allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
+                      allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
+                      ! for this copy, the exact range is 1:nMsgSend+1, because
+                      ! we always compute the starting indices for the next
+                      ! iBlockSend loop. However the following syntax is neat.
+                      nVarSend_IP(1:nMsgSendCap/2,:)=&
+                           nVarSendTemp_IP
+                      iBufferS_IP(1:nMsgSendCap/2,:)=&
+                           iBufferSTemp_IP
+                      !deallocate temp arrays
+                      deallocate(nVarSendTemp_IP)
+                      deallocate(iBufferSTemp_IP)
+                      !allocate new temp arrays
+                      allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
+                      allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
+                      call timing_stop('resize_arrays')
+                   end if
                 end do
+                
+                !allocate buffers
+                if (nCapBuffer == 0) then
+                   call timing_start('alloc_buffer')
+                   nCapBuffer = nSizeBuffer
+                   allocate(BufferS_IP(nCapBuffer,&
+                        0:nProc-1))
+                   allocate(BufferR_IP(nCapBuffer,&
+                        0:nProc-1))
 
-                nMsgSend_P = SUM(nMsgSend_BP, DIM=1)
-                MaxMsgSend = MAXVAL(nMsgSend_P)
-
-                do iBlockSend = 1, nBlock
-                   iMsgInit_BP(iBlockSend,:) = &
-                        SUM(nMsgSend_BP(1:(iBlockSend-1),:),DIM=1)
-                end do
-
-                if(.not. allocated(nVarSend_IP)) then
-                   allocate(nVarSend_IP(MaxMsgSend,0:nProc-1))
-                   nVarSend_IP = 0
+                   BufferS_IP = 0.0
+                   BufferR_IP = 0.0
+                   !$acc update device(BufferS_IP, BufferR_IP)
+                   call timing_stop('alloc_buffer')
+                else if(nSizeBuffer > nCapBuffer)then
+                   call timing_start('enlarge_buffer')
+                   nCapBuffer = nSizeBuffer
+                   deallocate(BufferS_IP)
+                   deallocate(BufferR_IP)
+                   allocate(BufferS_IP(nCapBuffer,&
+                        0:nProc-1))
+                   allocate(BufferR_IP(nCapBuffer,&
+                        0:nProc-1))
+                   BufferS_IP = 0.0
+                   BufferR_IP = 0.0
+                   !$acc update device(BufferS_IP, BufferR_IP)
+                   call timing_stop('enlarge_buffer')
                 end if
-                if(.not. allocated(iBufferS_IP)) then
-                   allocate(iBufferS_IP(MaxMsgSend,0:nProc-1))
-                   iBufferS_IP = 0
-                end if
-                if(.not. allocated(iBufferR_IP)) then
-                   allocate(iBufferR_IP(MaxMsgSend,0:nProc-1))
-                   iBufferR_IP=0
-                end if
 
-                !$acc update device(nMsgSend_P, MaxMsgSend, iMsgInit_BP, &
+                if (.not. allocated(iRequestS_I))&
+                     allocate(iRequestS_I(1:nProc-1))
+                if (.not. allocated(iRequestR_I))&
+                     allocate(iRequestR_I(1:nProc-1))
+                if (.not. allocated(iRequestSMap_I))&
+                     allocate(iRequestSMap_I(1:nProc-1))
+                if (.not. allocated(iRequestRMap_I))&
+                     allocate(iRequestRMap_I(1:nProc-1))
+
+!!!-----------
+                !$acc update device(nMsgSend_P, nMsgSend, iMsgInit_BP, &
                 !$acc nMsgSend_BP,&
                 !$acc nVarSend_IP, iBufferS_IP, iBufferR_IP, iMsgDir_IBP)
-
                 call timing_stop('Count_1')
                 CYCLE
              end if
-
-             if(DoCountOnly2) then
-                call timing_start('Count_2')
-                !$acc parallel
-                !$acc loop gang
-                do iBlockSend = 1, nBlock
-                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                        .true.,&
-                        TimeOld_B, Time_B, iLevelMin, iLevelMax, &
-                        UseOpenACCIn, &
-                        nMsgSend_BP, iMsgInit_BP, nVarSend_IP, nSizeMax, &
-                        MaxSize_I, iMsgDir_IBP=iMsgDir_IBP)
-                end do
-                !$acc end parallel
-
-                !$acc update host(nVarSend_IP)
-                do iMsgSend = 1, MaxMsgSend
-                   iBufferS_IP(iMsgSend,:) = &
-                        SUM(nVarSend_IP(1:iMsgSend-1,:), DIM=1)
-                   iBufferS_IP(iMsgSend,:) = iBufferS_IP(iMsgSend,:) + &
-                        merge(1,0,nVarSend_IP(iMsgSend,:)>0)
-                   ! merge: A mask that only adds 1 if iMsg is nonempty for
-                   ! some processor. Needed for asymmetric load balance
-                   ! or multiple processors in general. Gaps in memory maps
-                   ! cause bugs.
-
-                   iBufferS_IP(iMsgSend,:) = iBufferS_IP(iMsgSend,:) * &
-                        merge(1,0,nVarSend_IP(iMsgSend,:)>0)
-                   ! if iMsg is EMPTY, set iVar0 to 0, otherwise this empty
-                   ! message will use the index from the iMsg-1
-                end do
-
-                !$acc update device(iBufferS_IP)
-
-                nSizeBuffer_P = SUM(nVarSend_IP, DIM=1)
-                nSizeBuffer = MAXVAL(nSizeBuffer_P)
-
-                if (.not. allocated(BufferS_IP) .or. &
-                     .not. allocated(BufferR_IP)) then
-
-                   call timing_start('alloc_buffer_pass')
-                   if (.not. allocated(BufferS_IP)) then
-                      allocate(BufferS_IP(nSizeBuffer,&
-                           0:nProc-1))
-                      BufferS_IP = 0.0
-                      !$acc update device(BufferS_IP)
-                   end if
-
-                   if (.not. allocated(BufferR_IP)) then
-                      allocate(BufferR_IP(nSizeBuffer,&
-                           0:nProc-1))
-                      BufferR_IP = 0.0
-                      !$acc update device(BufferR_IP)
-                   end if
-                   call timing_stop('alloc_buffer_pass')
-
-               end if
-
-               if (.not. allocated(iRequestS_I))&
-                    allocate(iRequestS_I(1:nProc-1))
-               if (.not. allocated(iRequestR_I))&
-                    allocate(iRequestR_I(1:nProc-1))
-               if (.not. allocated(iRequestSMap_I))&
-                    allocate(iRequestSMap_I(1:nProc-1))
-               if (.not. allocated(iRequestRMap_I))&
-                    allocate(iRequestRMap_I(1:nProc-1))
-
-               call timing_stop('Count_2')
-               CYCLE
-
-            end if
 
             if(UseOpenACC) then
                 ! Prepare the buffer for remote message passing
@@ -769,7 +773,7 @@ contains
              if(iProcSend == iProc) CYCLE
              !$acc parallel copyin(nVar, iProcSend) present(BufferR_IP)
              !$acc loop gang
-             do iMsgSend = 1, MaxMsgSend
+             do iMsgSend = 1, nMsgSend
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      iBufferR_IP, BufferR_IP,&
                   nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
@@ -1403,7 +1407,6 @@ contains
 
     Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock) = &
          Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock)
-    !$acc update device(Scalar_VGB)
 
     call message_pass_cell(1, nG, Scalar_VGB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
@@ -1412,7 +1415,6 @@ contains
          NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn, &
          UseOpenACCIn = UseOpenACCIn)
 
-    !$acc update host(Scalar_VGB)
     Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock) = &
          nint(Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock))
 
@@ -1461,7 +1463,7 @@ contains
     integer, intent(inout), optional:: nVarSend_IP(:,0:)
     integer, intent(in), optional:: nSizeMax
     integer, intent(in), optional:: MaxSize_I(3)
-    integer, intent(in), optional:: iBufferS_IP(:,0:)
+    integer, intent(inout), optional:: iBufferS_IP(:,0:)
     integer, intent(inout), optional:: iMsgDir_IBP(0:,:,0:)
 
     ! Local variables
@@ -1494,6 +1496,7 @@ contains
     integer:: iBuffer ! starting index of a message
     integer:: iMsg_P(0:nProc-1) ! counter, resets for every block
     integer:: IntDir
+    integer:: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax ! for computing msg size
     !--------------------------------------------------------------------------
     iMsg_P = 0 ! resets for every block, +1 for every loop/message
 
@@ -1584,6 +1587,7 @@ contains
                 kSend = (3*kDir + 3)/2
 
                 iNodeRecv = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
+                iBlockRecv = iTree_IA(Block_,iNodeRecv)
                 iProcRecv = iTree_IA(Proc_,iNodeRecv)
                 iProcSend = iTree_IA(Proc_,iNodeSend)
 
@@ -1595,39 +1599,46 @@ contains
                 if(iProcRecv /= iProcSend) then
                    iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) =&
                         nMsgSend_BP(iBlockSend,iProcRecv)
-
                    ! ranks in nMsgSend_BP start from 0
                    nMsgSend_BP(iBlockSend, iProcRecv) = &
                         nMsgSend_BP(iBlockSend, iProcRecv)+1
-                end if
-                CYCLE
-             end if
-
-             if(DoCountOnly2)then
-                iSend = (3*iDir + 3)/2
-                jSend = (3*jDir + 3)/2
-                kSend = (3*kDir + 3)/2
-
-                iNodeRecv = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-                iBlockRecv = iTree_IA(Block_,iNodeRecv)
-                iProcRecv = iTree_IA(Proc_,iNodeRecv)
-                iProcSend = iTree_IA(Proc_,iNodeSend)
-
-                ! convert (iSend,jSend,kSend) to 0-63 using base 4
-                ! Dulplicate DoCountOnly1 for now, adapting for reschange
-                IntDir = iSend
-                if(nDim>1) IntDir = IntDir + 4 * jSend
-                if(nDim>2) IntDir = IntDir + 16* kSend
-
-                if(iProcSend == iProc .and. iProcRecv /= iProcSend)then
-                   iMsg_P(iProcRecv) = iMsg_P(iProcRecv)+1
-                   iMsg = iMsgInit_BP(iBlockSend,iProcRecv)+&
-                        iMsgDir_IBP(IntDir,iBlockSend,iProcRecv)+1
-                   nVarSend_IP(iMsg, iProcRecv)=&
-                        1+2*nDim+nVar*MaxSize_I(abs(iDir)+abs(jDir)+abs(kDir))
-                end if
-                CYCLE ! next direction
-             end if
+                   !cumulative number of messages sent per processor
+                   !controls the size of dynamic arrays
+                   ! in thie serial loop, nMsgSend_P is also iMsgSend_P
+                   nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv)+1
+                   !size of this message -- depending on DiLevel
+                   if(DiLevel == 0)then ! equal resolution
+                      ! For nDim<3, only ijkDir = 0 is allowed. This lead to
+                      ! ijkSMin = ijkSMax = 1.
+                      iSMin = iEqualS_DII(1,iDir,Min_)
+                      iSMax = iEqualS_DII(1,iDir,Max_)
+                      jSMin = iEqualS_DII(2,jDir,Min_)
+                      jSMax = iEqualS_DII(2,jDir,Max_)
+                      kSMin = iEqualS_DII(3,kDir,Min_)
+                      kSMax = iEqualS_DII(3,kDir,Max_)
+                      
+                      nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
+                           1+2*nDim+nVar*&
+                           (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
+                   end if
+                   !cumulative number of variables sent per processor
+                   !controls the size of buffers
+                   nSizeBuffer_P(iProcRecv) = nSizeBuffer_P(iProcRecv)+&
+                        nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
+                   
+                   if(nMsgSend_P(iProcRecv)==1) then
+                      iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
+                   end if
+                   iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
+                        iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
+                        nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)
+!                   write(*,*)'iMsg,iBufferS,iBufferS(+1)=',&
+!                        nMsgSend_P(iProcRecv),&
+!                        iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv),&
+!                        iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
+                end if !iProcRecv/=iProcSend                
+                CYCLE !next direction                
+             end if !DoCountOnly
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -2270,11 +2281,15 @@ contains
          ! convert (iSend,jSend,kSend) to 0-63 using base 4
          IntDir = iSend
          if(nDim>1) IntDir = IntDir + 4 * jSend
-         if(nDim>2) IntDir = IntDir + 16* kSend
-
+         if(nDim>2) IntDir = IntDir + 16* kSend         
+         
          iMsgGlob = iMsgInit_P(iProcRecv) + &
-              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv) + 1
+              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
+!         if(iProc==1)write(*,*)'iMsgDir,iMsgInit,iMsgGlob,iBuffer=',&
+!              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv),&
+!              iMsgInit_P(iProcRecv),iMsgGlob,iBufferS
+         
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
          BufferS_IP(iBufferS+2, iProcRecv) = iRMax
