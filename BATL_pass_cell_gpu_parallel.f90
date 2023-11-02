@@ -382,7 +382,7 @@ contains
        else
           iMsgDir_IBP = -1
        end if
-       
+
        if(nMsgSendCap ==0) then
           nMsgSendCap = 4**nDim
           ! Initially, allocate arrays and their copies
@@ -1072,8 +1072,8 @@ contains
 
       integer:: nWidthProlongS_D(MaxDim), iDim
       !$omp parallel
-      !------------------------------------------------------------------------
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
+      !------------------------------------------------------------------------
       iEqualS_DII(:,-1,Min_) = 1
       iEqualS_DII(:,-1,Max_) = nWidth
       iEqualS_DII(:, 0,Min_) = 1
