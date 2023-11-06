@@ -361,11 +361,11 @@ contains
     elseif(IsRLonLat)then
        call rlonlat_to_xyz(Coord_D, XyzOut_D)
     elseif(IsRoundCube)then
-       r2 = sum(CoordIn_D**2)
+       r2 = sum(Coord_D**2)
        ! L1 and L2 distances from origin
        ! L1 distance is constant on the surface of a cube
        ! L2 distance is constant on the surface of a sphere
-       Dist1 = maxval(abs(CoordIn_D))
+       Dist1 = maxval(abs(Coord_D))
        Dist2 = sqrt(r2)
 
        if (r2 > 0.0) then
@@ -390,23 +390,23 @@ contains
              ! no stretch and along the axes the expansion is SqrtNDim.
              ! For the partially rounded grid the expansion factor is reduced.
              ! The minimum expansion factor is 1 in the non-distorted region.
-             XyzOut_D = (1 + Weight*(Dist1*SqrtNDim/Dist2 - 1)) * CoordIn_D
+             XyzOut_D = (1 + Weight*(Dist1*SqrtNDim/Dist2 - 1)) * Coord_D
           else
              ! Contract coordinate inward
              ! In this case the grid is contracted along
              ! the main diagonals by a factor up to sqrt(nDim)
              ! and there is no contraction along the axes
-             XyzOut_D = (1 + Weight*(Dist1/Dist2 - 1)) * CoordIn_D
+             XyzOut_D = (1 + Weight*(Dist1/Dist2 - 1)) * Coord_D
           end if
 
        else
           XyzOut_D = 0.0
        end if
     elseif(IsCubedSphere)then
-       if(CoordIn_D(1) > 0.0)then
-          r = CoordIn_D(1)
-          TanLon = tan(CoordIn_D(2))
-          TanLat = tan(CoordIn_D(3))
+       if(Coord_D(1) > 0.0)then
+          r = Coord_D(1)
+          TanLon = tan(Coord_D(2))
+          TanLat = tan(Coord_D(3))
           select case(iCubedSphere)
           case(1)
              XyzOut_D(1) = r/sqrt(1 + TanLon**2 + TanLat**2)
