@@ -156,7 +156,7 @@ contains
     IsCylindrical      = TypeGeometry(1:3)  == 'cyl'
     IsRoundCube        = TypeGeometry(1:5)  == 'round'
     IsCubedSphere      = TypeGeometry(1:5)  == 'cubed'
-    
+
     IsLogRadius   = index(TypeGeometry,'lnr')  > 0
     IsGenRadius   = index(TypeGeometry,'genr') > 0
 
