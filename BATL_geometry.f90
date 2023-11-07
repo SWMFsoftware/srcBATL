@@ -45,6 +45,7 @@ module BATL_geometry
   logical, public:: IsCartesian       = .true.  ! Normal Cartesian geometry
   logical, public:: IsRotatedCartesian= .false. ! Rotated Cartesian grid
   logical, public:: IsRzGeometry      = .false. ! RZ geometry (x is symm. axis)
+  logical, public:: IsCubedSphere     = .false. ! cubed sphere
   logical, public:: IsRoundCube       = .false. ! square/cube stretched
   logical, public:: IsCylindrical     = .false. ! cylindrical: r, phi, z
   logical, public:: IsSpherical       = .false. ! spherical: r, theta, phi
@@ -86,6 +87,9 @@ module BATL_geometry
   ! This is needed for the roundcube geometry
   real, public, parameter:: SqrtNDim = sqrt(real(nDim))
 
+  ! For cubed sphere need to know which of the 6 panels is used
+  integer, public:: iCubedSphere = 1
+
   !$acc declare create(TypeGeometry, IsCartesianGrid, IsCartesian)
   !$acc declare create(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
   !$acc declare create(IsSpherical, IsRLonLat, IsCylindrical)
@@ -95,6 +99,7 @@ module BATL_geometry
   !$acc declare create(UseHighFDGeometry)
   !$acc declare create(r_, Phi_, Theta_, Lon_, Lat_)
   !$acc declare create(rRound0, rRound1, IsRoundCube)
+  !$acc declare create(IsCubedSphere, iCubedSphere)
 
 contains
   !============================================================================
@@ -150,7 +155,8 @@ contains
     IsRLonLat          = TypeGeometry(1:3)  == 'rlo'
     IsCylindrical      = TypeGeometry(1:3)  == 'cyl'
     IsRoundCube        = TypeGeometry(1:5)  == 'round'
-
+    IsCubedSphere      = TypeGeometry(1:5)  == 'cubed'
+    
     IsLogRadius   = index(TypeGeometry,'lnr')  > 0
     IsGenRadius   = index(TypeGeometry,'genr') > 0
 
@@ -281,6 +287,21 @@ contains
        else
           CoordOut_D = 0.0
        end if
+    elseif(IsCubedSphere)then
+       CoordOut_D(1) = norm2(XyzIn_D)
+       if(CoordOut_D(1) > 0)then
+          if (XyzIn_D(1) >= maxval(abs(XyzIn_D(2:3)))) then
+             ! x >= |y|, |z|
+             iCubedSphere = 1
+             CoordOut_D(2) = atan2(XyzIn_D(2), XyzIn_D(1))
+             CoordOut_D(3) = atan2(XyzIn_D(3), XyzIn_D(1))
+          else
+             call CON_stop_simple(NameSub// &
+                  ' cubed sphere is only implemented for one panel')
+          end if
+       else
+          CoordOut_D(2:3) = 0.0
+       end if
     else
        call CON_stop_simple(NameSub// &
             ' not yet implemented for TypeGeometry=', TypeGeometry)
@@ -308,7 +329,7 @@ contains
     real, intent(in) :: CoordIn_D(MaxDim)
     real, intent(out):: XyzOut_D(MaxDim)
 
-    real:: r, r2, Phi, Coord_D(MaxDim), Dist1, Dist2, Weight
+    real:: r, r2, Phi, Coord_D(MaxDim), Dist1, Dist2, Weight, TanLon, TanLat
 
     character(len=*), parameter:: NameSub = 'coord_to_xyz'
     !--------------------------------------------------------------------------
@@ -340,11 +361,11 @@ contains
     elseif(IsRLonLat)then
        call rlonlat_to_xyz(Coord_D, XyzOut_D)
     elseif(IsRoundCube)then
-       r2 = sum(CoordIn_D**2)
+       r2 = sum(Coord_D**2)
        ! L1 and L2 distances from origin
        ! L1 distance is constant on the surface of a cube
        ! L2 distance is constant on the surface of a sphere
-       Dist1 = maxval(abs(CoordIn_D))
+       Dist1 = maxval(abs(Coord_D))
        Dist2 = sqrt(r2)
 
        if (r2 > 0.0) then
@@ -369,15 +390,32 @@ contains
              ! no stretch and along the axes the expansion is SqrtNDim.
              ! For the partially rounded grid the expansion factor is reduced.
              ! The minimum expansion factor is 1 in the non-distorted region.
-             XyzOut_D = (1 + Weight*(Dist1*SqrtNDim/Dist2 - 1)) * CoordIn_D
+             XyzOut_D = (1 + Weight*(Dist1*SqrtNDim/Dist2 - 1)) * Coord_D
           else
              ! Contract coordinate inward
              ! In this case the grid is contracted along
              ! the main diagonals by a factor up to sqrt(nDim)
              ! and there is no contraction along the axes
-             XyzOut_D = (1 + Weight*(Dist1/Dist2 - 1)) * CoordIn_D
+             XyzOut_D = (1 + Weight*(Dist1/Dist2 - 1)) * Coord_D
           end if
 
+       else
+          XyzOut_D = 0.0
+       end if
+    elseif(IsCubedSphere)then
+       if(Coord_D(1) > 0.0)then
+          r = Coord_D(1)
+          TanLon = tan(Coord_D(2))
+          TanLat = tan(Coord_D(3))
+          select case(iCubedSphere)
+          case(1)
+             XyzOut_D(1) = r/sqrt(1 + TanLon**2 + TanLat**2)
+             XyzOut_D(2) = TanLon*XyzOut_D(1)
+             XyzOut_D(3) = TanLat*XyzOut_D(1)
+          case default
+             call CON_stop_simple(NameSub// &
+                  ' cubed sphere is only implemented for one panel')
+          end select
        else
           XyzOut_D = 0.0
        end if

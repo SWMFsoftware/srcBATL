@@ -511,7 +511,7 @@ contains
             call correct_geometry_high_order
 
        ! Cell volumes for grids with no analytic formulas
-       if(IsRoundCube)then
+       if(IsRoundCube .or. IsCubedSphere)then
           if(nDim == 2)then
              ! Calculate cell volume as a sum of 2 triangle areas
              ! Also calculate cell center as the center of mass
