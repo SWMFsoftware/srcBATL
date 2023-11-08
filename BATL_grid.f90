@@ -220,7 +220,7 @@ contains
     !$acc update device(IsPeriodic_D, IsPeriodicCoord_D, IsNegativePhiMin)
     !$acc update device(UseHighFDGeometry)
     !$acc update device(r_, Phi_, Theta_, Lon_, Lat_)
-    !$acc update device(rRound0, rRound1, IsRoundCube)
+    !$acc update device(rRound0, rRound1, IsRoundCube, IsCubedSphere)
 
   end subroutine init_grid
   !============================================================================
@@ -386,7 +386,7 @@ contains
           end do; end do; end do
        end if
 
-       if(IsRoundCube)then
+       if(IsRoundCube .or. IsCubedSphere)then
           ! Allocate nodes even for ghost cells for volume calculation
           if(nDim == 2) allocate(Xyz_DN(3,MinI:MaxI+1,MinJ:MaxJ+1,1))
           if(nDim == 3) allocate(Xyz_DN(3,MinI:MaxI+1,MinJ:MaxJ+1,MinK:MaxK+1))
@@ -405,8 +405,8 @@ contains
           ! Allocate and set the usual nodes
           allocate(Xyz_DN(MaxDim,nINode,nJNode,nKNode))
 
-          if(present(DoFaceOnly) .and. .not.IsRoundCube)then
-             ! Copy stored node values (for round cube we need extras)
+          if(present(DoFaceOnly))then
+             ! Copy stored node values
              Xyz_DN(:,:,:,:) = Xyz_DNB(:,:,:,:,iBlock)
           else
              ! Calculate node positions in Cartesian space
