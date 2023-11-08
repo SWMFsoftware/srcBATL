@@ -4,8 +4,10 @@
 module BATL_geometry
 
   use BATL_size, ONLY: MaxDim, nDim
-
   use ModUtilities, ONLY: CON_stop, CON_stop_simple
+#ifdef _OPENACC
+  use ModUtilities, ONLY: norm2
+#endif
 
   implicit none
 
