@@ -1049,8 +1049,8 @@ contains
                     (j-jRMin) * (iRMax-iRMin+1) * nVar +&
                     (i-iRMin) * nVar +&
                     iVarR +&
-                    iBufferR_IP(iMsgSend,iProcSend) + 2*nDim !initial iBuffer
-               
+                    iBufferR_IP(iMsgSend,iProcSend) + 2*nDim ! initial iBuffer
+
             State_VGB(iVarR,i,j,k,iBlockRecv) = &
                  BufferR_IP(iBufferR, iProcSend)
          enddo
@@ -2216,7 +2216,7 @@ contains
                     (j-jSMin) * (iSMax-iSMin+1) * nVar +&
                     (i-iSMin) * nVar +&
                     iVarS +&
-                    iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim !initial iBuffer
+                    iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim ! initial iBuffer
                BufferS_IP(iBufferS, iProcRecv) =&
                     State_VGB(iVarS,i,j,k,iBlockSend)
             end do
