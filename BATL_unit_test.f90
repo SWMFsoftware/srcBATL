@@ -703,7 +703,7 @@ contains
          nPointK = 1 + 90*max(0, nDim - 2)
 
     integer, parameter:: nPoint_D(MaxDim) = [nPointI, nPointJ, nPointK]
-    real, allocatable:: Point_VIII(:, :, :, :), PointAll_VIII(:, :, :, :)
+    real, allocatable:: Point_VIII(:,:,:,:)
     integer, parameter:: nVarPoint = nDim
     real:: XyzPoint_D(MaxDim), Point_V(nVarPoint), Weight
     integer:: iPoint, jPoint, kPoint, iPoint_D(MaxDim), iCell, nCell, iError
@@ -719,7 +719,7 @@ contains
     real:: Radius, Phi, Xyz_D(MaxDim), Coord_D(MaxDim), Distance_D(MaxDim)
     real:: Good, Good_D(MaxDim)
     real, allocatable:: CellVolumeCart_B(:), CellFaceCart_DB(:, :)
-    real:: Volume, VolumeAll
+    real:: Volume, VolumeExact
 
     ! testing check_interpolate_amr_gc
     integer, parameter:: nPointCheck = 10000
@@ -856,13 +856,8 @@ contains
     end do; end do; end do
 
     ! Collect contributions from all processors to proc 0
-    if (nProc > 1) then
-       allocate (PointAll_VIII(0:nVarPoint, nPointI, nPointJ, nPointK))
-       call MPI_reduce(Point_VIII, PointAll_VIII, size(PointAll_VIII), &
-            MPI_REAL, MPI_SUM, 0, iComm, iError)
-       Point_VIII = PointAll_VIII
-       deallocate (PointAll_VIII)
-    end if
+    if (nProc > 1) call MPI_reduce_real_array(Point_VIII, &
+         size(Point_VIII), MPI_SUM, 0, iComm, iError)
 
     if (iProc == 0) then
        ! Check interpolated coordinate values against point coordinates
@@ -942,13 +937,8 @@ contains
     end do; end do; end do
 
     ! Collect contributions from all processors to proc 0
-    if (nProc > 1) then
-       allocate (PointAll_VIII(0:nVarPoint, nPointI, nPointJ, nPointK))
-       call MPI_reduce(Point_VIII, PointAll_VIII, size(PointAll_VIII), &
-            MPI_REAL, MPI_SUM, 0, iComm, iError)
-       Point_VIII = PointAll_VIII
-       deallocate (PointAll_VIII)
-    end if
+    if (nProc > 1) call MPI_reduce_real_array(Point_VIII, &
+         size(Point_VIII), MPI_SUM, 0, iComm, iError)
 
     if (iProc == 0) then
        ! Check interpolated coordinate values against point coordinates
@@ -1040,13 +1030,8 @@ contains
           end do
        end do; end do; end do
        ! Collect contributions from all processors to proc 0
-       if (nProc > 1) then
-          allocate (PointAll_VIII(0:nVarPoint, nPointI, nPointJ, nPointK))
-          call MPI_reduce(Point_VIII, PointAll_VIII, size(PointAll_VIII), &
-               MPI_REAL, MPI_SUM, 0, iComm, iError)
-          Point_VIII = PointAll_VIII
-          deallocate (PointAll_VIII)
-       end if
+       if (nProc > 1) call MPI_reduce_real_array(Point_VIII, &
+            size(Point_VIII), MPI_SUM, 0, iComm, iError)
 
        if (iProc == 0) then
           ! Check interpolated coordinate values against point coordinates
@@ -1253,20 +1238,49 @@ contains
        ! Check total volume.
        ! It should be approximately the volume of a sphere of radius 3.2
        Volume = sum(CellVolume_GB(1:nI, 1:nJ, 1:nK, 1:nBlock))
-       if (nProc > 1) then
-          call MPI_reduce(Volume, VolumeAll, 1, MPI_REAL, MPI_SUM, 0, &
-               iComm, iError)
-          Volume = VolumeAll
-       end if
+       if (nProc > 1) &
+            call MPI_reduce_real_scalar(Volume, MPI_SUM, 0, iComm, iError)
 
        if (iProc == 0) then
           ! Analytic volume of the sphere
-          VolumeAll = 4./3.*cPi*(sqrt(3.)*rRound1)**3
+          VolumeExact = 4./3.*cPi*(sqrt(3.)*rRound1)**3
 
-          if (abs(VolumeAll - Volume)/VolumeAll > 0.02) &
+          if (abs(VolumeExact - Volume)/VolumeExact > 0.02) &
                write(*,*) 'ERROR: total volume numerical vs analytic:', &
-               Volume, VolumeAll
+               Volume, VolumeExact
        end if
+
+       if (DoTest) write(*,*) 'Testing create_grid in cubedsphere geometry'
+
+       ! Clean  grid
+       call clean_grid
+
+       ! Initialize cubedsphere grid
+       call init_geometry(TypeGeometryIn='cubedsphere')
+
+       ! Angle limits should not exceed pi/4
+       DomainMin_D = [ 5.0, -cPi/4, -cPi/4]
+       DomainMax_D = [20.0,  cPi/4,  cPi/4]
+
+       IsNodeBasedGrid = .true.
+       call init_grid(DomainMin_D, DomainMax_D)
+       call create_grid
+
+       if (iProc == 0) call show_grid_proc
+
+       ! Check total volume.
+       Volume = sum(CellVolume_GB(1:nI,1:nJ,1:nK,1:nBlock))
+       if (nProc > 1) &
+            call MPI_reduce_real_scalar(Volume, MPI_SUM, 0, iComm, iError)
+
+       if (iProc == 0) then
+          ! Analytic volume of the wedge is 1/6 of spherical shell
+          VolumeExact = (4*cPi/18)*(DomainMax_D(1)**3 - DomainMin_D(1)**3)
+          if (abs(VolumeExact - Volume)/VolumeExact > 0.05) &
+               write(*,*) 'ERROR: total volume numerical vs analytic:', &
+               Volume, VolumeExact
+       end if
+
     end if
 
     if (DoTest) write(*,*) 'Testing clean_grid'
