@@ -681,7 +681,7 @@ contains
     if (any(abs(Xyz_D - Good_D) > 1e-6)) &
          write(*,*) 'ERROR: coord_to_xyz failed for cubedsphere, ', &
          'Coord_D =', Coord_D, ' Xyz_D =', Xyz_D, ' should be ', Good_D
-    
+
   end subroutine test_geometry
   !============================================================================
   subroutine test_grid
