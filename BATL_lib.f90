@@ -100,6 +100,7 @@ module BATL_lib
   public:: Xi_, Eta_, Zeta_
   public:: UseHighFDGeometry
   public:: rRound0, rRound1, IsRoundCube, SqrtNDim
+  public:: IsCubedSphere, iCubedSphere
 
   ! Inherited from BATL_grid
   public:: IsNodeBasedGrid

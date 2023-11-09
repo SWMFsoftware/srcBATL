@@ -1,6 +1,10 @@
-! Unit tests using modules
+!  Copyright (C) 2002 Regents of the University of Michigan,
+!  portions used with permission
+!  For more information, see http://csem.engin.umich.edu/tools/swmf
 
 module BATL_unit_test
+
+  ! Unit tests for BATL
 
   use BATL_lib
 
@@ -13,6 +17,9 @@ module BATL_unit_test
   use ModUtilities, ONLY: CON_stop
   use ModRandomNumber, ONLY: random_real
   use ModMpi
+#ifdef _OPENACC
+  use ModUtilities, ONLY: norm2
+#endif
 
   implicit none
 
@@ -247,7 +254,6 @@ contains
 
   end subroutine test_tree
   !============================================================================
-
   subroutine test_geometry ! unit test
 
     logical:: IsPeriodicTest_D(MaxDim)
@@ -646,9 +652,38 @@ contains
          write(*,*) 'ERROR: coord_to_xyz failed for spherical, ', &
          'Coord_D =', Coord_D, ' Xyz_D =', Xyz_D, ' should be ', Good_D
 
+    if (DoTest) write(*,*) 'Testing cubedsphere'
+    IsPeriodicTest_D = [.false., .false., .false.]
+    call init_geometry('cubedsphere', IsPeriodicIn_D=IsPeriodicTest_D)
+    if(.not. IsCubedSphere .or. IsCartesian .or. IsSpherical) &
+         write(*,*) 'ERROR: init_geometry failed for cubedsphere, ', &
+         'IsCubedSphere, IsCartesian, IsSpherical=', &
+         IsCubedSphere, IsCartesian, IsSpherical
+
+    if (any(IsPeriodic_D .neqv. IsPeriodicTest_D)) &
+         write(*,*) 'ERROR: init_geometry failed, ', &
+         'for TypeGeometry=', TypeGeometry, &
+         'IsPeriodic_D =', IsPeriodic_D, &
+         ' should be ', IsPeriodicTest_D
+
+    if (DoTest) write(*,*) 'Testing xyz_to_coord for cubedsphere'
+    Xyz_D = [8., 3., 2.]
+    Good_D = [norm2(Xyz_D), atan2(Xyz_D(2), Xyz_D(1)), &
+         atan2(Xyz_D(3), Xyz_D(1))]
+    call xyz_to_coord(Xyz_D, Coord_D)
+    if (any(abs(Coord_D - Good_D) > 1e-6)) &
+         write(*,*) 'ERROR: xyz_to_coord failed for cubedsphere', &
+         'Xyz_D =', Xyz_D, ' Coord_D =', Coord_D, ' should be ', Good_D
+
+    if (DoTest) write(*,*) 'Testing coord_to_xyz for cubedsphere'
+    Good_D = Xyz_D
+    call coord_to_xyz(Coord_D, Xyz_D)
+    if (any(abs(Xyz_D - Good_D) > 1e-6)) &
+         write(*,*) 'ERROR: coord_to_xyz failed for cubedsphere, ', &
+         'Coord_D =', Coord_D, ' Xyz_D =', Xyz_D, ' should be ', Good_D
+    
   end subroutine test_geometry
   !============================================================================
-
   subroutine test_grid
 
     use ModNumConst, ONLY: i_DD, cPi
@@ -1294,7 +1329,6 @@ contains
 
   end subroutine test_grid
   !============================================================================
-
   subroutine test_pass_node ! unit test
 
     ! To test the message pass for the node we generate a fine uniform grid
@@ -1568,7 +1602,6 @@ contains
   contains
     !==========================================================================
     subroutine test_switches
-
       !------------------------------------------------------------------------
       call init_tree(MaxBlockTest)
       call init_geometry(IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
@@ -1757,9 +1790,9 @@ contains
 
       call clean_grid
       call clean_tree
+
     end subroutine test_switches
     !==========================================================================
-
     subroutine test_scalar
       !------------------------ Test Scalar -----------------------------
 
@@ -2045,7 +2078,6 @@ contains
 
     end subroutine test_non_cartesian
     !==========================================================================
-
     subroutine test_high_order_cartesian
       real    :: ExactSolution, Error, ErrorTotal
       integer :: iCount, nCount, nRefineNode, iRefinement, nRefinement
@@ -2053,7 +2085,6 @@ contains
       integer :: iNode1_I(8)
       logical :: DoTestMeOnly = .false.
       integer :: nPoly = 3
-
       !------------------------------------------------------------------------
       if (nDim == 2) then
          nCount = 16; nRefineNode = 4
@@ -2192,7 +2223,6 @@ contains
 
     end subroutine test_high_order_cartesian
     !==========================================================================
-
     subroutine test_high_order_non_cartesian
       real    :: ErrorTotal, ExactSolution, Error
       real    :: Xyz1_D(3), XyzGeneral_D(3)
@@ -2347,13 +2377,11 @@ contains
 
     end subroutine test_high_order_non_cartesian
     !==========================================================================
-
     real function exact_solution(Xyz_D, nPolyIn)
       real, intent(in):: Xyz_D(3)
       integer, optional, intent(in) :: nPolyIn
       integer:: nPoly
       real:: x, y, z
-
       !------------------------------------------------------------------------
       nPoly = 4
       if (present(nPolyIn)) nPoly = nPolyIn
@@ -2377,10 +2405,8 @@ contains
       end select
     end function exact_solution
     !==========================================================================
-
   end subroutine test_pass_cell
   !============================================================================
-
   subroutine test_pass_face
 
     integer, parameter:: MaxBlockTest = 50
@@ -2596,7 +2622,6 @@ contains
     subroutine set_flux
 
       ! Fill in Flux_VFD with coordinates of the face center
-
       !------------------------------------------------------------------------
       Flux_VFD(:, :, 1:nJ, 1:nK, 1) = 0.5*CellFace_DB(1, iBlock)* &
            (Xyz_DGB(1:nDim, 0:nI, 1:nJ, 1:nK, iBlock) &
@@ -2614,7 +2639,6 @@ contains
 
     end subroutine set_flux
     !==========================================================================
-
     real function flux_good(DiLevel, iDir, XyzCellFace)
 
       integer, intent(in):: DiLevel, iDir
@@ -2652,10 +2676,8 @@ contains
 
     end function flux_good
     !==========================================================================
-
   end subroutine test_pass_face
   !============================================================================
-
   subroutine test_amr
 
     integer, parameter:: MaxBlockTest = 100
@@ -2850,7 +2872,6 @@ contains
   contains
     !==========================================================================
     subroutine check_extra_data
-
       !------------------------------------------------------------------------
       do iBlock = 1, nBlock
          if (iAmrChange_B(iBlock) /= AmrMoved_) CYCLE
@@ -2865,7 +2886,6 @@ contains
     end subroutine check_extra_data
     !==========================================================================
     subroutine check_state
-
       !------------------------------------------------------------------------
       do iBlock = 1, nBlock
          if (Unused_B(iBlock)) CYCLE
@@ -2891,7 +2911,6 @@ contains
 
       integer :: iDn, iUp, jDn, jUp, kDn, kUp
       integer :: Di, Dj, Dk
-
       !------------------------------------------------------------------------
       do iBlock = 1, nBlock
          if (Unused_B(iBlock)) CYCLE
@@ -3193,17 +3212,14 @@ contains
 
     end subroutine show_dt
     !==========================================================================
-
   end subroutine test_amr
   !============================================================================
-
   subroutine test_pack(iBlock, nBuffer, Buffer_I)
 
     integer, intent(in) :: iBlock
     integer, intent(in) :: nBuffer
     real, intent(out):: Buffer_I(nBuffer)
     !--------------------------------------------------------------------------
-
     if (nBuffer /= nExtraData) write(*,*) 'ERROR in test_pack: ', &
          'nBuffer, nExtraData=', nBuffer, nExtraData
 
@@ -3217,7 +3233,6 @@ contains
     integer, intent(in):: nBuffer
     real, intent(in):: Buffer_I(nBuffer)
     !--------------------------------------------------------------------------
-
     if (nBuffer /= nExtraData) write(*,*) 'ERROR in test_unpack: ', &
          'nBuffer, nExtraData=', nBuffer, nExtraData
 
@@ -3225,6 +3240,5 @@ contains
 
   end subroutine test_unpack
   !============================================================================
-
 end module BATL_unit_test
 !==============================================================================

@@ -639,7 +639,7 @@ contains
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., &
                         TimeOld_B, Time_B, iLevelMin, iLevelMax,&
-                        UseOpenACCIN, &
+                        UseOpenACCIn, &
                         nMsgSend_BP, iMsgInit_BP, nVarSend_IP, &
                         iBufferS_IP, iMsgDir_IBP)
                 end do ! iBlockSend
@@ -1042,16 +1042,18 @@ contains
       if(nDim > 2) kRMax = nint(BufferR_IP(iBufferR+6, iProcSend))
       if(nDim > 2) DkR   = sign(1, kRmax - kRMin)
 
-      iBufferR = iBufferR + 2*nDim
-
-      !$acc loop seq collapse(3)
+      !$acc loop vector collapse(4) private(iBufferR)
       do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-         !$acc loop seq
          do iVarR = 1, nVar
+               iBufferR = (k-kRMin) * (jRMax-jRMin+1) * (iRMax-iRMin+1) *nVar+&
+                    (j-jRMin) * (iRMax-iRMin+1) * nVar +&
+                    (i-iRMin) * nVar +&
+                    iVarR +&
+                    iBufferR_IP(iMsgSend,iProcSend) + 2*nDim !initial iBuffer
+               
             State_VGB(iVarR,i,j,k,iBlockRecv) = &
-                 BufferR_IP(iBufferR+iVarR, iProcSend)
+                 BufferR_IP(iBufferR, iProcSend)
          enddo
-         iBufferR = iBufferR + nVar
       end do; end do; end do
     end subroutine buffer_to_state_parallel
     !==========================================================================
@@ -2200,8 +2202,6 @@ contains
          if(nDim > 2)BufferS_IP(iBufferS+5, iProcRecv) = kRMin
          if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
-         iBufferS = iBufferS + 2*nDim ! iBufferS is 1 before updating
-
 #ifndef _OPENACC
 !         if(present(Time_B))then
 !            iBufferS = iBufferS + 1
@@ -2209,14 +2209,17 @@ contains
 !         end if
 #endif
 
-         !$acc loop seq collapse(3)
+         !$acc loop vector collapse(4) private(iBufferS)
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
-            !$acc loop seq
             do iVarS = 1, nVar
-               BufferS_IP(iBufferS+iVarS, iProcRecv) =&
+               iBufferS = (k-kSMin) * (jSMax-jSMin+1) * (iSMax-iSMin+1) *nVar+&
+                    (j-jSMin) * (iSMax-iSMin+1) * nVar +&
+                    (i-iSMin) * nVar +&
+                    iVarS +&
+                    iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim !initial iBuffer
+               BufferS_IP(iBufferS, iProcRecv) =&
                     State_VGB(iVarS,i,j,k,iBlockSend)
             end do
-            iBufferS = iBufferS + nVar
          end do; end do; end do
       end if
     end subroutine do_equal
