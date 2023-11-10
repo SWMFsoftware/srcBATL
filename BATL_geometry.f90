@@ -181,7 +181,7 @@ contains
        r_ = 1; Phi_ = 2
     elseif(IsSpherical)then
        r_ = 1; Theta_ = 2; Phi_ = 3
-    elseif(IsRLonLat)then
+    elseif(IsRLonLat .or. IsCubedSphere)then
        r_ = 1; Phi_ = 2; Theta_ = 3; Lon_ =2; Lat_ = 3
     end if
 

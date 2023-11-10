@@ -159,12 +159,12 @@ contains
 
     if(UseDegree)then
        ! Convert degrees to radians for the domain boundaries
-       if(IsCylindrical .or. IsSpherical .or. IsRLonLat)then
+       if(IsCylindrical .or. IsSpherical .or. IsRLonLat .or. IsCubedSphere)then
           CoordMin_D(Phi_) = CoordMin_D(Phi_)*cDegToRad
           CoordMax_D(Phi_) = CoordMax_D(Phi_)*cDegToRad
        end if
 
-       if(IsSpherical .or. IsRLonLat)then
+       if(IsSpherical .or. IsRLonLat .or. IsCubedSphere)then
           CoordMin_D(Theta_) = CoordMin_D(Theta_)*cDegToRad
           CoordMax_D(Theta_) = CoordMax_D(Theta_)*cDegToRad
        end if
@@ -1644,14 +1644,11 @@ contains
 
     if(nCell > 2**nDim) then
        ! Sort weights. The largest 2**nDim should be used
-       ! write(*,*)'!!! nCell, WeightTmp_I=', nCell, WeightTmp_I(1:nCell)
        call sort_quick(nCell, -WeightTmp_I, iCell_I)
        do iCell = 1, 2**nDim
           Weight_I(iCell)   = WeightTmp_I(iCell_I(iCell))
           iCell_DI(:,iCell) = iCellTmp_DI(:,iCell_I(iCell))
        end do
-       ! write(*,*)'!!! iCell_I=', iCell_I(1:nCell)
-       ! write(*,*)'!!! Weight_I=', Weight_I
        nCell = 2**nDim
     else
        Weight_I(1:nCell) = WeightTmp_I(1:nCell)
