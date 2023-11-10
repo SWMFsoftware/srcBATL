@@ -1258,9 +1258,9 @@ contains
        ! Initialize cubedsphere grid
        call init_geometry(TypeGeometryIn='cubedsphere')
 
-       ! Angle limits should not exceed pi/4
-       DomainMin_D = [ 5.0, -cPi/4, -cPi/4]
-       DomainMax_D = [20.0,  cPi/4,  cPi/4]
+       ! Angle limits should not exceed 45 degrees
+       DomainMin_D = [ 5.0, -45.0, -45.0]
+       DomainMax_D = [20.0,  45.0,  45.0]
 
        IsNodeBasedGrid = .true.
        call init_grid(DomainMin_D, DomainMax_D)
@@ -1276,7 +1276,7 @@ contains
        if (iProc == 0) then
           ! Analytic volume of the wedge is 1/6 of spherical shell
           VolumeExact = (4*cPi/18)*(DomainMax_D(1)**3 - DomainMin_D(1)**3)
-          if (abs(VolumeExact - Volume)/VolumeExact > 0.05) &
+          if (abs(VolumeExact - Volume)/VolumeExact > 1e-6) &
                write(*,*) 'ERROR: total volume numerical vs analytic:', &
                Volume, VolumeExact
        end if
