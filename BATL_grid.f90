@@ -9,6 +9,7 @@ module BATL_grid
   use BATL_geometry
   use BATL_high_order
   use ModSort, ONLY: sort_quick
+  use ModNumConst, ONLY: cTwoPi, cHalfPi, cDegToRad, i_DD
   use ModUtilities, ONLY: CON_stop
 #ifdef _OPENACC
   use ModUtilities, ONLY: norm2
@@ -95,8 +96,6 @@ contains
   !============================================================================
   subroutine init_grid(CoordMinIn_D, CoordMaxIn_D, UseRadiusIn, UseDegreeIn)
 
-    use ModNumConst, ONLY: cTwoPi, cDegToRad
-
     ! The angular coordinate limits should be given in degrees unless
     ! UseDegreeIn is false.
     ! The radial coordinate limits should be given as true radial values even
@@ -159,12 +158,12 @@ contains
 
     if(UseDegree)then
        ! Convert degrees to radians for the domain boundaries
-       if(IsCylindrical .or. IsSpherical .or. IsRLonLat)then
+       if(IsCylindrical .or. IsSpherical .or. IsRLonLat .or. IsCubedSphere)then
           CoordMin_D(Phi_) = CoordMin_D(Phi_)*cDegToRad
           CoordMax_D(Phi_) = CoordMax_D(Phi_)*cDegToRad
        end if
 
-       if(IsSpherical .or. IsRLonLat)then
+       if(IsSpherical .or. IsRLonLat .or. IsCubedSphere)then
           CoordMin_D(Theta_) = CoordMin_D(Theta_)*cDegToRad
           CoordMax_D(Theta_) = CoordMax_D(Theta_)*cDegToRad
        end if
@@ -247,7 +246,6 @@ contains
   !============================================================================
   subroutine create_grid_block(iBlock, iNodeIn, DoFixFace, DoFaceOnly)
 
-    use ModNumConst, ONLY: cHalfPi
     use ModCoordTransform, ONLY: cross_product
 
     ! Create geometrical information for block iBlock on the local PE
@@ -272,7 +270,7 @@ contains
     real, allocatable:: rCell_I(:), rFace_I(:), dCosTheta_I(:), &
          Xyz_DN(:,:,:,:)
 
-    real :: Theta, Dphi, Dz, Dtheta
+    real :: Theta, Dphi, Dz, Dtheta, Lon, Lat, dLon, dLat, Area
     integer :: iNode, i, j, k, Di, Dj, Dk
 
     real, parameter:: cThird = 1.0/3.0
@@ -386,7 +384,7 @@ contains
           end do; end do; end do
        end if
 
-       if(IsRoundCube .or. IsCubedSphere)then
+       if(IsRoundCube)then
           ! Allocate nodes even for ghost cells for volume calculation
           if(nDim == 2) allocate(Xyz_DN(3,MinI:MaxI+1,MinJ:MaxJ+1,1))
           if(nDim == 3) allocate(Xyz_DN(3,MinI:MaxI+1,MinJ:MaxJ+1,MinK:MaxK+1))
@@ -511,7 +509,7 @@ contains
             call correct_geometry_high_order
 
        ! Cell volumes for grids with no analytic formulas
-       if(IsRoundCube .or. IsCubedSphere)then
+       if(IsRoundCube)then
           if(nDim == 2)then
              ! Calculate cell volume as a sum of 2 triangle areas
              ! Also calculate cell center as the center of mass
@@ -550,7 +548,7 @@ contains
              end do; end do; end do
           end if
        elseif(.not.present(DoFaceOnly))then
-          ! cylindrical, spherical, or rlonlat geometries
+          ! cylindrical, spherical, rlonlat or cubed sphere geometries
 
           allocate(rCell_I(MinI:MaxI), rFace_I(MinI:MaxI+1))
           do i = MinI, MaxI
@@ -617,10 +615,25 @@ contains
              ! dV = d(r^3)/3*dphi*d(cos theta)
              do k = MinK, MaxK; do i = MinI, MaxI
                 ! NOTE: for ghost cells beyond the axis r=0 can be negative
-                CellVolume_GB(i,:,k,iBlock) = &
-                     cThird*(rFace_I(i+1)**3-rFace_I(i)**3)*Dphi*dCosTheta_I(k)
+                CellVolume_GB(i,:,k,iBlock) = Dphi*dCosTheta_I(k) &
+                     *cThird*(rFace_I(i+1)**3 - rFace_I(i)**3)
              end do; end do
 
+          elseif(IsCubedSphere)then
+             dLon = CellSize_DB(Lon_,iBlock)
+             dLat = CellSize_DB(Lat_,iBlock)
+
+             do k = MinK, MaxK
+                Lat = CoordMin_DB(Lat_,iBlock) + (k-1)*dLat
+                do j = MinJ, MaxJ
+                   Lon = CoordMin_DB(Lon_,iBlock) + (j-1)*dLon
+                   Area = area_cubed_sphere(Lon, Lat, dLon, dLat)
+                   do i = MinI, MaxI
+                      CellVolume_GB(i,j,k,iBlock) = Area &
+                           *cThird*(rFace_I(i+1)**3 - rFace_I(i)**3)
+                   end do
+                end do
+             end do
           else
              call CON_stop(NameSub//': '//TypeGeometry// &
                   ' geometry is not yet implemented')
@@ -628,12 +641,12 @@ contains
 
           if(.not.IsNodeBasedGrid) call calc_analytic_face
 
-       end if
+       end if ! not RoundCube
 
        if(allocated(rCell_I))     deallocate(rCell_I, rFace_I)
        if(allocated(dCosTheta_I)) deallocate(dCosTheta_I)
        if(allocated(Xyz_DN))      deallocate(Xyz_DN)
-    end if
+    end if ! not cartesian
   contains
     !==========================================================================
     subroutine calc_analytic_face
@@ -1037,8 +1050,6 @@ contains
   subroutine show_grid_cell(NameCell, i, j, k, iBlock)
 
     ! Show information about cell i, j, k, iBlock described by NameCell
-
-    use ModNumConst, ONLY: i_DD
 
     character(len=*), intent(in):: NameCell
     integer,          intent(in):: i, j, k, iBlock
@@ -1644,14 +1655,11 @@ contains
 
     if(nCell > 2**nDim) then
        ! Sort weights. The largest 2**nDim should be used
-       ! write(*,*)'!!! nCell, WeightTmp_I=', nCell, WeightTmp_I(1:nCell)
        call sort_quick(nCell, -WeightTmp_I, iCell_I)
        do iCell = 1, 2**nDim
           Weight_I(iCell)   = WeightTmp_I(iCell_I(iCell))
           iCell_DI(:,iCell) = iCellTmp_DI(:,iCell_I(iCell))
        end do
-       ! write(*,*)'!!! iCell_I=', iCell_I(1:nCell)
-       ! write(*,*)'!!! Weight_I=', Weight_I
        nCell = 2**nDim
     else
        Weight_I(1:nCell) = WeightTmp_I(1:nCell)
@@ -1897,7 +1905,7 @@ contains
     real:: Dimless_D(nDim)
 
     ! Corners of a block that contains the point
-    real:: CoordBlockMin_D(nDim), CoordBlockMax_D(nDim)
+    real:: CoordBlockMin_D(nDim)
 
     ! Its refinement level
     integer:: iLevelNode
@@ -1989,11 +1997,9 @@ contains
        ! Convert from normalized by one coordinates
        CoordBlockMin_D(1:nDim) =  CoordMin_D(1:nDim) + &
             PositionMin_D(1:nDim) * DomainSize_D(1:nDim)
-       CoordBlockMax_D(1:nDim) =  CoordMin_D(1:nDim) + &
-            PositionMax_D(1:nDim) * DomainSize_D(1:nDim)
 
        ! cell size for the found block
-       dCoord_D =  (PositionMax_D(1:nDim) - PositionMin_D(1:nDim))&
+       dCoord_D =  (PositionMax_D(1:nDim) - PositionMin_D(1:nDim)) &
             *DomainSize_D(1:nDim)/nIjk_D(1:nDim)
 
        dCoordInv_D = 1/dCoord_D
@@ -2132,7 +2138,6 @@ contains
           CoordBlockMin_D(1:nDim) =  CoordMin_DB(1:nDim, iBlockIn) + &
                dCoord_D*nIJK_D(1:nDim)*floor(0.5*(iDiscrSearch_D(1:nDim)-0.5))
        end if
-       CoordBlockMax_D(1:nDim) = CoordMin_D(1:nDim) + dCoord_D*nIJK_D(1:nDim)
 
        dCoordInv_D = 1/dCoord_D
 
@@ -2514,6 +2519,65 @@ contains
        enddo ! iDimCart
     endif
   end subroutine calc_metrics
+  !============================================================================
+  real function area_cubed_sphere(Lon, Lat, dLon, dLat)
+
+    ! Calculate area of cubed sphere rectangle [Lon,Lon+dLon] x [Lat,Lat+dLat]
+    ! for unit radial distance
+
+    ! Indexes of 4 vertices, 4 sides and 2 diagonals:
+    !
+    ! Lat+dLat 4--3--3
+    !          |\   /|
+    !          | 2 1 |
+    !          4  X  2
+    !          | / \ |
+    !          |/   \|
+    !  Lat     1--1--2
+    !         Lon    Lon+dLon
+
+    real, intent(in):: Lon, Lat, dLon, dLat
+
+    integer:: i
+    real:: Coord_DI(MaxDim,4), Xyz_DI(MaxDim,4)
+    real:: CosSide_I(4), SinSide_I(4), CosDiag1, CosDiag2, CosAngle_I(4)
+    !--------------------------------------------------------------------------
+    ! Set coordinates of the four corners
+    Coord_DI(:,1) = [1.0, Lon,      Lat]
+    Coord_DI(:,2) = [1.0, Lon+dLon, Lat]
+    Coord_DI(:,3) = [1.0, Lon+dLon, Lat+dLat]
+    Coord_DI(:,4) = [1.0, Lon,      Lat+dLat]
+
+    ! Convert to Xyz coordinate
+    do i = 1, 4
+       call coord_to_xyz(Coord_DI(:,i), Xyz_DI(:,i))
+    end do
+
+    ! Calculate the cos of the 4 sides and the two diagonals
+    CosSide_I(1) = sum(Xyz_DI(:,1)*Xyz_DI(:,2))
+    CosSide_I(2) = sum(Xyz_DI(:,2)*Xyz_DI(:,3))
+    CosSide_I(3) = sum(Xyz_DI(:,3)*Xyz_DI(:,4))
+    CosSide_I(4) = sum(Xyz_DI(:,4)*Xyz_DI(:,1))
+    CosDiag1     = sum(Xyz_DI(:,1)*Xyz_DI(:,3))
+    CosDiag2     = sum(Xyz_DI(:,2)*Xyz_DI(:,4))
+
+    ! Calculate the sines
+    SinSide_I = sqrt(1 - CosSide_I**2)
+
+    ! Calculate the cosine of the four angles from the law of cosines
+    CosAngle_I(1) = &
+         (CosDiag2 - CosSide_I(4)*CosSide_I(1))/(SinSide_I(4)*SinSide_I(1))
+    CosAngle_I(2) = &
+         (CosDiag1 - CosSide_I(1)*CosSide_I(2))/(SinSide_I(1)*SinSide_I(2))
+    CosAngle_I(3) = &
+         (CosDiag2 - CosSide_I(2)*CosSide_I(3))/(SinSide_I(2)*SinSide_I(3))
+    CosAngle_I(4) = &
+         (CosDiag1 - CosSide_I(3)*CosSide_I(4))/(SinSide_I(3)*SinSide_I(4))
+
+    ! Area of quadrangle is the excess angle over 2pi
+    area_cubed_sphere = sum(acos(CosAngle_I)) - cTwoPi
+
+  end function area_cubed_sphere
   !============================================================================
 end module BATL_grid
 !==============================================================================
