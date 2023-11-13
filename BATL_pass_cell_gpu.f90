@@ -1037,7 +1037,7 @@ contains
   subroutine message_pass_ng_int1(Int_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
-       DoResChangeOnlyIn)
+       DoResChangeOnlyIn, UseOpenACCIn)
 
     ! Message pass scalar integer data with BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, &
@@ -1054,6 +1054,7 @@ contains
     logical, optional, intent(in) :: DoRestrictFaceIn
     logical, optional, intent(in) :: DoTestIn
     logical, optional, intent(in) :: DoResChangeOnlyIn
+    logical, optional, intent(in) :: UseOpenACCIn
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
     character(len=*), optional,intent(in) :: NameOperatorIn
