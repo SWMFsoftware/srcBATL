@@ -1345,7 +1345,7 @@ contains
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn, &
        nMsgSend_BP, iMsgInit_BP, nVarSend_IP, iBufferS_IP, iMsgDir_IBP)
-    !$acc routine vector
+    !$acc routine worker
 
     use BATL_mpi, ONLY: iProc, nProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
