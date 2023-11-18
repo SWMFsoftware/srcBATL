@@ -1413,6 +1413,7 @@ contains
     integer:: IntDir
     integer:: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax ! for computing msg size
     integer:: iSide, jSide, kSide
+    integer:: nSize
     !--------------------------------------------------------------------------
     iNodeSend = iNode_B(iBlockSend)
 
@@ -1620,9 +1621,11 @@ contains
                       kSMin = iRestrictR_DII(3,kRecv,Min_)
                       kSMax = iRestrictR_DII(3,kRecv,Max_)
 
-                      nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
-                           1 + 2*nDim + nVar*&
+                      nSize = 1 + 2*nDim + nVar*&
                            (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
+                      nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv) = nSize
+
+
 
 !!! time_b to be added!!!
 !                      if(present(Time_B)) &
@@ -1632,16 +1635,15 @@ contains
                       ! cumulative number of variables sent per processor
                       ! controls the size of buffers
 
-!!! consider using nsize = nvarsend_ip() to simplify the syntax
                       nSizeBuffer_P(iProcRecv) = nSizeBuffer_P(iProcRecv)+&
-                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
+                           nSize
 
                       if(nMsgSend_P(iProcRecv)==1) then
                          iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
                       end if
                       iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
                            iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
-                           nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)
+                           nSize
                    end if ! iProcRecv/=iProcSend
 
                 else if(DiLevel == -1) then
@@ -1697,10 +1699,11 @@ contains
                                kSMin = iProlongR_DII(3,kRecv,Min_)
                                kSMax = iProlongR_DII(3,kRecv,Max_)
 
-                               nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
-                                    1 + 2*nDim + nVar*(iSMax-iSMin+1)*&
+                               nSize = 1 + 2*nDim + nVar*(iSMax-iSMin+1)*&
                                     (jSMax-jSMin+1)*(kSMax-kSMin+1)
 
+                               nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
+                                    nSize
 !!! time_b to be added!!!
                                ! if(present(Time_B)) &
                                ! nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)=&
@@ -1708,19 +1711,15 @@ contains
 
 !!! consider using nsize = nvarsend_ip() to simplify the syntax
                                nSizeBuffer_P(iProcRecv) =&
-                                    nSizeBuffer_P(iProcRecv)+&
-                                    nVarSend_IP&
-                                    (nMsgSend_P(iProcRecv),iProcRecv)
-
+                                    nSizeBuffer_P(iProcRecv) + nSize
+                                    
                                if(nMsgSend_P(iProcRecv)==1) iBufferS_IP&
                                     (nMsgSend_P(iProcRecv),iProcRecv) = 1
                                iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)=&
-                                    iBufferS_IP &
+                                    iBufferS_IP&
                                     (nMsgSend_P(iProcRecv),iProcRecv) +&
-                                    nVarSend_IP&
-                                    (nMsgSend_P(iProcRecv), iProcRecv)
+                                    nSize
                             end if ! iProcRecv/=iProcSend
-
                          end do
                       end do
                    end do ! loop through subfaces and subedges
