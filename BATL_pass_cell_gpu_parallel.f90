@@ -1625,8 +1625,6 @@ contains
                            (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
                       nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv) = nSize
 
-
-
 !!! time_b to be added!!!
 !                      if(present(Time_B)) &
 !                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv) =&
@@ -1712,7 +1710,7 @@ contains
 !!! consider using nsize = nvarsend_ip() to simplify the syntax
                                nSizeBuffer_P(iProcRecv) =&
                                     nSizeBuffer_P(iProcRecv) + nSize
-                                    
+
                                if(nMsgSend_P(iProcRecv)==1) iBufferS_IP&
                                     (nMsgSend_P(iProcRecv),iProcRecv) = 1
                                iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)=&
