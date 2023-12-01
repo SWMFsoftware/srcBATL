@@ -271,7 +271,7 @@ contains
     nWidth = nG
     if(present(nWidthIn)) nWidth = nWidthIn
 
-!!! temporarily set to 1 for testing    
+!!! temporarily set to 1 for testing
     nProlongOrder = 1
     if(present(nProlongOrderIn)) nProlongOrder = nProlongOrderIn
 
@@ -291,7 +291,7 @@ contains
     UseHighResChange = .false.
     if(present(UseHighResChangeIn)) UseHighResChange = UseHighResChangeIn
 #endif
-    
+
     UseOpenACC = .false.
     if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
 
@@ -612,13 +612,13 @@ contains
                      MPI_MAX, iComm, iError)
                 write(*,*)'iProc,nSizeBuffer, nCapBuffer= ',&
                      iProc, nSizeBuffer, nCapBuffer
-                
+
                 ! allocate buffers
                 if(nSizeBuffer > nCapBuffer)then
                    call timing_start('enlarge_buffer')
                    write(*,*)'buffer size changes from', nCapBuffer, 'to',&
                         nSizeBuffer
-                   nCapBuffer = nSizeBuffer                   
+                   nCapBuffer = nSizeBuffer
                    if(allocated(BufferS_IP))deallocate(BufferS_IP)
                    if(allocated(BufferR_IP))deallocate(BufferR_IP)
                    allocate(BufferS_IP(nCapBuffer,0:nProc-1))
@@ -2533,7 +2533,7 @@ contains
       ! No need to count data for local copy
       if(DoCountOnly .and. iProc == iProcRecv) RETURN
 
-      !if(DoCountOnly .and. (&
+      ! if(DoCountOnly .and. (&
       !     (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
       !     (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
       !     then
@@ -2558,7 +2558,7 @@ contains
       !   if(present(Time_B)) nSize = nSize + 1
       !   nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
 
-      !end if
+      ! end if
 
       ! If this iS the pure prolongation stage, all we did was counting
       if(iSendStage == 2 .and. .not. UseHighResChange) RETURN
@@ -2583,7 +2583,7 @@ contains
       kRMin = iRestrictR_DII(3,kRecv,Min_)
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
-      !if(DoCountOnly)then
+      ! if(DoCountOnly)then
          ! This part iS unused when nProc == 1
          ! Number of reals to send to the other processor
       !   nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
@@ -2591,7 +2591,7 @@ contains
       !   if(present(Time_B)) nSize = nSize + 1
       !   nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
       !   RETURN
-      !end if
+      ! end if
 
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
@@ -3235,7 +3235,7 @@ contains
                ! No need to count data for local copy
                if(DoCountOnly .and. iProc == iProcRecv) CYCLE
 
-               !if(DoCountOnly .and. (.not. UseHighResChange .and. &
+               ! if(DoCountOnly .and. (.not. UseHighResChange .and. &
                !     iSendStage == 1 .or. &
                !     (UseHighResChange .and. iSendStage == 2)))then
                   ! This processor will receive a restricted buffer from
@@ -3254,7 +3254,7 @@ contains
                !        + 1 + 2*nDim
                !   if(present(Time_B)) nSize = nSize + 1
                !   nBufferR_P(iProcRecv) = nBufferR_P(iProcRecv) + nSize
-               !end if
+               ! end if
 
                ! For 2nd order prolongation no prolongation iS done in stage 1
                if(.not. UseHighResChange .and. iSendStage < nProlongOrder) &
@@ -3271,7 +3271,7 @@ contains
                kRMin = iProlongR_DII(3,kRecv,Min_)
                kRMax = iProlongR_DII(3,kRecv,Max_)
 
-               !if(DoCountOnly)then
+               ! if(DoCountOnly)then
                   ! Number of reals to send to the other processor
                !   nSize =
                !       nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
@@ -3279,7 +3279,7 @@ contains
                !   if(present(Time_B)) nSize = nSize + 1
                !   nBufferS_P(iProcRecv) = nBufferS_P(iProcRecv) + nSize
                !   CYCLE
-               !end if
+               ! end if
 
                if(IsAxisNode)then
                   if(IsLatitudeAxis)then
@@ -4231,7 +4231,7 @@ contains
                      end do ! jR
                   end do ! kR
                end if ! iProc == iProcRecv
-               
+
             end do
          end do
       end do ! subedge subface triple loop
