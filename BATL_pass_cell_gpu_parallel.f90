@@ -3094,9 +3094,8 @@ contains
                   do iVar = 1,nVar
 !!! assume DijkR = 1. Consideration for -1 to be given later (using abs)
 !!! reduce the number of multiplication
-                     iBufferS=(kR-kRMin)*(jRMax-jRMin+1)*(iRMax-iRMin+1)*nVar+&
-                          (jR-jRMin) * (iRMax-iRMin+1) * nVar +&
-                          (iR-iRMin) * nVar +&
+                     iBufferS = nVar*(abs(iR-iRMin) + (abs(iRMax-iRMin)+1)*(&
+                          abs(jR-jRMin)+(abs(jRMax-jRMin)+1)*abs(kR-kRMin))) +&
                           iVar +&
                           iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim
 
@@ -4150,12 +4149,10 @@ contains
                            ! we fill buffer by subarrays of size nVar, because
                            ! the prolonged state is stored in Slope_V
 !!! use abs for DijkR = -1
-                           iBufferS =&
-                                (kR-kRMin)*(jRMax-jRMin+1)*(iRMax-iRMin+1)*&
-                                nVar+&
-                                (jR-jRMin)*(iRMax-iRMin+1)* nVar +&
-                                (iR-iRMin)* nVar +&
-!                                iVarS +&
+                           iBufferS =nVar*(&
+                                abs(iR-iRMin)+(abs(iRMax-iRMin)+1)*(&
+                                abs(jR-jRMin)+(abs(jRMax-jRMin)+1)*&
+                                abs(kR-kRMin)))+&
                                 iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim
 
                            if(nProlongOrder == 2) then
