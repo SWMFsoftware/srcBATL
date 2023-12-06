@@ -378,7 +378,7 @@ contains
        else
           nMsgSend_P = 0
        end if
-       
+
        if (.not. allocated(nMsgRecv_P)) then
           allocate(nMsgRecv_P(0:nProc-1))
           nMsgRecv_P = 0
@@ -631,9 +631,9 @@ contains
 
                 ! Restriction message size < prolongation, leading to
                 ! asymmetric sending/receiving buffer sizes
-                !call MPI_allreduce(nSizeBufferPe, nSizeBuffer, 1, MPI_INT, &
+                ! call MPI_allreduce(nSizeBufferPe, nSizeBuffer, 1, MPI_INT, &
                 !     MPI_MAX, iComm, iError)
-                !write(*,*)'iProc,nSizeBuffer, nCapBuffer= ',&
+                ! write(*,*)'iProc,nSizeBuffer, nCapBuffer= ',&
                 !     iProc, nSizeBuffer, nCapBuffer
 
                 ! allocate buffers
@@ -1598,7 +1598,7 @@ contains
                       ! for equal res, sending and recving sizes are equal
                       nSizeBufferR_P(iProcRecv) = nSizeBufferR_P(iProcRecv)+&
                            nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
-                      
+
                       if(nMsgSend_P(iProcRecv)==1) then
                          iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
                       end if
@@ -1691,7 +1691,6 @@ contains
                               nSizeR
                       end if
 
-                      
                       ! size of this message: only need to count for the sender
 
                       iRecv = iSend - 3*iDir
@@ -1708,7 +1707,7 @@ contains
 
                       nSizeS = 1 + 2*nDim + nVar*&
                            (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
-                      
+
                       nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv) = nSizeS
 
 !!! time_b to be added!!!
@@ -1721,7 +1720,7 @@ contains
 
                       nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv)+&
                            nSizeS
-                      
+
                       if(nMsgSend_P(iProcRecv)==1) then
                          iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
                       end if
@@ -1760,7 +1759,7 @@ contains
                             ! receive a restricted buffer in the first stage
                             if(nProlongOrder == 2 .and. iSendStage == 1) then
                                nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv)+1
-                               
+
                                iRMin = iRestrictR_DII(1,iSend,Min_)
                                iRMax = iRestrictR_DII(1,iSend,Max_)
                                jRMin = iRestrictR_DII(2,jSend,Min_)
@@ -1774,7 +1773,7 @@ contains
                                     nSizeBufferR_P(iProcRecv) + nSizeR
                                CYCLE
                             end if
-                            
+
                             ! convert (iSend,jSend,kSend) to 0-63 using base 4
                             IntDir = iSend
                             if(nDim>1) IntDir = IntDir + 4 * jSend
@@ -1807,7 +1806,6 @@ contains
                                        nSizeBufferR_P(iProcRecv) + nSizeR
                                end if
 
-                               
                                ! size of this message
                                iSMin = iProlongR_DII(1,iRecv,Min_)
                                iSMax = iProlongR_DII(1,iRecv,Max_)
@@ -1818,7 +1816,7 @@ contains
 
                                nSizeS = 1 + 2*nDim + nVar*(iSMax-iSMin+1)*&
                                     (jSMax-jSMin+1)*(kSMax-kSMin+1)
-                               
+
                                nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
                                     nSizeS
 !!! time_b to be added!!!
