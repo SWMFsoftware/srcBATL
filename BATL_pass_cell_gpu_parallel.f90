@@ -548,6 +548,15 @@ contains
     else
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
+          
+          nMsgSend_P = 0
+          nMsgRecv_P = 0
+          nSizeBufferS_P = 0
+          nSizeBufferR_P = 0
+          write(*,*)'iProc,iSendStage=', iProc, iSendStage
+          write(*,*)'iProc, nMsgSend, nMsgRecv=',iProc, nMsgSend_P, nMsgRecv_P
+          write(*,*)'iProc, nSizeSend, nSizeRecv=',iProc,&
+               nSizeBufferS_P, nSizeBufferR_P
           ! Second order prolongation needs two stages:
           ! first stage fills in equal and coarser ghost cells
           ! second stage uses these to prolong and fill in finer ghost cells
@@ -1638,19 +1647,21 @@ contains
                    ! Only do restriction in the first stage, but receive a
                    ! prolonged buffer in second stage
                    if(nProlongOrder == 2 .and. iSendStage == 2)then
-                      nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv) + 1
-                      iRMin = iProlongR_DII(1,iSend,Min_)
-                      iRMax = iProlongR_DII(1,iSend,Max_)
-                      jRMin = iProlongR_DII(2,jSend,Min_)
-                      jRMax = iProlongR_DII(2,jSend,Max_)
-                      kRMin = iProlongR_DII(3,kSend,Min_)
-                      kRMax = iProlongR_DII(3,kSend,Max_)
+                      if(iProcRecv /= iProcSend)then
+                         nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv) + 1
+                         iRMin = iProlongR_DII(1,iSend,Min_)
+                         iRMax = iProlongR_DII(1,iSend,Max_)
+                         jRMin = iProlongR_DII(2,jSend,Min_)
+                         jRMax = iProlongR_DII(2,jSend,Max_)
+                         kRMin = iProlongR_DII(3,kSend,Min_)
+                         kRMax = iProlongR_DII(3,kSend,Max_)
 
-                      nSizeR = nVar*&
-                           (iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)+&
-                           1 + 2*nDim
-                      nSizeBufferR_P(iProcRecv) =nSizeBufferR_P(iProcRecv)+&
-                           nSizeR
+                         nSizeR = nVar*&
+                              (iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)+&
+                              1 + 2*nDim
+                         nSizeBufferR_P(iProcRecv) =nSizeBufferR_P(iProcRecv)+&
+                              nSizeR
+                      end if
                       CYCLE
                    end if
 !!! Skip blocks with a time level outside the range
@@ -1758,19 +1769,21 @@ contains
                             ! Only do prolongation in the second stage, but
                             ! receive a restricted buffer in the first stage
                             if(nProlongOrder == 2 .and. iSendStage == 1) then
-                               nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv)+1
+                               if(iProcRecv /= iProcSend)then
+                                  nMsgRecv_P(iProcRecv)=nMsgRecv_P(iProcRecv)+1
 
-                               iRMin = iRestrictR_DII(1,iSend,Min_)
-                               iRMax = iRestrictR_DII(1,iSend,Max_)
-                               jRMin = iRestrictR_DII(2,jSend,Min_)
-                               jRMax = iRestrictR_DII(2,jSend,Max_)
-                               kRMin = iRestrictR_DII(3,kSend,Min_)
-                               kRMax = iRestrictR_DII(3,kSend,Max_)
+                                  iRMin = iRestrictR_DII(1,iSend,Min_)
+                                  iRMax = iRestrictR_DII(1,iSend,Max_)
+                                  jRMin = iRestrictR_DII(2,jSend,Min_)
+                                  jRMax = iRestrictR_DII(2,jSend,Max_)
+                                  kRMin = iRestrictR_DII(3,kSend,Min_)
+                                  kRMax = iRestrictR_DII(3,kSend,Max_)
 
-                               nSizeR=nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
-                                    (kRMax-kRMin+1) + 1 + 2*nDim
-                               nSizeBufferR_P(iProcRecv) =&
-                                    nSizeBufferR_P(iProcRecv) + nSizeR
+                                  nSizeR=nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
+                                       (kRMax-kRMin+1) + 1 + 2*nDim
+                                  nSizeBufferR_P(iProcRecv) =&
+                                       nSizeBufferR_P(iProcRecv) + nSizeR
+                               end if
                                CYCLE
                             end if
 
