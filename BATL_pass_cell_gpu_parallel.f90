@@ -561,7 +561,7 @@ contains
     else
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
-          
+
           nMsgSend_P = 0
           nMsgRecv_P = 0
           nSizeBufferS_P = 0
