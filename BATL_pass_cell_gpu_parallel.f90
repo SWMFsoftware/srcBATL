@@ -362,6 +362,11 @@ contains
           allocate(nMsgSend_BP(nBlock,0:nProc-1))
           nMsgSend_BP = 0
        else
+          if(nBlock > size(nMsgSend_BP,1))then
+             write(*,*)'Block number changes, allocate new arrays'
+             deallocate(nMsgSend_BP)
+             allocate(nMsgSend_BP(nBlock,0:nProc-1))
+          end if
           nMsgSend_BP = 0
        end if
 
@@ -369,6 +374,10 @@ contains
           allocate(iMsgInit_BP(nBlock,0:nProc-1))
           iMsgInit_BP = 0
        else
+          if(nBlock > size(iMsgInit_BP,1))then
+             deallocate(iMsgInit_BP)
+             allocate(iMsgInit_BP(nBlock,0:nProc-1))
+          end if
           iMsgInit_BP = 0
        end if
 
@@ -405,6 +414,10 @@ contains
           allocate(iMsgDir_IBP(0:4**nDim-1,nBlock,0:nProc-1))
           iMsgDir_IBP = -1
        else
+          if(nBlock > size(iMsgDir_IBP,2))then
+             deallocate(iMsgDir_IBP)
+             allocate(iMsgDir_IBP(0:4**nDim-1,nBlock,0:nProc-1))
+          end if
           iMsgDir_IBP = -1
        end if
 
@@ -581,6 +594,7 @@ contains
              if(DoCountOnly) then
                 call timing_start('Count_1')
                 do iBlockSend = 1, nBlock
+                   if (Unused_B(iBlockSend)) CYCLE
                    call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                         .true., &
                         TimeOld_B, Time_B, iLevelMin, iLevelMax, &
@@ -602,7 +616,10 @@ contains
 
                    ! Keeping track of the initial message index for each block
                    ! is needed for parallel construction of the send buffer.
-                   if(iBlockSend == 1)iMsgInit_BP(iBlockSend,:) = 1
+                   write(*,*)'iProc=',iProc, 'minimum active index=',&
+                        minloc(merge(1,0,Unused_B),1)
+                   if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
+                        iMsgInit_BP(iBlockSend,:) = 1
                    if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
                         iMsgInit_BP(iBlockSend,:)+nMsgSend_BP(iBlockSend,:)
 
