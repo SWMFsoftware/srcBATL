@@ -662,7 +662,7 @@ contains
                       end if
                    end if ! Unused_B
                 end do
-                                
+
                 ! Restriction message size < prolongation, leading to
                 ! asymmetric sending/receiving buffer sizes
                 ! call MPI_allreduce(nSizeBufferPe, nSizeBuffer, 1, MPI_INT, &
@@ -1879,12 +1879,12 @@ contains
                 end if ! DiLevel
                 ! CYCLE ! next direction
              end if ! DoCountOnly
-             
+
           end do ! iDir
        end do ! jDir
     end do ! kDir
   end subroutine message_count_block
-    !==========================================================================
+  !============================================================================
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn, &
        nMsgSend_BP, iMsgInit_BP, nVarSend_IP, iBufferS_IP, iMsgDir_IBP)
@@ -2041,7 +2041,7 @@ contains
              if(iSendStage == 4 .and. DiLevel == 0) CYCLE
 
              ! Due to isolation of the counting sub, no need to count here
-             
+
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
                 if(iSendStage == 3) then
