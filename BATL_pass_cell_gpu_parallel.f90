@@ -566,10 +566,11 @@ contains
           nMsgRecv_P = 0
           nSizeBufferS_P = 0
           nSizeBufferR_P = 0
-          write(*,*)'iProc,iSendStage=', iProc, iSendStage
-          write(*,*)'iProc, nMsgSend, nMsgRecv=',iProc, nMsgSend_P, nMsgRecv_P
-          write(*,*)'iProc, nSizeSend, nSizeRecv=',iProc,&
-               nSizeBufferS_P, nSizeBufferR_P
+          ! write(*,*)'iProc,iSendStage=', iProc, iSendStage
+          ! write(*,*)'iProc, nMsgSend, nMsgRecv=',iProc, nMsgSend_P, &
+          ! nMsgRecv_P
+          ! write(*,*)'iProc, nSizeSend, nSizeRecv=',iProc,&
+          !     nSizeBufferS_P, nSizeBufferR_P
           ! Second order prolongation needs two stages:
           ! first stage fills in equal and coarser ghost cells
           ! second stage uses these to prolong and fill in finer ghost cells
@@ -594,65 +595,72 @@ contains
              if(DoCountOnly) then
                 call timing_start('Count_1')
                 do iBlockSend = 1, nBlock
-                   if (Unused_B(iBlockSend)) CYCLE
-                   call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-                        .true., &
-                        TimeOld_B, Time_B, iLevelMin, iLevelMax, &
-                        UseOpenACCIn, &
-                        nMsgSend_BP=nMsgSend_BP, nVarSend_IP=nVarSend_IP,&
-                        iBufferS_IP=iBufferS_IP,&
-                        iMsgDir_IBP=iMsgDir_IBP)
+                   if (Unused_B(iBlockSend))then
+                      ! keep the initial index continuous
+                      if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
+                           iMsgInit_BP(iBlockSend,:)
+                      CYCLE
+                   else
+                      call message_count_block(iBlockSend, nVar, nG,&
+                           State_VGB,.true., &
+                           TimeOld_B, Time_B, iLevelMin, iLevelMax, &
+                           UseOpenACCIn, &
+                           nMsgSend_BP=nMsgSend_BP, nVarSend_IP=nVarSend_IP,&
+                           iBufferS_IP=iBufferS_IP,&
+                           iMsgDir_IBP=iMsgDir_IBP)
 
-                   ! update nMsgSend and nSizeBuffer for each block
-                   nMsgSend = maxval(nMsgSend_P)
-                   nMsgRecv = maxval(nMsgRecv_P)
-                   nMsg = max(nMsgSend,nMsgRecv)
-                   nSizeBufferS = maxval(nSizeBufferS_P)
-                   nSizeBufferR = maxval(nSizeBufferR_P)
-                   nSizeBuffer = max(nSizeBufferS, nSizeBufferR)
-                   write(*,*)'On iProc, iBlock=',iProc,iBlockSend,&
-                        'nMsgS/R=',nMsgSend,nMsgRecv,&
-                        'nSizeS/R=',nSizeBufferS, nSizeBufferR
+                      ! update nMsgSend and nSizeBuffer for each block
+                      nMsgSend = maxval(nMsgSend_P)
+                      nMsgRecv = maxval(nMsgRecv_P)
+                      nMsg = max(nMsgSend,nMsgRecv)
+                      nSizeBufferS = maxval(nSizeBufferS_P)
+                      nSizeBufferR = maxval(nSizeBufferR_P)
+                      nSizeBuffer = max(nSizeBufferS, nSizeBufferR)
+                      write(*,*)'On iProc, iBlock=',iProc,iBlockSend,&
+                           'nMsgS/R=',nMsgSend,nMsgRecv,&
+                           'nSizeS/R=',nSizeBufferS, nSizeBufferR
 
-                   ! Keeping track of the initial message index for each block
-                   ! is needed for parallel construction of the send buffer.
-                   write(*,*)'iProc=',iProc, 'minimum active index=',&
-                        minloc(merge(1,0,Unused_B),1)
-                   if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
-                        iMsgInit_BP(iBlockSend,:) = 1
-                   if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
-                        iMsgInit_BP(iBlockSend,:)+nMsgSend_BP(iBlockSend,:)
+                      ! Keeping track of the initial message index for each
+                      ! block is needed for parallel construction of the send &
+                      ! buffer.
+                      write(*,*)'iProc=',iProc, 'minimum active index=',&
+                           minloc(merge(1,0,Unused_B),1)
+                      if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
+                           iMsgInit_BP(iBlockSend,:) = 1
+                      if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
+                           iMsgInit_BP(iBlockSend,:)+nMsgSend_BP(iBlockSend,:)
 
-                   ! dynamically manage array sizes for each block counted
-                   if(nMsg + 4**nDim > nMsgSendCap) then
-                      call timing_start('resize_arrays')
-                      ! allocate temp arrays
-                      allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
-                      allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
-                      ! copy old to new
-                      nVarSendTemp_IP = nVarSend_IP
-                      iBufferSTemp_IP = iBufferS_IP
-                      ! decallocate old arrays
-                      deallocate(nVarSend_IP)
-                      deallocate(iBufferS_IP)
-                      deallocate(iBufferR_IP)
-                      ! enlarge capacity
-                      nMsgSendCap = 2*nMsgSendCap
-                      ! allocate larger arrays
-                      allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
-                      allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
-                      allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
-                      ! for this copy, the exact range is 1:nMsgSend+1, because
-                      ! we always compute the starting indices for the next
-                      ! iBlockSend loop. However the following syntax is neat.
-                      nVarSend_IP(1:nMsgSendCap/2,:) = nVarSendTemp_IP
-                      iBufferS_IP(1:nMsgSendCap/2,:) = iBufferSTemp_IP
-                      iBufferR_IP = 0
-                      ! deallocate temp arrays
-                      deallocate(nVarSendTemp_IP)
-                      deallocate(iBufferSTemp_IP)
-                      call timing_stop('resize_arrays')
-                   end if
+                      ! dynamically manage array sizes for each block counted
+                      if(nMsg + 4**nDim > nMsgSendCap) then
+                         call timing_start('resize_arrays')
+                         ! allocate temp arrays
+                         allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
+                         allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
+                         ! copy old to new
+                         nVarSendTemp_IP = nVarSend_IP
+                         iBufferSTemp_IP = iBufferS_IP
+                         ! decallocate old arrays
+                         deallocate(nVarSend_IP)
+                         deallocate(iBufferS_IP)
+                         deallocate(iBufferR_IP)
+                         ! enlarge capacity
+                         nMsgSendCap = 2*nMsgSendCap
+                         ! allocate larger arrays
+                         allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
+                         allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
+                         allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
+                         ! for this copy, the exact range is 1:nMsgSend+1, as
+                         ! we always compute the starting indices for the next
+                         ! iBlockSend loop. However this syntax is neat.
+                         nVarSend_IP(1:nMsgSendCap/2,:) = nVarSendTemp_IP
+                         iBufferS_IP(1:nMsgSendCap/2,:) = iBufferSTemp_IP
+                         iBufferR_IP = 0
+                         ! deallocate temp arrays
+                         deallocate(nVarSendTemp_IP)
+                         deallocate(iBufferSTemp_IP)
+                         call timing_stop('resize_arrays')
+                      end if
+                   end if ! Unused_B
                 end do
 
                 ! Restriction message size < prolongation, leading to
@@ -1411,7 +1419,7 @@ contains
 
   end subroutine message_pass_ng_int1
   !============================================================================
-  subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+  subroutine message_count_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn, &
        nMsgSend_BP, iMsgInit_BP, nVarSend_IP, iBufferS_IP, iMsgDir_IBP)
     !$acc routine worker
@@ -1869,8 +1877,170 @@ contains
                       end do
                    end do ! loop through subfaces and subedges
                 end if ! DiLevel
-                CYCLE ! next direction
+                ! CYCLE ! next direction
              end if ! DoCountOnly
+
+          end do ! iDir
+       end do ! jDir
+    end do ! kDir
+  end subroutine message_count_block
+  !============================================================================
+  subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
+       DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn, &
+       nMsgSend_BP, iMsgInit_BP, nVarSend_IP, iBufferS_IP, iMsgDir_IBP)
+    !$acc routine worker
+
+    use BATL_mpi, ONLY: iProc, nProc
+    use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
+         MaxDim, nDim, jDim_, kDim_, &
+         iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
+         MinI, MinJ, MinK, MaxI, MaxJ, MaxK
+    use BATL_grid, ONLY: CoordMin_DB, CoordMax_DB, Xyz_DGB, DomainSize_D, &
+         CoordMin_D
+    use BATL_tree, ONLY: &
+         iNodeNei_IIIB, DiLevelNei_IIIB, Unused_BP, iNode_B, &
+         iTree_IA, Proc_, Block_, Coord1_, Coord2_, Coord3_, Level_, &
+         UseTimeLevel, iTimeLevel_A, nNode
+
+    ! Arguments
+    integer, intent(in):: iBlockSend
+
+    integer, intent(in):: nVar  ! number of variables
+    integer, intent(in):: nG    ! number of ghost cells for 1..nDim
+    real, intent(inout):: State_VGB(nVar,&
+         1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
+
+    ! Send information from block iBlockSend to other blocks
+    ! If DoRemote iS true, send info to blocks on other cores
+    logical, intent(in):: DoRemote
+
+    ! optional arguments
+    real,    intent(in),optional:: TimeOld_B(MaxBlock)
+    real,    intent(in),optional:: Time_B(MaxBlock)
+    integer, intent(in),optional:: iLevelMin, iLevelMax
+    logical, intent(in),optional:: UseOpenACCIn
+
+    !!! memory maps for parallel algorithm
+    integer, intent(inout),optional:: nMsgSend_BP(:,0:)
+    integer, intent(inout),optional:: iMsgInit_BP(:,0:)
+    integer, intent(inout), optional:: nVarSend_IP(:,0:)
+    integer, intent(inout), optional:: iBufferS_IP(:,0:)
+    integer, intent(inout), optional:: iMsgDir_IBP(0:,:,0:)
+
+    ! Local variables
+    logical :: UseOpenACC
+
+    integer :: iNodeSend
+    integer :: iDir, jDir, kDir
+
+    ! iS the sending node next to the symmetry axis?
+    logical :: IsAxisNode
+
+    integer :: iLevelSend, DiLevel
+
+    ! For high order resolution change, a few face ghost cells need to be
+    ! calculated remotely after the coarse block have got accurate
+    ! ghost cells.
+    logical:: DoSendFace, DoRecvFace
+
+    ! For 6th order correction, which may be better because of symmetry,
+    ! 8 cells are needed in each direction. If it iS not satisfied,
+    ! use 5th order correction.
+    logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
+         (nK==1 .or. nK>7)
+
+!!! local variables for parallel algorithm
+    integer:: iSend, jSend, kSend, iRecv, jRecv, kRecv
+    integer:: iNodeRecv, iProcRecv, iBlockRecv
+    integer:: iProcSend
+    integer:: IntDir
+    integer:: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax ! for computing msg size
+    integer:: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
+    integer:: iSide, jSide, kSide
+    integer:: nSizeS
+    integer:: nSizeR
+    !--------------------------------------------------------------------------
+    iNodeSend = iNode_B(iBlockSend)
+
+    ! Skip if the sending block level iS not in the level range
+    if(present(iLevelMin) .and. .not.UseTimeLevel)then
+       iLevelSend = iTree_IA(Level_,iNodeSend)
+       if(iLevelSend < iLevelMin) RETURN
+    end if
+    if(present(iLevelMax) .and. .not.UseTimeLevel)then
+       iLevelSend = iTree_IA(Level_,iNodeSend)
+       if(iLevelSend > iLevelMax) RETURN
+    end if
+
+    UseOpenACC = .false.
+    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
+
+    IsAxisNode = .false.
+    UseTime = .false.
+
+    !$acc loop seq
+    do kDir = -1, 1
+       ! Do not message pass in ignored dimensions
+       if(nDim < 3 .and. kDir /= 0) CYCLE
+
+       if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
+            kDir == -1 .and. &
+            CoordMin_DB(Lat_,iBlockSend) < -cHalfPi + 1e-8 .or. &
+            kDir == +1 .and. &
+            CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
+
+       !$acc loop seq
+       do jDir = -1, 1
+          if(nDim < 2 .and. jDir /= 0) CYCLE
+          ! Skip edges
+          if(.not.DoSendCorner .and. jDir /= 0 .and. kDir /= 0) &
+               CYCLE
+
+          if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
+               jDir == -1 .and. &
+               CoordMin_DB(Theta_,iBlockSend) < 1e-8 .or. &
+               jDir == +1 .and. &
+               CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
+
+          !$acc loop seq
+          do iDir = -1,1
+             ! Ignore inner parts of the sending block
+             if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
+
+             ! Exclude corners where i and j or k iS at the edge
+             if(.not.DoSendCorner .and. iDir /= 0 .and. &
+                  (jDir /= 0 .or.  kDir /= 0)) CYCLE
+
+             if(nDim > 1 .and. IsCylindricalAxis) IsAxisNode = &
+                  iDir == -1 .and. iTree_IA(Coord1_,iNodeSend) == 1
+
+             ! Level difference = own_level - neighbor_level
+             DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
+
+             ! Skip if the receiving block grid level iS not
+             ! in range. Time levels of the receiving block(s)
+             ! will be checked later if UseTimeLevel iS true.
+             if(present(iLevelMin) .and. .not.UseTimeLevel)then
+                if(iLevelSend - DiLevel < iLevelMin) CYCLE
+             end if
+             if(present(iLevelMax) .and. .not.UseTimeLevel)then
+                if(iLevelSend - DiLevel > iLevelMax) CYCLE
+             end if
+
+             ! Do prolongation in the second stage if
+             ! nProlongOrder=2. We still need to call restriction
+             ! and prolongation in both stages to calculate the
+             ! amount of received data
+             if(iSendStage == 2 .and. DiLevel == 0) CYCLE
+
+             ! Fill in the edge/corner ghost cells with values from
+             ! face ghost cells.
+             if(iSendStage == 3 .and. DiLevel /= 0) CYCLE
+
+             ! Remote high order prolongation
+             if(iSendStage == 4 .and. DiLevel == 0) CYCLE
+
+             ! Due to isolation of the counting sub, no need to count here
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
