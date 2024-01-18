@@ -641,7 +641,6 @@ contains
 
   end subroutine read_region_param
   !============================================================================
-
   logical function is_point_inside_regions(iRegion_I, Xyz_D)
 
     ! return true if point Xyz_D is inside any region defined by
@@ -698,7 +697,6 @@ contains
 
   end function is_point_inside_regions
   !============================================================================
-
   subroutine block_inside_regions(iRegion_I, iBlock, nValue, StringLocation, &
        IsInside, IsInside_I, Value_I, WeightDefaultIn, user_specify_region)
 
@@ -1461,7 +1459,7 @@ contains
              ! Use a roughly linear function between the ellipsoids
              Dist1 = sqrt(Dist1) - 1
              Dist2 = 1 - sqrt(Dist2)
-             Value_I(iPoint) = Dist2/(Dist1 + Dist2)
+             Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
           end do
        endif
     case('shell')
@@ -1483,13 +1481,13 @@ contains
                 ! Use a roughly linear function between the ellipsoids
                 Dist1 = sqrt(Dist1) - 1
                 Dist2 = 1 - sqrt(Dist2)
-                Value_I(iPoint) = Dist2/(Dist1 + Dist2)
+                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
              elseif(Dist1 <= Radius1Sqr)then
                 Dist2 = sum((TaperFactor1_D*Norm_DI(:,iPoint))**2)
                 if(Dist2 <= 1) CYCLE     ! inside inner radius
                 Dist1 = 1 - sqrt(Dist1)/Radius1
                 Dist2 = sqrt(Dist2) - 1
-                Value_I(iPoint) = Dist2/(Dist1 + Dist2)
+                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
              else
                 Value_I(iPoint) = 1.0 ! inside ring
              end if
@@ -1521,7 +1519,8 @@ contains
              ! Use a roughly linear function between the elliptic cylinders
              Dist1 = sqrt(Dist1) - 1
              Dist2 = 1 - sqrt(Dist2)
-             Value_I(iPoint) = Dist2/(Dist1 + Dist2) * Value_I(iPoint)
+             Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+                  *Value_I(iPoint)
           end do
        end if
     case('ringx','ringy','ringz')
@@ -1550,7 +1549,8 @@ contains
                 ! Use a roughly linear function between the ellipsoids
                 Dist1 = sqrt(Dist1) - 1
                 Dist2 = 1 - sqrt(Dist2)
-                Value_I(iPoint) = Dist2/(Dist1 + Dist2) * Value_I(iPoint)
+                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+                     *Value_I(iPoint)
              elseif(Dist1 < Radius1Sqr)then
                 Dist2=sum((TaperFactor1_D(iPerp_I)*Norm_DI(iPerp_I,iPoint))**2)
                 if(Dist2 <= 1)then                   ! inside inner radius
@@ -1559,7 +1559,8 @@ contains
                 end if
                 Dist1 = 1 - sqrt(Dist1)/Radius1
                 Dist2 = sqrt(Dist2) - 1
-                Value_I(iPoint) = Dist2/(Dist1 + Dist2) * Value_I(iPoint)
+                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+                     *Value_I(iPoint)
              end if
           end do
        end if
