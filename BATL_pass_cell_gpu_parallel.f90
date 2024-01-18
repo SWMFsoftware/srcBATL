@@ -560,10 +560,14 @@ contains
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
 
+          if(iProc==0)write(*,*)'Stage ',iSendStage,'is starting'
+          
           nMsgSend_P = 0
+          nMsgSend_BP = 0
           nMsgRecv_P = 0
           nSizeBufferS_P = 0
           nSizeBufferR_P = 0
+          ! iBufferR_IP = 0
           ! write(*,*)'iProc,iSendStage=', iProc, iSendStage
           ! write(*,*)'iProc, nMsgSend, nMsgRecv=',iProc, nMsgSend_P, &
           ! nMsgRecv_P
@@ -606,15 +610,15 @@ contains
                 nSizeBufferS = maxval(nSizeBufferS_P)
                 nSizeBufferR = maxval(nSizeBufferR_P)
                 nSizeBuffer = max(nSizeBufferS, nSizeBufferR)
-                write(*,*)'On iProc, iBlock=',iProc,iBlockSend,&
-                     'nMsgS/R=',nMsgSend,nMsgRecv,&
-                     'nSizeS/R=',nSizeBufferS, nSizeBufferR
+                ! write(*,*)'On iProc, iBlock=',iProc,iBlockSend,&
+                !     'nMsgS/R=',nMsgSend,nMsgRecv,&
+                !     'nSizeS/R=',nSizeBufferS, nSizeBufferR
 
                 ! Keeping track of the initial message index for each
                 ! block is needed for parallel construction of the send &
                 ! buffer.
-                write(*,*)'iProc=',iProc, 'minimum active index=',&
-                     minloc(merge(1,0,Unused_B),1)
+                !write(*,*)'iProc=',iProc, 'minimum active index=',&
+                !     minloc(merge(1,0,Unused_B),1)
                 if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
                      iMsgInit_BP(iBlockSend,:) = 1
                 if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
@@ -663,8 +667,8 @@ contains
           ! allocate buffers
           if(nSizeBuffer > nCapBuffer)then
              call timing_start('enlarge_buffer')
-             write(*,*)'buffer size changes from', nCapBuffer, 'to',&
-                  nSizeBuffer
+             ! write(*,*)'buffer size changes from', nCapBuffer, 'to',&
+             !     nSizeBuffer
              nCapBuffer = nSizeBuffer
              if(allocated(BufferS_IP))deallocate(BufferS_IP)
              if(allocated(BufferR_IP))deallocate(BufferR_IP)
@@ -805,7 +809,7 @@ contains
              if(iProcSend == iProc) CYCLE
              !$acc parallel copyin(iProcSend, nVar) present(BufferR_IP)
              !$acc loop gang
-             do iMsgSend = 1, nMsg
+             do iMsgSend = 1, nMsgRecv_P(iProcSend)
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      iBufferR_IP, BufferR_IP,&
                   nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
@@ -1110,8 +1114,13 @@ contains
                     iVarR +&
                     iBufferR_IP(iMsgSend,iProcSend) + 2*nDim ! initial iBuffer
 
-            State_VGB(iVarR,i,j,k,iBlockRecv) = &
-                 BufferR_IP(iBufferR, iProcSend)
+               if(i==-10)then
+                  write(*,*)'-10 detected for iproc(R/S), imsg, ibuffer=',&
+                       iProc, iProcSend, iMsgSend, iBufferR, iBlockRecv
+               end if
+               
+               State_VGB(iVarR,i,j,k,iBlockRecv) = &
+                    BufferR_IP(iBufferR, iProcSend)
          enddo
       end do; end do; end do
     end subroutine buffer_to_state_parallel
@@ -1538,10 +1547,10 @@ contains
 
              ! Fill in the edge/corner ghost cells with values from
              ! face ghost cells.
-             if(iSendStage == 3 .and. DiLevel /= 0) CYCLE
+             ! if(iSendStage == 3 .and. DiLevel /= 0) CYCLE
 
              ! Remote high order prolongation
-             if(iSendStage == 4 .and. DiLevel == 0) CYCLE
+             ! if(iSendStage == 4 .and. DiLevel == 0) CYCLE
 
              ! find out each block does how many comms
              if(DiLevel == 0) then
@@ -1607,6 +1616,15 @@ contains
                    iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
                         iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
                         nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)
+
+                   if(iSendStage ==2 .and. iProc==1 .and. iProcRecv==2) then
+                      write(*,*)'-10, Proc 1->2, iMsg=', nMsgSend_P(iProcRecv)
+                      write(*,*)'nSizeS,iBufferS(this),iBufferS(next)=',&
+                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv),&
+                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
+                           iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
+                   end if
+                   
                 end if ! iProcRecv/=iProcSend
 
              else if(DiLevel == 1) then
@@ -1731,6 +1749,14 @@ contains
                    iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
                         iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
                         nSizeS
+
+                   if(iSendStage ==2 .and. iProc==1 .and. iProcRecv==2) then
+                      write(*,*)'-10, Proc 1->2, iMsg=', nMsgSend_P(iProcRecv)
+                      write(*,*)'nSizeS,iBufferS(this),iBufferS(next)=',&
+                           nSizeS, &
+                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
+                           iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
+                   end if
                 end if ! iProcRecv/=iProcSend
 
              else if(DiLevel == -1) then
@@ -1840,6 +1866,20 @@ contains
                                  iBufferS_IP&
                                  (nMsgSend_P(iProcRecv),iProcRecv) +&
                                  nSizeS
+
+                            if(iSendStage ==2 .and. iProc==1 .and. &
+                                 iProcRecv==2) then
+                               write(*,*)'-10, Proc 1->2, iMsg=', &
+                                    nMsgSend_P(iProcRecv)
+                               write(*,*)'nSizeS,iBufferS(this),&
+                                    iBufferS(next)=',&
+                                    nSizeS, &
+                                    iBufferS_IP(nMsgSend_P(iProcRecv),&
+                                    iProcRecv),&
+                                    iBufferS_IP(nMsgSend_P(iProcRecv)+1,&
+                                    iProcRecv)
+                            end if
+
                          end if ! iProcRecv/=iProcSend
                       end do
                    end do
@@ -4382,6 +4422,10 @@ contains
                   iMsgGlob = iMsgInit_P(iProcRecv) + &
                        iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
                   iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
+
+                  if(iBufferS == 0)write(*,*)'iProc,iBlock,iMsgInit,Glob=',&
+                       iProc,iBlockSend,iMsgInit_P(iProcRecv),iMsgGlob
+                  
                   BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
                   BufferS_IP(iBufferS+1, iProcRecv) = iRMin
                   BufferS_IP(iBufferS+2, iProcRecv) = iRMax
