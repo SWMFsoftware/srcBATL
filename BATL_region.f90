@@ -1451,15 +1451,16 @@ contains
           do iPoint = 1, nPoint
              Dist1 = sum(Norm_DI(:,iPoint)**2)
              if(Dist1 < 1)then
-                Value_I(iPoint) = 1.0 ! inside
+                Value_I(iPoint) = 1.0 ! inside ellipsoid
                 CYCLE
              end if
              Dist2 = sum((TaperFactor_D*Norm_DI(:,iPoint))**2)
-             if(Dist2 >= 1) CYCLE     ! outside
+             if(Dist2 >= 1) CYCLE     ! outside ellipsoid + taper
              ! Use a roughly linear function between the ellipsoids
              Dist1 = sqrt(Dist1) - 1
              Dist2 = 1 - sqrt(Dist2)
-             Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
+             ! Multiply by (Dist1 + 1) ~ ||x|| to get linearity
+             Value_I(iPoint) = (Dist1 + 1)*Dist2/(Dist1 + Dist2)
           end do
        endif
     case('shell')
@@ -1477,17 +1478,19 @@ contains
              Dist1 = sum(Norm_DI(:,iPoint)**2)
              if(Dist1 >= 1)then
                 Dist2 = sum((TaperFactor_D*Norm_DI(:,iPoint))**2)
-                if(Dist2 >= 1) CYCLE     ! outside outer radius
+                if(Dist2 >= 1) CYCLE     ! outside outer ellipsoid + taper
                 ! Use a roughly linear function between the ellipsoids
                 Dist1 = sqrt(Dist1) - 1
                 Dist2 = 1 - sqrt(Dist2)
-                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
+                ! Multiply by (Dist1 + 1) ~ ||x|| to get linearity
+                Value_I(iPoint) = (Dist1 + 1)*Dist2/(Dist1 + Dist2)
              elseif(Dist1 <= Radius1Sqr)then
                 Dist2 = sum((TaperFactor1_D*Norm_DI(:,iPoint))**2)
-                if(Dist2 <= 1) CYCLE     ! inside inner radius
+                if(Dist2 <= 1) CYCLE     ! inside inner ellipsoid - taper
                 Dist1 = 1 - sqrt(Dist1)/Radius1
                 Dist2 = sqrt(Dist2) - 1
-                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2)
+                ! multiply by (1 - Dist1) ~ ||x||/r1 to get linearity
+                Value_I(iPoint) = (1 - Dist1)*Dist2/(Dist1 + Dist2)
              else
                 Value_I(iPoint) = 1.0 ! inside ring
              end if
@@ -1512,14 +1515,15 @@ contains
              Dist1 = sum(Norm_DI(iPerp_I,iPoint)**2)
              if(Dist1 <= 1) CYCLE                    ! inside perpendicular
              Dist2= sum((TaperFactor_D(iPerp_I)*Norm_DI(iPerp_I,iPoint))**2)
-             if(Dist2 >= 1)then                      ! outside perpendicular
+             if(Dist2 >= 1)then            ! outside perpendicular + taper
                 Value_I(iPoint) = 0.0
                 CYCLE
              end if
              ! Use a roughly linear function between the elliptic cylinders
              Dist1 = sqrt(Dist1) - 1
              Dist2 = 1 - sqrt(Dist2)
-             Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+             ! Multiply by (Dist1 + 1) ~ ||x|| to get linearity
+             Value_I(iPoint) = (Dist1 + 1)*Dist2/(Dist1 + Dist2) &
                   *Value_I(iPoint)
           end do
        end if
@@ -1538,28 +1542,30 @@ contains
           do iPoint = 1, nPoint
              Value_I(iPoint) = max(0.0, min(1.0, &
                   1 - Slope_D(iPar)*(abs(Norm_DI(iPar,iPoint))-1)))
-             if(Value_I(iPoint) == 0) CYCLE          ! outside parallel to axis
+             if(Value_I(iPoint) == 0) CYCLE ! outside parallel to axis
              Dist1 = sum(Norm_DI(iPerp_I,iPoint)**2)
              if(Dist1 > 1)then
                 Dist2= sum((TaperFactor_D(iPerp_I)*Norm_DI(iPerp_I,iPoint))**2)
-                if(Dist2 >= 1)then                   ! outside outer radius
+                if(Dist2 >= 1)then          ! outside outer cylinder + taper
                    Value_I(iPoint) = 0.0
                    CYCLE
                 end if
-                ! Use a roughly linear function between the ellipsoids
+                ! Use a roughly linear function between the elliptic cylinders
                 Dist1 = sqrt(Dist1) - 1
                 Dist2 = 1 - sqrt(Dist2)
-                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+                ! Multiply by (Dist1 + 1) ~ ||x|| to get linearity
+                Value_I(iPoint) = (Dist1 + 1)*Dist2/(Dist1 + Dist2) &
                      *Value_I(iPoint)
              elseif(Dist1 < Radius1Sqr)then
                 Dist2=sum((TaperFactor1_D(iPerp_I)*Norm_DI(iPerp_I,iPoint))**2)
-                if(Dist2 <= 1)then                   ! inside inner radius
+                if(Dist2 <= 1)then          ! inside inner cylinder - taper
                    Value_I(iPoint) = 0.0
                    CYCLE
                 end if
                 Dist1 = 1 - sqrt(Dist1)/Radius1
                 Dist2 = sqrt(Dist2) - 1
-                Value_I(iPoint) = Dist2*(Dist1 + 1)/(Dist1 + Dist2) &
+                ! Multiply by (1 - Dist1) ~ ||x||/r1 to get linearity
+                Value_I(iPoint) = (1 - Dist1)*Dist2/(Dist1 + Dist2) &
                      *Value_I(iPoint)
              end if
           end do
