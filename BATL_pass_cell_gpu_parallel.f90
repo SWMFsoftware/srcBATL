@@ -561,7 +561,7 @@ contains
        do iSendStage = 1, nSendStage
 
           if(iProc==0)write(*,*)'Stage ',iSendStage,'is starting'
-          
+
           nMsgSend_P = 0
           nMsgSend_BP = 0
           nMsgRecv_P = 0
@@ -617,7 +617,7 @@ contains
                 ! Keeping track of the initial message index for each
                 ! block is needed for parallel construction of the send &
                 ! buffer.
-                !write(*,*)'iProc=',iProc, 'minimum active index=',&
+                ! write(*,*)'iProc=',iProc, 'minimum active index=',&
                 !     minloc(merge(1,0,Unused_B),1)
                 if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
                      iMsgInit_BP(iBlockSend,:) = 1
@@ -1118,7 +1118,7 @@ contains
                   write(*,*)'-10 detected for iproc(R/S), imsg, ibuffer=',&
                        iProc, iProcSend, iMsgSend, iBufferR, iBlockRecv
                end if
-               
+
                State_VGB(iVarR,i,j,k,iBlockRecv) = &
                     BufferR_IP(iBufferR, iProcSend)
          enddo
@@ -1624,7 +1624,7 @@ contains
                            iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
                            iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
                    end if
-                   
+
                 end if ! iProcRecv/=iProcSend
 
              else if(DiLevel == 1) then
@@ -4425,7 +4425,7 @@ contains
 
                   if(iBufferS == 0)write(*,*)'iProc,iBlock,iMsgInit,Glob=',&
                        iProc,iBlockSend,iMsgInit_P(iProcRecv),iMsgGlob
-                  
+
                   BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
                   BufferS_IP(iBufferS+1, iProcRecv) = iRMin
                   BufferS_IP(iBufferS+2, iProcRecv) = iRMax
