@@ -426,9 +426,9 @@ contains
           ! Initially, allocate arrays and their copies
           ! We can get rid of nVarSend_IP but have a messier Count loop.
           allocate(nVarSend_IP(nMsgSendCap,0:nProc-1))
-!          allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
+          !          allocate(nVarSendTemp_IP(nMsgSendCap,0:nProc-1))
           allocate(iBufferS_IP(nMsgSendCap,0:nProc-1))
-!          allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
+          !          allocate(iBufferSTemp_IP(nMsgSendCap,0:nProc-1))
           allocate(iBufferR_IP(nMsgSendCap,0:nProc-1))
           iBufferR_IP = 0
        end if
@@ -440,13 +440,13 @@ contains
        !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
        !$acc UseHighResChange, UseMin, UseMax)
 
-       !!! The following can run (in series) on GPU as:
+!!! The following can run (in series) on GPU as:
        ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
 
        ! Set index ranges based on arguments
        call set_range
 
-       !!! If set_range runs on CPU, update the following on the device:
+!!! If set_range runs on CPU, update the following on the device:
        !$acc update device(iEqualS_DII, iEqualR_DII, &
        !$acc iRestrictS_DII, iRestrictR_DII, iProlongS_DII, &
        !$acc iProlongR_DII)
@@ -583,14 +583,14 @@ contains
 
           call timing_start('remote_pass')
 
-             ! Count only once for
-             !   1. nMsgSend_P, which is the size of memory maps
-             !   2. nSizeBufferS_P, which is the size of the sending buffers
-             !   3. nSizeBufferR_P, which is the size of the recving buffers
-             !   Note: need both S and R sizes for asymmetry in buffer size
-             !         introduced by AMR
-             ! The size of the memory maps can change dynamically when nMsgSend
-             ! changes, which mostly happens in the initial pass.
+          ! Count only once for
+          !   1. nMsgSend_P, which is the size of memory maps
+          !   2. nSizeBufferS_P, which is the size of the sending buffers
+          !   3. nSizeBufferR_P, which is the size of the recving buffers
+          !   Note: need both S and R sizes for asymmetry in buffer size
+          !         introduced by AMR
+          ! The size of the memory maps can change dynamically when nMsgSend
+          ! changes, which mostly happens in the initial pass.
           call timing_start('Count_1')
           do iBlockSend = 1, nBlock
              if (Unused_B(iBlockSend))then
@@ -617,8 +617,8 @@ contains
                 ! Keeping track of the initial message index for each
                 ! block is needed for parallel construction of the send &
                 ! buffer.
-                ! write(*,*)'iProc=',iProc, 'minimum active index=',&
-                !     minloc(merge(1,0,Unused_B),1)
+
+                ! minloc() gives the index of the first active block
                 if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
                      iMsgInit_BP(iBlockSend,:) = 1
                 if(iBlockSend < nBlock)iMsgInit_BP(iBlockSend+1,:) =&
@@ -812,7 +812,7 @@ contains
              do iMsgSend = 1, nMsgRecv_P(iProcSend)
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      iBufferR_IP, BufferR_IP,&
-                  nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
+                     nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
              end do
              !$acc end parallel
           end do
@@ -1108,19 +1108,19 @@ contains
       !$acc loop vector collapse(4) private(iBufferR)
       do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
          do iVarR = 1, nVar
-               iBufferR = (k-kRMin) * (jRMax-jRMin+1) * (iRMax-iRMin+1) *nVar+&
-                    (j-jRMin) * (iRMax-iRMin+1) * nVar +&
-                    (i-iRMin) * nVar +&
-                    iVarR +&
-                    iBufferR_IP(iMsgSend,iProcSend) + 2*nDim ! initial iBuffer
+            iBufferR = (k-kRMin) * (jRMax-jRMin+1) * (iRMax-iRMin+1) *nVar+&
+                 (j-jRMin) * (iRMax-iRMin+1) * nVar +&
+                 (i-iRMin) * nVar +&
+                 iVarR +&
+                 iBufferR_IP(iMsgSend,iProcSend) + 2*nDim ! initial iBuffer
 
-               if(i==-10)then
-                  write(*,*)'-10 detected for iproc(R/S), imsg, ibuffer=',&
-                       iProc, iProcSend, iMsgSend, iBufferR, iBlockRecv
-               end if
+            if(i==-10)then
+               write(*,*)'-10 detected for iproc(R/S), imsg, ibuffer=',&
+                    iProc, iProcSend, iMsgSend, iBufferR, iBlockRecv
+            end if
 
-               State_VGB(iVarR,i,j,k,iBlockRecv) = &
-                    BufferR_IP(iBufferR, iProcSend)
+            State_VGB(iVarR,i,j,k,iBlockRecv) = &
+                 BufferR_IP(iBufferR, iProcSend)
          enddo
       end do; end do; end do
     end subroutine buffer_to_state_parallel
@@ -1554,6 +1554,7 @@ contains
 
              ! find out each block does how many comms
              if(DiLevel == 0) then
+                ! Equal resolution
                 iSend = (3*iDir + 3)/2
                 jSend = (3*jDir + 3)/2
                 kSend = (3*kDir + 3)/2
@@ -1565,65 +1566,53 @@ contains
 
                 ! convert (iSend,jSend,kSend) to 0-63 using base 4
                 IntDir = iSend
-                if(nDim>1) IntDir = IntDir + 4 * jSend
-                if(nDim>2) IntDir = IntDir + 16* kSend
+                if(nDim > 1) IntDir = IntDir +  4*jSend
+                if(nDim > 2) IntDir = IntDir + 16*kSend
 
                 if(iProcRecv /= iProcSend) then
-                   iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) =&
+                   ! Starting index of messages for IntDir direction
+                   iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) = &
                         nMsgSend_BP(iBlockSend,iProcRecv)
-                   ! ranks in nMsgSend_BP start from 0
+                   ! Add this message to the counter nMsgSend_BP
                    nMsgSend_BP(iBlockSend, iProcRecv) = &
-                        nMsgSend_BP(iBlockSend, iProcRecv)+1
+                        nMsgSend_BP(iBlockSend, iProcRecv) + 1
                    ! cumulative number of messages sent per processor
                    ! controls the size of dynamic arrays
                    ! in thie serial loop, nMsgSend_P is also iMsgSend_P
-                   nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv)+1
+                   nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv) + 1
                    ! Send and Recv maps are symmetric for equal resolution
-                   nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv)+1
-                   ! size of this message -- depending on DiLevel
+                   nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv) + 1
 
-                   ! For nDim<3, only ijkDir = 0 is allowed. This lead to
-                   ! ijkSMin = ijkSMax = 1.
+                   ! Calculate size of this message
                    iSMin = iEqualS_DII(1,iDir,Min_)
                    iSMax = iEqualS_DII(1,iDir,Max_)
                    jSMin = iEqualS_DII(2,jDir,Min_)
                    jSMax = iEqualS_DII(2,jDir,Max_)
                    kSMin = iEqualS_DII(3,kDir,Min_)
                    kSMax = iEqualS_DII(3,kDir,Max_)
-
-                   nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
-                        1+2*nDim+nVar*&
+                   ! Block index, 2*nDim index ranges, and nVar*nCell values
+                   nSizeS = &
+                        1 + 2*nDim + nVar*&
                         (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
 
-!!! time_b to be added!!!
-!                      if(present(Time_B)) &
-!                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv) =&
-!                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv) + 1
+                   ! Add extra time info if needed
+                   if(present(Time_B)) nSizeS = nSizeS + 1
 
-                   ! cumulative number of variables sent per processor
-                   ! controls the size of buffers
-
-!!! consider using nsize = nvarsend_ip() to simplify the syntax
-                   nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv)+&
-                        nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
+                   ! cumulative number of variables sent per processor for 
+                   ! size of buffers
+                   nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv) &
+                        + nSizeS
                    ! for equal res, sending and recving sizes are equal
-                   nSizeBufferR_P(iProcRecv) = nSizeBufferR_P(iProcRecv)+&
-                        nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)
+                   nSizeBufferR_P(iProcRecv) = nSizeBufferR_P(iProcRecv) &
+                        + nSizeS
 
-                   if(nMsgSend_P(iProcRecv)==1) then
-                      iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
-                   end if
-                   iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
-                        iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
-                        nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)
+                   ! Initialize buffer index for first message
+                   if(nMsgSend_P(iProcRecv) == 1) &
+                        iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) = 1
 
-                   if(iSendStage ==2 .and. iProc==1 .and. iProcRecv==2) then
-                      write(*,*)'-10, Proc 1->2, iMsg=', nMsgSend_P(iProcRecv)
-                      write(*,*)'nSizeS,iBufferS(this),iBufferS(next)=',&
-                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
-                   end if
+                   ! Initialize buffer index for the next message
+                   iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
+                        iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) + nSizeS
 
                 end if ! iProcRecv/=iProcSend
 
@@ -1653,7 +1642,7 @@ contains
                 iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
                 iProcRecv  = iTree_IA(Proc_,iNodeRecv)
                 iBlockRecv = iTree_IA(Block_,iNodeRecv)
-                iProcSend = iTree_IA(Proc_,iNodeSend)
+                iProcSend  = iTree_IA(Proc_,iNodeSend)
 
                 ! Only do restriction in the first stage, but receive a
                 ! prolonged buffer in second stage
@@ -1667,37 +1656,40 @@ contains
                       kRMin = iProlongR_DII(3,kSend,Min_)
                       kRMax = iProlongR_DII(3,kSend,Max_)
 
-                      nSizeR = nVar*&
-                           (iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)+&
-                           1 + 2*nDim
-                      nSizeBufferR_P(iProcRecv) =nSizeBufferR_P(iProcRecv)+&
-                           nSizeR
+                      ! Block index, 2*nDim index limits, nVar*nCell variables
+                      nSizeR = 1 + 2*nDim + &
+                           nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)
+
+                      ! Increase buffer size
+                      nSizeBufferR_P(iProcRecv) = nSizeBufferR_P(iProcRecv) &
+                           + nSizeR
                    end if
                    CYCLE
                 end if
-!!! Skip blocks with a time level outside the range
-!                  if(UseTimeLevel .and. present(iLevelMin))then
-!                      if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
-!                           iTimeLevel_A(iNodeSend) < iLevelMin) RETURN
-!                   end if
+                ! Skip blocks with a time level outside the range !!!
+                ! if(UseTimeLevel .and. present(iLevelMin))then
+                ! if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
+                !     iTimeLevel_A(iNodeSend) < iLevelMin) RETURN
+                !                   end if
 
                 IntDir = iSend
-                if(nDim>1) IntDir = IntDir + 4 * jSend
-                if(nDim>2) IntDir = IntDir + 16* kSend
+                if(nDim > 1) IntDir = IntDir +  4*jSend
+                if(nDim > 2) IntDir = IntDir + 16*kSend
 
                 if(iProcRecv /= iProcSend) then
-                   iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) =&
+                   ! Set message index for this direction
+                   iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) = &
                         nMsgSend_BP(iBlockSend,iProcRecv)
-                   ! ranks in nMsgSend_BP start from 0
+                   ! Count message
                    nMsgSend_BP(iBlockSend, iProcRecv) = &
-                        nMsgSend_BP(iBlockSend, iProcRecv)+1
+                        nMsgSend_BP(iBlockSend, iProcRecv) + 1
                    ! cumulative number of messages sent per processor
                    ! controls the size of dynamic arrays
-                   ! in thie serial loop, nMsgSend_P is also iMsgSend_P
-                   nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv)+1
-                   ! only receive a message if first order prolong
+                   ! in this serial loop, nMsgSend_P is also iMsgSend_P
+                   nMsgSend_P(iProcRecv) = nMsgSend_P(iProcRecv) + 1
+                   ! only receive a message if first order prolongation
                    if(nProlongOrder == 1)then
-                      nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv)+1
+                      nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv) + 1
                       ! Size of received buffer is larger:
                       iRMin = iProlongR_DII(1,iSend,Min_)
                       iRMax = iProlongR_DII(1,iSend,Max_)
@@ -1706,15 +1698,15 @@ contains
                       kRMin = iProlongR_DII(3,kSend,Min_)
                       kRMax = iProlongR_DII(3,kSend,Max_)
 
-                      nSizeR = nVar*&
-                           (iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)+&
-                           1 + 2*nDim
-                      nSizeBufferR_P(iProcRecv) =nSizeBufferR_P(iProcRecv)+&
-                           nSizeR
+                      ! Block index, 2*nDim index limits, nVar*nCell variables
+                      nSizeR = 1 + 2*nDim + &
+                           nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)
+                      ! Increase buffer size
+                      nSizeBufferR_P(iProcRecv) =nSizeBufferR_P(iProcRecv) &
+                           + nSizeR
                    end if
 
-                   ! size of this message: only need to count for the sender
-
+                   ! size of send message: only need to count for the sender
                    iRecv = iSend - 3*iDir
                    jRecv = jSend - 3*jDir
                    kRecv = kSend - 3*kDir
@@ -1727,36 +1719,27 @@ contains
                    kSMin = iRestrictR_DII(3,kRecv,Min_)
                    kSMax = iRestrictR_DII(3,kRecv,Max_)
 
-                   nSizeS = 1 + 2*nDim + nVar*&
-                        (iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
+                   ! Block index, 2*nDim index limits, nVar*nCell variables
+                   nSizeS = 1 + 2*nDim + &
+                        nVar*(iSMax-iSMin+1)*(jSMax-jSMin+1)*(kSMax-kSMin+1)
 
-                   nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv) = nSizeS
+                   ! Add time as an extra
+                   if(present(Time_B)) nSizeS = nSizeS + 1
 
-!!! time_b to be added!!!
-!                      if(present(Time_B)) &
-!                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv) =&
-!                           nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv) + 1
+                   ! cumulative number of variables sent per processor
+                   ! controls the size of buffers
+                   nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv) &
+                        + nSizeS
 
-                      ! cumulative number of variables sent per processor
-                      ! controls the size of buffers
+                   ! Buffer index set to 1 for first message
+                   if(nMsgSend_P(iProcRecv) == 1) &
+                        iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) = 1
 
-                   nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv)+&
-                        nSizeS
+                   ! Buffer index for next message
+                   iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)=&
+                        iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
+                        + nSizeS
 
-                   if(nMsgSend_P(iProcRecv)==1) then
-                      iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv)=1
-                   end if
-                   iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)=&
-                        iBufferS_IP(nMsgSend_P(iProcRecv), iProcRecv)+&
-                        nSizeS
-
-                   if(iSendStage ==2 .and. iProc==1 .and. iProcRecv==2) then
-                      write(*,*)'-10, Proc 1->2, iMsg=', nMsgSend_P(iProcRecv)
-                      write(*,*)'nSizeS,iBufferS(this),iBufferS(next)=',&
-                           nSizeS, &
-                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv)+1, iProcRecv)
-                   end if
                 end if ! iProcRecv/=iProcSend
 
              else if(DiLevel == -1) then
@@ -1773,23 +1756,23 @@ contains
                          iSend = (3*iDir + 3 + iSide)/2
                          iRecv = iSend - 3*iDir
 
-!!! skip blocks with a time level outside the range?
-!                            if(UseTimeLevel .and. present(iLevelMin))then
-!                               if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and.&
-!                                    iTimeLevel_A(iNodeSend) < iLevelMin) CYCLE
-!                            end if
+                         ! skip blocks with a time level outside the range?
+                         ! if(UseTimeLevel .and. present(iLevelMin))then
+                         !    if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and.&
+                         !        iTimeLevel_A(iNodeSend) < iLevelMin) CYCLE
+                         ! end if
 
-                         iNodeRecv =&
+                         iNodeRecv = &
                               iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
                          iBlockRecv = iTree_IA(Block_,iNodeRecv)
-                         iProcRecv = iTree_IA(Proc_,iNodeRecv)
-                         iProcSend = iTree_IA(Proc_,iNodeSend)
+                         iProcRecv  = iTree_IA(Proc_,iNodeRecv)
+                         iProcSend  = iTree_IA(Proc_,iNodeSend)
 
                          ! Only do prolongation in the second stage, but
                          ! receive a restricted buffer in the first stage
                          if(nProlongOrder == 2 .and. iSendStage == 1) then
                             if(iProcRecv /= iProcSend)then
-                               nMsgRecv_P(iProcRecv)=nMsgRecv_P(iProcRecv)+1
+                               nMsgRecv_P(iProcRecv) = nMsgRecv_P(iProcRecv)+1
 
                                iRMin = iRestrictR_DII(1,iSend,Min_)
                                iRMax = iRestrictR_DII(1,iSend,Max_)
@@ -1798,8 +1781,10 @@ contains
                                kRMin = iRestrictR_DII(3,kSend,Min_)
                                kRMax = iRestrictR_DII(3,kSend,Max_)
 
-                               nSizeR=nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
-                                    (kRMax-kRMin+1) + 1 + 2*nDim
+                               ! Block index, 2*nDim index limits, nVar*nCell
+                               nSizeR = 1 + 2*nDim + &
+                                    nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
+                                    (kRMax-kRMin+1)
                                nSizeBufferR_P(iProcRecv) =&
                                     nSizeBufferR_P(iProcRecv) + nSizeR
                             end if
@@ -1808,8 +1793,8 @@ contains
 
                          ! convert (iSend,jSend,kSend) to 0-63 using base 4
                          IntDir = iSend
-                         if(nDim>1) IntDir = IntDir + 4 * jSend
-                         if(nDim>2) IntDir = IntDir + 16* kSend
+                         if(nDim>1) IntDir = IntDir +  4*jSend
+                         if(nDim>2) IntDir = IntDir + 16*kSend
 
                          if(iProcRecv /= iProcSend) then
                             iMsgDir_IBP(IntDir,iBlockSend,iProcRecv) =&
@@ -1832,9 +1817,10 @@ contains
                                kRMin = iRestrictR_DII(3,kSend,Min_)
                                kRMax = iRestrictR_DII(3,kSend,Max_)
 
-                               nSizeR=nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
-                                    (kRMax-kRMin+1) + 1 + 2*nDim
-                               nSizeBufferR_P(iProcRecv) =&
+                               nSizeR = 1 + 2*nDim + &
+                                    nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
+                                    (kRMax-kRMin+1)
+                               nSizeBufferR_P(iProcRecv) = &
                                     nSizeBufferR_P(iProcRecv) + nSizeR
                             end if
 
@@ -1849,36 +1835,18 @@ contains
                             nSizeS = 1 + 2*nDim + nVar*(iSMax-iSMin+1)*&
                                  (jSMax-jSMin+1)*(kSMax-kSMin+1)
 
-                            nVarSend_IP(nMsgSend_P(iProcRecv), iProcRecv)=&
-                                 nSizeS
-!!! time_b to be added!!!
-                               ! if(present(Time_B)) &
-                               ! nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)=&
-                               ! nVarSend_IP(nMsgSend_P(iProcRecv),iProcRecv)+1
+                            ! Create nScalar = 1 + 2*nDim (+1)
+                            if(present(Time_B)) nSizeS = nSizeS + 1
 
-!!! consider using nsize = nvarsend_ip() to simplify the syntax
                             nSizeBufferS_P(iProcRecv) =&
                                  nSizeBufferS_P(iProcRecv) + nSizeS
 
-                            if(nMsgSend_P(iProcRecv)==1) iBufferS_IP&
-                                 (nMsgSend_P(iProcRecv),iProcRecv) = 1
-                            iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)=&
-                                 iBufferS_IP&
-                                 (nMsgSend_P(iProcRecv),iProcRecv) +&
-                                 nSizeS
-
-                            if(iSendStage ==2 .and. iProc==1 .and. &
-                                 iProcRecv==2) then
-                               write(*,*)'-10, Proc 1->2, iMsg=', &
-                                    nMsgSend_P(iProcRecv)
-                               write(*,*)'nSizeS,iBufferS(this),&
-                                    iBufferS(next)=',&
-                                    nSizeS, &
-                                    iBufferS_IP(nMsgSend_P(iProcRecv),&
-                                    iProcRecv),&
-                                    iBufferS_IP(nMsgSend_P(iProcRecv)+1,&
-                                    iProcRecv)
-                            end if
+                            if(nMsgSend_P(iProcRecv)==1) &
+                                 iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
+                                 = 1
+                            iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
+                                 iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
+                                 + nSizeS
 
                          end if ! iProcRecv/=iProcSend
                       end do
@@ -1889,6 +1857,7 @@ contains
           end do ! iDir
        end do ! jDir
     end do ! kDir
+
   end subroutine message_count_block
   !============================================================================
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
@@ -1926,7 +1895,7 @@ contains
     integer, intent(in),optional:: iLevelMin, iLevelMax
     logical, intent(in),optional:: UseOpenACCIn
 
-    !!! memory maps for parallel algorithm
+!!! memory maps for parallel algorithm
     integer, intent(inout),optional:: iMsgInit_BP(:,0:)
     integer, intent(inout), optional:: iBufferS_IP(:,0:)
     integer, intent(inout), optional:: iMsgDir_IBP(0:,:,0:)
@@ -2550,6 +2519,7 @@ contains
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B, &
          iMsgInit_P, iBufferS_IP, iMsgDir_IBP)
+
       !$acc routine vector
       use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
            iBlockTest, iVarTest, iDimTest, iSideTest
@@ -2720,10 +2690,10 @@ contains
          if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
 #ifndef _OPENACC
-!         if(present(Time_B))then
-!            iBufferS = iBufferS + 1
-!            BufferS_I(iBufferS) = Time_B(iBlockSend)
-!         end if
+         !         if(present(Time_B))then
+         !            iBufferS = iBufferS + 1
+         !            BufferS_I(iBufferS) = Time_B(iBlockSend)
+         !         end if
 #endif
 
          !$acc loop vector collapse(4) private(iBufferS)
@@ -2838,15 +2808,15 @@ contains
       !     (.not. UseHighResChange .and. iSendStage == nProlongOrder) .or. &
       !     (UseHighResChange .and. (iSendStage == 1 .or. iSendStage == 4)))) &
       !     then
-         ! This part iS unused when nProc == 1
+      ! This part iS unused when nProc == 1
 
-         ! For high resolution change, finer block only receives data
-         ! when iSendStage = 1.
+      ! For high resolution change, finer block only receives data
+      ! when iSendStage = 1.
 
-         ! This processor will receive a prolonged buffer from
-         ! the other processor and the "recv" direction of the prolongations
-         ! will be the same as the "send" direction for this restriction:
-         ! iSend,kSend,jSend = 0..3
+      ! This processor will receive a prolonged buffer from
+      ! the other processor and the "recv" direction of the prolongations
+      ! will be the same as the "send" direction for this restriction:
+      ! iSend,kSend,jSend = 0..3
       !   iRMin = iProlongR_DII(1,iSend,Min_)
       !   iRMax = iProlongR_DII(1,iSend,Max_)
       !   jRMin = iProlongR_DII(2,jSend,Min_)
@@ -2885,8 +2855,8 @@ contains
       kRMax = iRestrictR_DII(3,kRecv,Max_)
 
       ! if(DoCountOnly)then
-         ! This part iS unused when nProc == 1
-         ! Number of reals to send to the other processor
+      ! This part iS unused when nProc == 1
+      ! Number of reals to send to the other processor
       !   nSize = nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1) &
       !        + 1 + 2*nDim
       !   if(present(Time_B)) nSize = nSize + 1
@@ -3081,10 +3051,10 @@ contains
          if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
 !!! support for time_b to be added later
-!         if(present(Time_B))then
-!            iBufferS = iBufferS + 1
-!            BufferS_I(iBufferS) = Time_B(iBlockSend)
-!         end if
+         !         if(present(Time_B))then
+         !            iBufferS = iBufferS + 1
+         !            BufferS_I(iBufferS) = Time_B(iBlockSend)
+         !         end if
 
          !$acc loop seq collapse(3) private(kS1,kS2,jS1,jS2,iS1,iS2)
          do kR = kRMin, kRMax, DkR
@@ -3376,10 +3346,10 @@ contains
          if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
 !!! support for time_b to be added later
-!         if(present(Time_B))then
-!            iBufferS = iBufferS + 1
-!            BufferS_I(iBufferS) = Time_B(iBlockSend)
-!         end if
+         !         if(present(Time_B))then
+         !            iBufferS = iBufferS + 1
+         !            BufferS_I(iBufferS) = Time_B(iBlockSend)
+         !         end if
 
          !$acc loop seq collapse(3) private(kS1,kS2,jS1,jS2,iS1,iS2)
          do kR = kRMin, kRMax, DkR
@@ -3538,10 +3508,10 @@ contains
                ! if(DoCountOnly .and. (.not. UseHighResChange .and. &
                !     iSendStage == 1 .or. &
                !     (UseHighResChange .and. iSendStage == 2)))then
-                  ! This processor will receive a restricted buffer from
-                  ! the other processor and the "recv" direction of the
-                  ! restriction will be the same as the "send" direction for
-                  ! this prolongation: iSend,kSend,jSend = 0..3
+               ! This processor will receive a restricted buffer from
+               ! the other processor and the "recv" direction of the
+               ! restriction will be the same as the "send" direction for
+               ! this prolongation: iSend,kSend,jSend = 0..3
                !   iRMin = iRestrictR_DII(1,iSend,Min_)
                !   iRMax = iRestrictR_DII(1,iSend,Max_)
                !   jRMin = iRestrictR_DII(2,jSend,Min_)
@@ -3572,7 +3542,7 @@ contains
                kRMax = iProlongR_DII(3,kRecv,Max_)
 
                ! if(DoCountOnly)then
-                  ! Number of reals to send to the other processor
+               ! Number of reals to send to the other processor
                !   nSize =
                !       nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*(kRMax-kRMin+1)&
                !        + 1 + 2*nDim
@@ -3753,10 +3723,10 @@ contains
                   if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
 !!! Time_B support to be added
-!                  if(present(Time_B))then
-!                     iBufferS = iBufferS + 1
-!                     BufferS_I(iBufferS) = Time_B(iBlockSend)
-!                  end if
+                  !                  if(present(Time_B))then
+                  !                     iBufferS = iBufferS + 1
+                  !                     BufferS_I(iBufferS) = Time_B(iBlockSend)
+                  !                  end if
 
 !!! HighOrderResChange omitted
 
@@ -3777,7 +3747,7 @@ contains
                                 nVar+&
                                 (jR-jRMin)*(iRMax-iRMin+1)* nVar +&
                                 (iR-iRMin)* nVar +&
-!                                iVarS +&
+                                !                                iVarS +&
                                 iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim
 
                            if(nProlongOrder == 2) then
@@ -4435,10 +4405,10 @@ contains
                   if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
 !!! Time_B support to be added
-!                  if(present(Time_B))then
-!                     iBufferS = iBufferS + 1
-!                     BufferS_I(iBufferS) = Time_B(iBlockSend)
-!                  end if
+                  !                  if(present(Time_B))then
+                  !                     iBufferS = iBufferS + 1
+                  !                     BufferS_I(iBufferS) = Time_B(iBlockSend)
+                  !                  end if
 
 !!! HighOrderResChange omitted
 
