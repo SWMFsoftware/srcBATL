@@ -1598,7 +1598,7 @@ contains
                    ! Add extra time info if needed
                    if(present(Time_B)) nSizeS = nSizeS + 1
 
-                   ! cumulative number of variables sent per processor for 
+                   ! cumulative number of variables sent per processor for
                    ! size of buffers
                    nSizeBufferS_P(iProcRecv) = nSizeBufferS_P(iProcRecv) &
                         + nSizeS
