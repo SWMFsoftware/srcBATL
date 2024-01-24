@@ -92,7 +92,7 @@ module BATL_pass_cell
   ! number of reals = number of indexes + 1 if Time_B is present
   integer:: nReal
   !$acc declare create(nReal)
-  
+
   ! Fast lookup tables for index ranges per dimension
   integer, parameter:: Min_=1, Max_=2
   integer :: iRestrictS_DII(MaxDim,-1:1,Min_:Max_)
@@ -345,7 +345,7 @@ contains
 
     nReal = nIndex
     if(present(Time_B)) nReal = nIndex + 1
- 
+
     if(present(Time_B) .and. present(NameOperatorIn)) then
        call CON_stop(NameSub// &
             ': Time_B can not be used with '//trim(NameOperator))
@@ -4380,12 +4380,11 @@ contains
                   if(nDim > 2)BufferS_IP(iBufferS+5,iProcRecv) = kRMin
                   if(nDim > 2)BufferS_IP(iBufferS+6,iProcRecv) = kRMax
 
-                  
                   ! if(present(Time_B)) &
                   !    BufferS_IP(iBufferS+nScalar,iProcRecv) &
                   !    = Time_B(iBlockSend)
 
-                  ! HighOrderResChange omitted 
+                  ! HighOrderResChange omitted
 
                   !$acc loop vector collapse(3) private(iBufferS)
                   do kR = kRMin, kRMax, DkR
