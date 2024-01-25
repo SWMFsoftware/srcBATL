@@ -562,23 +562,15 @@ contains
     else
        ! nProc > 1 case
        do iSendStage = 1, nSendStage
-
-          if(iProc==0)write(*,*)'Stage ',iSendStage,'is starting'
-
+          ! Second order prolongation needs two stages:
+          ! first stage fills in equal and coarser ghost cells
+          ! second stage uses these to prolong and fill in finer ghost cells
           nMsgSend_P = 0
           nMsgSend_BP = 0
           nMsgRecv_P = 0
           nSizeBufferS_P = 0
           nSizeBufferR_P = 0
-          ! iBufferR_IP = 0
-          ! write(*,*)'iProc,iSendStage=', iProc, iSendStage
-          ! write(*,*)'iProc, nMsgSend, nMsgRecv=',iProc, nMsgSend_P, &
-          ! nMsgRecv_P
-          ! write(*,*)'iProc, nSizeSend, nSizeRecv=',iProc,&
-          !     nSizeBufferS_P, nSizeBufferR_P
-          ! Second order prolongation needs two stages:
-          ! first stage fills in equal and coarser ghost cells
-          ! second stage uses these to prolong and fill in finer ghost cells
+
           if(UseHighResChange) then
              State_VIIIB = 0
              IsAccurate_B = .false.
@@ -607,22 +599,16 @@ contains
                      iLevelMin, iLevelMax)
 
                 ! update nMsgSend and nSizeBuffer for each block
-                if(iProc==0)write(*,*)'iProc=0, nMsgRecv=', nMsgRecv_P
-                
                 nMsgSend = maxval(nMsgSend_P)
                 nMsgRecv = maxval(nMsgRecv_P)
                 nMsg = max(nMsgSend,nMsgRecv)
                 nSizeBufferS = maxval(nSizeBufferS_P)
                 nSizeBufferR = maxval(nSizeBufferR_P)
                 nSizeBuffer = max(nSizeBufferS, nSizeBufferR)
-                ! write(*,*)'On iProc, iBlock=',iProc,iBlockSend,&
-                !     'nMsgS/R=',nMsgSend,nMsgRecv,&
-                !     'nSizeS/R=',nSizeBufferS, nSizeBufferR
 
                 ! Keeping track of the initial message index for each
                 ! block is needed for parallel construction of the send &
                 ! buffer.
-
                 ! minloc() gives the index of the first active block
                 if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
                      iMsgInit_BP(iBlockSend,:) = 1
@@ -658,16 +644,10 @@ contains
 
           ! Restriction message size < prolongation, leading to
           ! asymmetric sending/receiving buffer sizes
-          ! call MPI_allreduce(nSizeBufferPe, nSizeBuffer, 1, MPI_INT, &
-          !     MPI_MAX, iComm, iError)
-          ! write(*,*)'iProc,nSizeBuffer, nCapBuffer= ',&
-          !     iProc, nSizeBuffer, nCapBuffer
 
           ! allocate buffers
           if(nSizeBuffer > nCapBuffer)then
              call timing_start('enlarge_buffer')
-             ! write(*,*)'buffer size changes from', nCapBuffer, 'to',&
-             !     nSizeBuffer
              nCapBuffer = nSizeBuffer
              if(allocated(BufferS_IP))deallocate(BufferS_IP)
              if(allocated(BufferR_IP))deallocate(BufferR_IP)
@@ -687,8 +667,6 @@ contains
                allocate(iRequestSMap_I(1:nProc-1))
           if (.not. allocated(iRequestRMap_I))&
                allocate(iRequestRMap_I(1:nProc-1))
-
-!!!----------- end: counting
           !$acc update device(nMsgSend, nMsgRecv, nMsg, iMsgInit_BP, &
           !$acc iBufferS_IP, iBufferR_IP, iMsgDir_IBP)
           call timing_stop('Count_1')
@@ -724,9 +702,6 @@ contains
 
           call timing_stop('remote_pass')
 
-          if(iProc==1)write(*,*)'before sending, ibuffer(53,0)=',&
-               iBufferS_IP(53,0)
-          
           iRequestS = 0
           !$acc host_data use_device(BufferS_IP, iBufferS_IP)
           do iProcSend = 0, nProc-1
@@ -796,10 +771,6 @@ contains
              call MPI_waitall(iRequestS, iRequestSMap_I, &
                   MPI_STATUSES_IGNORE, iError)
           end if
-
-          if(iProc==0)write(*,*)'after sending, ibuffer(53,1)=',&
-               iBufferR_IP(53,1)
-          
           call timing_start('buffer_to_state')
 
 !!! To call buffer_to_state on a GPU,
@@ -812,7 +783,6 @@ contains
 
           do iProcSend = 0, nProc-1
              if(iProcSend == iProc) CYCLE
-             if(iProc==0)write(*,*)'iProc=0,iMsgRecv=',nMsgRecv_P(iProcSend)
              !$acc parallel copyin(iProcSend, nVar) present(BufferR_IP)
              !$acc loop gang
              do iMsgSend = 1, nMsgRecv_P(iProcSend)
@@ -1095,11 +1065,6 @@ contains
       iBufferR = iBufferR_IP(iMsgSend,iProcSend)
       if(iBufferR == 0) RETURN
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
-
-      if(iBlockRecv == -1)then
-         write(*,*)'block index is -1 for iProc, iProcSend, iMsg, iBuffer:',&
-              iProc, iProcSend, iMsgSend, iBufferR
-      end if
       
       if (iBlockRecv==0) then
          ! iMsg is empty on this processor
@@ -1611,14 +1576,6 @@ contains
                    ! Initialize buffer index for the next message
                    iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
                         iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) + nSizeS
-                   
-                   if(iProc==1)then
-                      write(*,*)'iMsg(E),iBufferS(this),iBufferS(next)=',&
-                           nMsgSend_P(iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)
-                   end if
-                   
                 end if ! iProcRecv/=iProcSend
              else if(DiLevel == 1) then
                 ! neighbour is coarser, this block does restriction
@@ -1740,17 +1697,7 @@ contains
                    iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)=&
                         iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
                         + nSizeS
-                   
-                   if(iProc==1)then
-                      write(*,*)'iMsg(R),iBufferS(this),iBufferS(next)=',&
-                           nMsgSend_P(iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv),&
-                           iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv)
-                   end if
-
-                   
                 end if ! iProcRecv/=iProcSend
-
              else if(DiLevel == -1) then
                 ! neighbours are finer, this block does prolongation
                 ! this block sends 1/2/4 messages, hence the triple loop
@@ -1852,18 +1799,7 @@ contains
                                  = 1
                             iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
                                  iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
-                                 + nSizeS
-                            
-                            if(iProc==1)then
-                               write(*,*)&
-                                    'iMsg(P),iBufferS(this),iBufferS(next)=',&
-                                    nMsgSend_P(iProcRecv),&
-                                    iBufferS_IP(nMsgSend_P(iProcRecv),&
-                                    iProcRecv),&
-                                    iBufferS_IP(nMsgSend_P(iProcRecv)+1,&
-                                    iProcRecv)
-                            end if
-                            
+                                 + nSizeS                            
                          end if ! iProcRecv/=iProcSend
                       end do
                    end do
@@ -2697,13 +2633,6 @@ contains
          iMsgGlob = iMsgInit_P(iProcRecv) + &
               iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
-
-         if(iProc==1)write(*,*)'iProc=1,imsg,ibufferS=',iMsgGlob, iBufferS
-         
-         if(iMsgGlob==53 .and. iProc==1)&
-              write(*,*)'msg found in equal, iBufferS, iBlockRecv:',&
-              iBufferS, iBlockRecv
-         
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
          BufferS_IP(iBufferS+2, iProcRecv) = iRMax
@@ -3065,11 +2994,6 @@ contains
          iMsgGlob = iMsgInit_P(iProcRecv) + &
               iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)         
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
-
-         if(iProc==1)write(*,*)'(R)iProc=1,imsg,ibufferS=',iMsgGlob, iBufferS
-         
-         if(iMsgGlob==53 .and. iProc==1)write(*,*)'msg found in restrict;'
-         
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
          BufferS_IP(iBufferS+2, iProcRecv) = iRMax
@@ -3365,12 +3289,6 @@ contains
          iMsgGlob = iMsgInit_P(iProcRecv) + &
               iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)         
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
-
-         if(iProc==1)write(*,*)'(P)iProc=1,imsg,ibufferS=',iMsgGlob, iBufferS
-         
-         if(iMsgGlob==53 .and. iProc==1)write(*,*)'msg found in prolong;'
-
-         
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
          BufferS_IP(iBufferS+2, iProcRecv) = iRMax
@@ -4425,10 +4343,6 @@ contains
                   iMsgGlob = iMsgInit_P(iProcRecv) + &
                        iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
                   iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
-
-                  if(iBufferS == 0)write(*,*)'iProc,iBlock,iMsgInit,Glob=',&
-                       iProc,iBlockSend,iMsgInit_P(iProcRecv),iMsgGlob
-
                   BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
                   BufferS_IP(iBufferS+1, iProcRecv) = iRMin
                   BufferS_IP(iBufferS+2, iProcRecv) = iRMax
