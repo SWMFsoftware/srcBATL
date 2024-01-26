@@ -1065,7 +1065,7 @@ contains
       iBufferR = iBufferR_IP(iMsgSend,iProcSend)
       if(iBufferR == 0) RETURN
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
-      
+
       if (iBlockRecv==0) then
          ! iMsg is empty on this processor
          RETURN
@@ -1799,7 +1799,7 @@ contains
                                  = 1
                             iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
                                  iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
-                                 + nSizeS                            
+                                 + nSizeS
                          end if ! iProcRecv/=iProcSend
                       end do
                    end do
@@ -2992,7 +2992,7 @@ contains
          if(nDim>2) IntDir = IntDir + 16* kSend
 
          iMsgGlob = iMsgInit_P(iProcRecv) + &
-              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)         
+              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
@@ -3287,7 +3287,7 @@ contains
          if(nDim>2) IntDir = IntDir + 16* kSend
 
          iMsgGlob = iMsgInit_P(iProcRecv) + &
-              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)         
+              iMsgDir_IBP(IntDir, iBlockSend, iProcRecv)
          iBufferS = iBufferS_IP(iMsgGlob,iProcRecv)
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
          BufferS_IP(iBufferS+1, iProcRecv) = iRMin
