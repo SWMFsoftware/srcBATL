@@ -1088,14 +1088,15 @@ contains
       !$acc loop vector collapse(4) private(iBufferR)
       do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
          do iVarR = 1, nVar
-            iBufferR = (k-kRMin)*(jRMax-jRMin+1)*(iRMax-iRMin+1)*nVar + &
-                 (j-jRMin)*(iRMax-iRMin+1)*nVar + &
-                 (i-iRMin)*nVar + &
+            iBufferR = nVar*(&
+                 abs(k-kRMin)*(abs(jRMax-jRMin)+1)*(abs(iRMax-iRMin)+1) + &
+                 abs(j-jRMin)*(abs(iRMax-iRMin)+1) + &
+                 abs(i-iRMin)) + &
                  iVarR + &
                  iBufferR_IP(iMsgSend,iProcSend) + 2*nDim ! initial iBuffer
 
             State_VGB(iVarR,i,j,k,iBlockRecv) = BufferR_IP(iBufferR,iProcSend)
-         enddo
+         end do
       end do; end do; end do
     end subroutine buffer_to_state_parallel
     !==========================================================================
@@ -2649,9 +2650,10 @@ contains
          !$acc loop vector collapse(4) private(iBufferS)
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
             do iVarS = 1, nVar
-               iBufferS = (k-kSMin) * (jSMax-jSMin+1) * (iSMax-iSMin+1) *nVar+&
-                    (j-jSMin) * (iSMax-iSMin+1) * nVar +&
-                    (i-iSMin) * nVar +&
+               iBufferS = nVar * ( &
+                    abs(k-kSMin)*(abs(jSMax-jSMin)+1)*(abs(iSMax-iSMin)+1)+&
+                    abs(j-jSMin)*(abs(iSMax-iSMin)+1)+&
+                    abs(i-iSMin)) +&
                     iVarS +&
                     iBufferS_IP(iMsgGlob,iProcRecv) + 2*nDim ! initial iBuffer
                BufferS_IP(iBufferS, iProcRecv) =&
