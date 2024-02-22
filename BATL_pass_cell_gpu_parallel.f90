@@ -1069,7 +1069,7 @@ contains
       iBufferR = iBufferR_IP(iMsgSend,iProcSend)
       if(iBufferR == 0) RETURN
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
-      
+
       if (iBlockRecv==0) then
          ! iMsg is empty on this processor
          RETURN
@@ -1797,7 +1797,7 @@ contains
                                  = 1
                             iBufferS_IP(nMsgSend_P(iProcRecv)+1,iProcRecv) = &
                                  iBufferS_IP(nMsgSend_P(iProcRecv),iProcRecv) &
-                                 + nSizeS                            
+                                 + nSizeS
                          end if ! iProcRecv/=iProcSend
                       end do
                    end do
@@ -3307,7 +3307,7 @@ contains
             do jR = jRMin, jRMax, DjR
                do iR = iRMin, iRMax, DiR
                   do iVar = 1,nVar
-                     
+
                      kS1 = kSMin + kRatioRestr*abs(kR-kRMin)
                      kS2 = kS1 + kRatioRestr - 1
                      jS1 = jSMin + jRatioRestr*abs(jR-jRMin)
@@ -4362,7 +4362,7 @@ contains
                      iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
                      jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
                      kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
-                           
+
                      ! we fill buffer by subarrays of size nVar, because
                      ! the prolonged state is stored in Slope_V
                      ! use abs for DijkR = -1
@@ -4382,20 +4382,20 @@ contains
                         ! positive and get rounded down.
                         ! This works up to nG=10 ghost cells:
                         ! likely to be enough.
-                        
+
                         ! DkR=+1:
                         ! interpolate left for odd kR, right for even kR
                         ! DkR=-1:
                         ! interpolate left for even kR, right for odd kR
                         if(kRatio == 1) kS1 = kS
                         if(kRatio == 2) kS1 = kS + DkR*(1-2*modulo(kR,2))
-                        
+
                         if(jRatio == 1) jS1 = jS
                         if(jRatio == 2) jS1 = jS + DjR*(1-2*modulo(jR,2))
-                        
+
                         if(iRatio == 1) iS1 = iS
                         if(iRatio == 2) iS1 = iS + DiR*(1-2*modulo(iR,2))
-                        
+
                         if(UseMin)then
                            BufferS_IP(iBufferS+iVarS, iProcRecv) = min(&
                                 State_VGB(iVarS,iS,jS,kS,iBlockSend), &
@@ -4409,44 +4409,44 @@ contains
                                 State_VGB(iVarS,iS1,jS,kS,iBlockSend), &
                                 State_VGB(iVarS,iS,jS1,kS,iBlockSend), &
                                 State_VGB(iVarS,iS,jS,kS1,iBlockSend))
-                           
+
                         else
                            ! For Cartesian grids the weights are 0.25
                            if(iRatio == 2) WeightI = 0.25
                            if(jRatio == 2) WeightJ = 0.25
                            if(kRatio == 2) WeightK = 0.25
-                           
-                           BufferS_IP(iBufferS+iVarS, iProcRecv) =& 
+
+                           BufferS_IP(iBufferS+iVarS, iProcRecv) =&
                                 State_VGB(iVarS,iS,jS,kS,iBlockSend)
-                                                      
+
                            if(iRatio == 2)&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) =&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) +&
                                 WeightI* &
                                 ( State_VGB(iVarS,iS1,jS,kS,iBlockSend) &
                                 - State_VGB(iVarS,iS ,jS,kS,iBlockSend) )
-                           
+
                            if(jRatio == 2)&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) =&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) +&
                                 WeightJ* &
                                 ( State_VGB(iVarS,iS,jS1,kS,iBlockSend) &
                                 - State_VGB(iVarS,iS,jS ,kS,iBlockSend) )
-                                    
+
                            if(kRatio == 2)&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) =&
                                 BufferS_IP(iBufferS+iVarS,iProcRecv) +&
                                 WeightK* &
                                 ( State_VGB(iVarS,iS,jS,kS1,iBlockSend) &
                                 - State_VGB(iVarS,iS,jS,kS ,iBlockSend) )
-                                    
+
                         end if
                      else
                         ! nProlongOrder == 1
                         BufferS_IP(iBufferS+iVarS,iProcRecv) =&
                              State_VGB(iVarS,iS,jS,kS,iBlockSend)
                      endif ! nProlongOrder == 2
-                              
+
                   end do; end do; end do; end do
                   ! iVarS, iR, jR, kR
                end if ! iProc == iProcRecv
