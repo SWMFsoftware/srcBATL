@@ -63,13 +63,13 @@ LIBSO: DEPEND
 ${MY_DYN_LIB}: ${OBJECTS}
 	${COMPILE.f90} ${Cflag3} -Wall -fPIC external_routines.f90
 	${LINK.f90} -shared -fPIC -o ${MY_DYN_LIB} ${OBJECTS} external_routines.o \
-	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+	-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
 
 BATL_dynamic:
 	make DEPEND
 	${COMPILE.f90} ${Cflag3} batl.f90
 	${LINK.f90} -o ${BINDIR}/BATL.exe batl.o BATL_unit_test.o ${MY_DYN_LIB} \
-	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+	-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
 
 BATL:
 	make DEPEND
@@ -77,7 +77,7 @@ BATL:
 
 ${BINDIR}/BATL.exe: batl.o BATL_unit_test.o ${OBJECTS}
 	${LINK.f90} -o ${BINDIR}/BATL.exe batl.o BATL_unit_test.o ${OBJECTS} \
-	-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+	-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
 
 ADVECT:
 	make DEPEND
@@ -85,7 +85,7 @@ ADVECT:
 
 ${BINDIR}/ADVECT.exe: advect_main.o ${OBJECTS}
 	${LINK.f90} -o ${BINDIR}/ADVECT.exe advect_main.o ${OBJECTS} \
-		-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+		-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
 
 GAME:
 	make DEPEND
@@ -93,7 +93,7 @@ GAME:
 
 ${BINDIR}/GAME.exe: game_of_life.o ${OBJECTS}
 	${LINK.f90} -o ${BINDIR}/GAME.exe game_of_life.o ${OBJECTS} \
-		-L${LIBDIR} -lTIMING -lSHARE ${Lflag1}
+		-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
 
 clean: cleanfiles
 
