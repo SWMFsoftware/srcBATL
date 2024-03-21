@@ -273,7 +273,7 @@ contains
     integer :: nMsg = 0
     integer :: nMsgSendCap = 0 ! dynamic array capacity
     !$acc declare create(nMsgSend, nMsgRecv, nMsg)
-    
+
     integer :: iTag
 
     logical :: DoTest
@@ -356,7 +356,7 @@ contains
     if(present(iLevelMin))IsCounted = IsCounted .and. (iLevelMin==iLevelMinOld)
     if(present(iLevelMax))IsCounted = IsCounted .and. (iLevelMax==iLevelMaxOld)
     if(present(iDecomposition))then
-       IsCounted = IsCounted .and. iDecomposition == iDecompositionOld 
+       IsCounted = IsCounted .and. iDecomposition == iDecompositionOld
        iDecompositionOld = iDecomposition
     else
        IsCounted = .false.
@@ -366,7 +366,7 @@ contains
     ! if(iProc==0 .and. present(iDecomposition)) &
     !     write(*,*)'iDecomposition/Old=',&
     !     iDecomposition, iDecompositionOld
-    
+
     UseMin =.false.
     UseMax =.false.
 
@@ -615,7 +615,6 @@ contains
           if (.not. allocated(iRequestRMap_I))&
                allocate(iRequestRMap_I(1:nProc-1))
 
-          
           ! Count only once for
           !   1. nMsgSend_PI, which is the size of memory maps
           !   2. nSizeBufferS_PI, which is the size of the sending buffers
@@ -630,7 +629,7 @@ contains
              nMsgRecv_PI(:,iSendStage) = 0
              nSizeBufferS_PI(:,iSendStage) = 0
              nSizeBufferR_PI(:,iSendStage) = 0
-             
+
              call timing_start('Count_1')
              do iBlockSend = 1, nBlock
                 if (Unused_B(iBlockSend))then
@@ -643,7 +642,7 @@ contains
                    call message_count_block(iBlockSend, nVar, nG, &
                         nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI, &
                         iLevelMin, iLevelMax)
-                   
+
                    ! update nMsgSend and nSizeBuffer for each block
                    nMsgSend = maxval(nMsgSend_PI)
                    nMsgRecv = maxval(nMsgRecv_PI)
@@ -688,7 +687,7 @@ contains
                       iBufferR_IPI = 0
                       ! update on device
                       !$acc update device(iBufferS_IPI, iBufferR_IPI)
-                      
+
                       ! deallocate temp array
                       deallocate(iBufferSTemp_IPI)
                       call timing_stop('resize_arrays')
@@ -698,7 +697,7 @@ contains
 
              ! Restriction message size < prolongation, leading to
              ! asymmetric sending/receiving buffer sizes
-             
+
              ! allocate buffers
              if(nSizeBuffer > nCapBuffer)then
                 call timing_start('enlarge_buffer')
@@ -712,13 +711,13 @@ contains
                 !$acc update device(BufferS_IP, BufferR_IP)
                 call timing_stop('enlarge_buffer')
              end if
-             
+
              ! Do not update device iBufferR here - 2nd stage resets 1st!!
              !$acc update device(nMsgSend, nMsgRecv, nMsg, iMsgInit_PBI, &
              !$acc iBufferS_IPI, iMsgDir_IBPI, nMsgRecv_PI)
              call timing_stop('Count_1')
           end if ! IsCounted
-             
+
           if(UseOpenACC) then
              call timing_start('fill_buffer_gpu')
              ! Prepare the buffer for remote message passing
@@ -1130,7 +1129,7 @@ contains
       iBufferR = iBufferR_IPI(iMsgSend,iProcSend,iSendStage)
       ! if(iBufferR == 0) RETURN
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
-      
+
       ! if(iProc == 1)then
       !   write(*,*)'iMsg, iBuffer, iBlock=',iMsgSend, iBufferR, &
       !        BufferR_IP(iBufferR, iProcSend)
@@ -1141,7 +1140,7 @@ contains
       !        iProcTest,iBlockTest,BufferR_IP(iBufferR,iProcSend),iBufferR
       !   write(*,*)'B_t_S,iStage,iMsg,iBuffer',iSendStage,iMsgSend,iBufferR
       ! end if
-      
+
       if (iBlockRecv==0) then
          ! iMsg is empty on this processor
          RETURN
