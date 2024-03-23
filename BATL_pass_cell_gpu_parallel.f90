@@ -2761,23 +2761,22 @@ contains
          do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
             do iVarS = 1, nVar
                iBufferS = nVar * ( &
-                    abs(k-kSMin)*(abs(jSMax-jSMin)+1)*(abs(iSMax-iSMin)+1)+&
-                    abs(j-jSMin)*(abs(iSMax-iSMin)+1)+&
-                    abs(i-iSMin)) +&
-                    iVarS +&
+                    abs(k-kSMin)*(abs(jSMax-jSMin)+1)*(abs(iSMax-iSMin)+1) + &
+                    abs(j-jSMin)*(abs(iSMax-iSMin)+1) + abs(i-iSMin)) + &
+                    iVarS + &
                     iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage) + 2*nDim
                ! initial iBuffer
-               BufferS_IP(iBufferS, iProcRecv) =&
+               BufferS_IP(iBufferS,iProcRecv) =&
                     State_VGB(iVarS,i,j,k,iBlockSend)
 
                ! if(iProc == iProcTest .and. iBlockSend == iBlockTest .and.&
                !      k == kTest .and. j==jTest .and. i==iTest .and. &
                !      iVarS == 1)then
-               !    write(*,*)'do_equal, iMsg, iMsgInit, iMsgDir=',iMsgGlob,&
-               !         iMsgInit_P(iProcRecv), &
-               !         iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
-               !    write(*,*)'iStage,iBuffer,State(1)=',iSendStage,&
-               !         iBufferS, BufferS_IP(iBufferS, iProcRecv)
+               !    write(*,*)'do_equal, iMsg, iMsgInit, iMsgDir=', &
+               !         iMsgGlob, iMsgInit_P(iProcRecv), &
+               !         iMsgDir_IBPI(IntDir,iBlockSend,iProcRecv,iSendStage)
+               !    write(*,*)'iStage,iBuffer,State(1)=', iSendStage,&
+               !         iBufferS, BufferS_IP(iBufferS,iProcRecv)
                ! end if
 
             end do
