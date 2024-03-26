@@ -138,7 +138,7 @@ contains
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
        DoResChangeOnlyIn, UseHighResChangeIn, DefaultState_V,&
-       iLevelMin, iLevelMax, UseOpenACCIn)
+       iLevelMin, iLevelMax, UseOpenACCIn, iDecomposition)
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
@@ -168,6 +168,9 @@ contains
     real,    optional, intent(in) :: DefaultState_V(nVar)
     logical, optional, intent(in) :: DoTestIn
     logical, optional, intent(in) :: UseOpenACCIn
+
+    ! to be compatible with gpu code but does nothing at the moment
+    integer, optional, intent(in) :: iDecomposition
 
     ! Fill in the nVar variables in the ghost cells of State_VGB.
     !
@@ -945,7 +948,7 @@ contains
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
        DoResChangeOnlyIn, UseHighResChangeIn, DefaultState_V,&
-       iLevelMin, iLevelMax, UseOpenACCIn)
+       iLevelMin, iLevelMax, UseOpenACCIn, iDecomposition)
 
     ! Message pass real array with nVar variables and BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
@@ -969,6 +972,7 @@ contains
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
     logical, optional, intent(in) :: UseOpenACCIn
+    integer, optional, intent(in) :: iDecomposition
     character(len=*), optional,intent(in) :: NameOperatorIn
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_real'
@@ -980,14 +984,15 @@ contains
          NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn, &
          UseHighResChangeIn=UseHighResChangeIn, &
          DefaultState_V=DefaultState_V,&
-         iLevelMin=iLevelMin, iLevelMax=iLevelMax, UseOpenACCIn = UseOpenACCIn)
+         iLevelMin=iLevelMin, iLevelMax=iLevelMax, &
+         UseOpenACCIn=UseOpenACCIn, iDecomposition=iDecomposition)
 
   end subroutine message_pass_ng_real
   !============================================================================
   subroutine message_pass_ng_real1(State_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
-       DoResChangeOnlyIn, iLevelMin, iLevelMax)
+       DoResChangeOnlyIn, iLevelMin, iLevelMax, iDecomposition)
 
     ! Message pass real scalar with BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
@@ -1007,6 +1012,7 @@ contains
     logical, optional, intent(in) :: DoResChangeOnlyIn
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
+    integer, optional, intent(in) :: iDecomposition
     character(len=*), optional,intent(in) :: NameOperatorIn
 
     character(len=*), parameter:: NameSub = 'message_pass_ng_real1'
@@ -1016,14 +1022,15 @@ contains
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
          TimeOld_B=TimeOld_B, Time_B=Time_B, DoTestIn=DoTestIn, &
          NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn,&
-         iLevelMin=iLevelMin, iLevelMax=iLevelMax)
+         iLevelMin=iLevelMin, iLevelMax=iLevelMax, &
+         iDecomposition=iDecomposition)
 
   end subroutine message_pass_ng_real1
   !============================================================================
   subroutine message_pass_real1(nG, State_GB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, TimeOld_B, Time_B, DoTestIn, NameOperatorIn,&
-       DoResChangeOnlyIn, iLevelMin, iLevelMax)
+       DoResChangeOnlyIn, iLevelMin, iLevelMax, iDecomposition)
 
     ! Message pass real scalar with BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
@@ -1044,6 +1051,7 @@ contains
     logical, optional, intent(in) :: DoResChangeOnlyIn
     real,    optional, intent(in) :: TimeOld_B(MaxBlock)
     real,    optional, intent(in) :: Time_B(MaxBlock)
+    integer, optional, intent(in) :: iDecomposition
     character(len=*), optional, intent(in) :: NameOperatorIn
 
     character(len=*), parameter:: NameSub = 'message_pass_real1'
@@ -1053,7 +1061,8 @@ contains
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
          TimeOld_B=TimeOld_B, Time_B=Time_B, DoTestIn=DoTestIn, &
          NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn,&
-         iLevelMin=iLevelMin, iLevelMax=iLevelMax)
+         iLevelMin=iLevelMin, iLevelMax=iLevelMax, &
+         iDecomposition=iDecomposition)
 
   end subroutine message_pass_real1
   !============================================================================
