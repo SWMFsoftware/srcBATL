@@ -654,9 +654,11 @@ contains
                    ! Keeping track of the initial message index for each
                    ! block is needed for parallel construction of the send &
                    ! buffer.
-                   ! minloc() gives the index of the first active block
-                   if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
-                        iMsgInit_PBI(:,iBlockSend,iSendStage) = 1
+                   ! minloc() gives the index of the first active block:
+                   ! if(iBlockSend == minloc(merge(1,0,Unused_B),1))&
+                   !     iMsgInit_PBI(:,iBlockSend,iSendStage) = 1
+                   ! but we can change our convention to avoid such ugly syntax
+                   ! simply let iMsgInit_PBI start with 0
                    if(iBlockSend < nBlock)&
                         iMsgInit_PBI(:,iBlockSend+1,iSendStage) =&
                         iMsgInit_PBI(:,iBlockSend,iSendStage)+&
@@ -832,10 +834,6 @@ contains
              !$acc parallel copyin(iProcSend, nVar) present(BufferR_IP)
              !$acc loop gang
              do iMsgSend = 1, nMsgRecv_PI(iProcSend,iSendStage)
-                ! if(iProc == iProcTest)&
-                    ! write(*,*)'b_t_s is starting for iMsg=',iMsgSend
-                ! if(iProc==iProcTest)write(*,*)'iProc,iStage,nMsgRecv_PI=',&
-                !     iProcSend, iSendStage,nMsgRecv_PI(iProcSend,iSendStage)
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      iBufferR_IPI, BufferR_IP,&
                      nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
@@ -1130,21 +1128,11 @@ contains
       ! if(iBufferR == 0) RETURN
       iBlockRecv = nint(BufferR_IP(iBufferR, iProcSend))
 
-      ! if(iProc == 1)then
-      !   write(*,*)'iMsg, iBuffer, iBlock=',iMsgSend, iBufferR, &
-      !        BufferR_IP(iBufferR, iProcSend)
-      ! end if
-
-      ! if(iProc == 1 .and. iBlockRecv == iBlockTest)then
-      !   write(*,*)'iProcTest,iBlockTest,BufferR,iBuffer=',&
-      !        iProcTest,iBlockTest,BufferR_IP(iBufferR,iProcSend),iBufferR
-      !   write(*,*)'B_t_S,iStage,iMsg,iBuffer',iSendStage,iMsgSend,iBufferR
-      ! end if
-
-      if (iBlockRecv==0) then
+      ! there should be no empty message
+      ! if (iBlockRecv==0) then
          ! iMsg is empty on this processor
-         RETURN
-      end if
+      !   RETURN
+      ! end if
 
       iRMin      = nint(BufferR_IP(iBufferR+1, iProcSend))
       iRMax      = nint(BufferR_IP(iBufferR+2, iProcSend))
@@ -1467,7 +1455,7 @@ contains
   subroutine message_count_block(iBlockSend, nVar, nG, &
        nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI, iLevelMin, iLevelMax)
     ! run in series on cpu
-    !!! use a scalar to get out after estimating nMsgSend and Recv
+    !!! optional: use a scalar to get out after estimating nMsgSend and Recv
 
     use BATL_mpi, ONLY: iProc, nProc
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
@@ -1518,7 +1506,7 @@ contains
 !!! local variables for parallel algorithm
     integer:: iSend, jSend, kSend, iRecv, jRecv, kRecv
     integer:: iNodeRecv, iProcRecv, iBlockRecv
-    integer:: iProcSend
+    integer:: iProcSend, iMsg
     integer:: IntDir
     integer:: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax ! for computing msg size
     integer:: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
@@ -1631,6 +1619,9 @@ contains
                    nMsgRecv_PI(iProcRecv,iSendStage) =&
                         nMsgRecv_PI(iProcRecv,iSendStage)+1
 
+                   ! simplify syntax
+                   iMsg = nMsgSend_PI(iProcRecv,iSendStage)
+
                    ! Calculate size of this message
                    iSMin = iEqualS_DII(1,iDir,Min_)
                    iSMax = iEqualS_DII(1,iDir,Max_)
@@ -1653,15 +1644,12 @@ contains
                         + nSizeS
 
                    ! Initialize buffer index for first message
-                   if(nMsgSend_PI(iProcRecv,iSendStage) == 1) &
-                        iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage),&
-                        iProcRecv,iSendStage) = 1
+                   if(iMsg == 1) &
+                        iBufferS_IPI(iMsg,iProcRecv,iSendStage) = 1
 
                    ! Initialize buffer index for the next message
-                   iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage)+1,&
-                        iProcRecv,iSendStage)=&
-                        iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage),&
-                        iProcRecv,iSendStage) + nSizeS
+                   iBufferS_IPI(iMsg+1,iProcRecv,iSendStage)=&
+                        iBufferS_IPI(iMsg,iProcRecv,iSendStage) + nSizeS
                 end if ! iProcRecv/=iProcSend
              else if(DiLevel == 1) then
                 ! neighbour is coarser, this block does restriction
@@ -1737,6 +1725,9 @@ contains
                    ! in this serial loop, nMsgSend_PI is also iMsgSend_PI
                    nMsgSend_PI(iProcRecv,iSendStage) =&
                         nMsgSend_PI(iProcRecv,iSendStage) + 1
+
+                   iMsg = nMsgSend_PI(iProcRecv,iSendStage)
+
                    ! only receive a message if first order prolongation
                    if(nProlongOrder == 1)then
                       nMsgRecv_PI(iProcRecv,iSendStage) =&
@@ -1782,15 +1773,12 @@ contains
                         + nSizeS
 
                    ! Buffer index set to 1 for first message
-                   if(nMsgSend_PI(iProcRecv,iSendStage) == 1) &
-                        iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage),&
-                        iProcRecv,iSendStage) = 1
+                   if(iMsg == 1) &
+                        iBufferS_IPI(iMsg,iProcRecv,iSendStage) = 1
 
                    ! Buffer index for next message
-                   iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage)+1,&
-                        iProcRecv,iSendStage)=&
-                        iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage),&
-                        iProcRecv,iSendStage) &
+                   iBufferS_IPI(iMsg+1,iProcRecv,iSendStage)=&
+                        iBufferS_IPI(iMsg,iProcRecv,iSendStage) &
                         + nSizeS
                 end if ! iProcRecv/=iProcSend
              else if(DiLevel == -1) then
@@ -1862,6 +1850,8 @@ contains
                             ! (serial) nMsgSend_PI is also iMsgSend_PI
                             nMsgSend_PI(iProcRecv,iSendStage) =&
                                  nMsgSend_PI(iProcRecv,iSendStage)+1
+
+                            iMsg = nMsgSend_PI(iProcRecv,iSendStage)
                             ! only receive a message if first order prolong
                             if(nProlongOrder == 1) then
                                nMsgRecv_PI(iProcRecv,iSendStage)=&
@@ -1896,17 +1886,11 @@ contains
                             nSizeBufferS_PI(iProcRecv,iSendStage) =&
                                  nSizeBufferS_PI(iProcRecv,iSendStage) + nSizeS
 
-                            if(nMsgSend_PI(iProcRecv,iSendStage) == 1) &
-                                 iBufferS_IPI(&
-                                 nMsgSend_PI(iProcRecv,iSendStage),&
-                                 iProcRecv,iSendStage)&
-                                 = 1
-                            iBufferS_IPI(nMsgSend_PI(iProcRecv,iSendStage)+1,&
-                                 iProcRecv,iSendStage) = &
-                                 iBufferS_IPI&
-                                 (nMsgSend_PI(iProcRecv,iSendStage),iProcRecv,&
-                                 iSendStage) &
-                                 + nSizeS
+                            if(iMsg == 1) &
+                                 iBufferS_IPI(iMsg,iProcRecv,iSendStage) = 1
+
+                            iBufferS_IPI(iMsg+1,iProcRecv,iSendStage) = &
+                                 iBufferS_IPI(iMsg,iProcRecv,iSendStage)+nSizeS
                          end if ! iProcRecv/=iProcSend
                       end do
                    end do
@@ -2738,7 +2722,7 @@ contains
          if(nDim>1) IntDir = IntDir + 4 * jSend
          if(nDim>2) IntDir = IntDir + 16* kSend
 
-         iMsgGlob = iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
+         iMsgGlob = 1 + iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
               iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
          iBufferS = iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage)
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
@@ -3407,7 +3391,7 @@ contains
          if(nDim>1) IntDir = IntDir + 4 * jSend
          if(nDim>2) IntDir = IntDir + 16* kSend
 
-         iMsgGlob = iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
+         iMsgGlob = 1 + iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
               iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
          iBufferS = iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage)
          BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
@@ -4461,7 +4445,7 @@ contains
                   if(nDim>1) IntDir = IntDir + 4 * jSend
                   if(nDim>2) IntDir = IntDir + 16* kSend
 
-                  iMsgGlob = iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
+                  iMsgGlob = 1+iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) +&
                        iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv,iSendStage)
                   iBufferS = iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage)
                   BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
