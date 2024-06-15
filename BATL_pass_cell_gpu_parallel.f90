@@ -807,7 +807,7 @@ contains
           call timing_stop('local_mp_pass')
 
           call timing_start('MPI_wait')
-          
+
           if(iRequestR > 0) then
              call MPI_waitall(iRequestR, iRequestR_I, &
                   MPI_STATUSES_IGNORE, iError)
