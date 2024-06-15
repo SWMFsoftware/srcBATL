@@ -806,6 +806,8 @@ contains
 
           call timing_stop('local_mp_pass')
 
+          call timing_start('MPI_wait')
+          
           if(iRequestR > 0) then
              call MPI_waitall(iRequestR, iRequestR_I, &
                   MPI_STATUSES_IGNORE, iError)
@@ -819,6 +821,8 @@ contains
              if(.not. IsCounted) call MPI_waitall(iRequestS, iRequestSMap_I, &
                   MPI_STATUSES_IGNORE, iError)
           end if
+
+          call timing_stop('MPI_wait')
           call timing_start('buffer_to_state')
 
 !!! To call buffer_to_state on a GPU,
