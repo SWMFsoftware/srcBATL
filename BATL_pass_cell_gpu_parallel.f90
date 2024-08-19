@@ -2594,7 +2594,7 @@ contains
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
 
          if(UseTime)then
-#ifndef _OPENACC            
+#ifndef _OPENACC
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -2604,7 +2604,7 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-#endif            
+#endif
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(3) private(iR,jR,kR)
