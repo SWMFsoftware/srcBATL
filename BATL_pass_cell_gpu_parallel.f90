@@ -988,106 +988,6 @@ contains
 
     end subroutine high_prolong_for_face_ghost
     !==========================================================================
-    subroutine buffer_to_state(nBufferR_P, BufferR_I, nVar, nG, State_VGB,&
-         UseTime, TimeOld_B, Time_B)
-      !$acc routine vector
-
-      ! Copy buffer into recv block of State_VGB
-      use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
-      use BATL_test, ONLY: iTest, jTest, kTest, iBlockTest, iVarTest
-
-      integer, intent(in)::nBufferR_P(0:)
-      real,    intent(in)::BufferR_I(:)
-      integer, intent(in)::nVar
-      integer, intent(in)::nG
-      logical, intent(inout)::UseTime
-      real,    intent(inout)::State_VGB(nVar,&
-           1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-      ! logical, intent(in)::UseHighResChange
-
-      real,    optional, intent(in)::TimeOld_B(MaxBlock)
-      real,    optional, intent(in)::Time_B(MaxBlock)
-
-      integer:: iBufferR, iVarR , i, j, k
-      real :: TimeSend, WeightOld, WeightNew
-
-      integer:: iProcSend
-      integer:: iBlockRecv
-
-      ! Index range for recv and send segments of the blocks
-      integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
-
-      ! Message passing across the pole can reverse the recv. index range
-      integer :: DiR, DjR, DkR
-      !------------------------------------------------------------------------
-      jRMin = 1; jRMax = 1
-      kRMin = 1; kRMax = 1
-
-      DiR = 1; DjR = 1; DkR = 1
-
-      iBufferR = 0
-      do iProcSend = 0, nProc-1
-         if(nBufferR_P(iProcSend) == 0) CYCLE
-
-         do
-            iBlockRecv = nint(BufferR_I(iBufferR+1))
-            iRMin      = nint(BufferR_I(iBufferR+2))
-            iRMax      = nint(BufferR_I(iBufferR+3))
-            if(nDim > 1) DiR = sign(1,iRMax - iRMin)
-            if(nDim > 1) jRMin = nint(BufferR_I(iBufferR+4))
-            if(nDim > 1) jRMax = nint(BufferR_I(iBufferR+5))
-            if(nDim > 2) DjR   = sign(1, jRmax - jRMin)
-            if(nDim > 2) kRMin = nint(BufferR_I(iBufferR+6))
-            if(nDim > 2) kRMax = nint(BufferR_I(iBufferR+7))
-            if(nDim > 2) DkR   = sign(1, kRmax - kRMin)
-
-            iBufferR = iBufferR + nIndex
-            if(present(Time_B))then
-               ! Get time of neighbor and interpolate/extrapolate ghost cells
-               iBufferR = iBufferR + 1
-               TimeSend = BufferR_I(iBufferR)
-               UseTime  = (TimeSend /= Time_B(iBlockRecv))
-            end if
-            if(UseTime) then
-               ! Time interpolation
-               WeightOld = (TimeSend - Time_B(iBlockRecv)) &
-                    /      (TimeSend - TimeOld_B(iBlockRecv))
-               WeightNew = 1 - WeightOld
-               do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-                  State_VGB(:,i,j,k,iBlockRecv) = &
-                       WeightOld*State_VGB(:,i,j,k,iBlockRecv) + &
-                       WeightNew*BufferR_I(iBufferR+1:iBufferR+nVar)
-
-                  iBufferR = iBufferR + nVar
-               end do; end do; end do
-#ifndef _OPENACC
-            elseif(UseHighResChange)then
-               do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-                  if(.not. (iSendStage ==4 &
-                       .and. IsAccurateFace_GB(i,j,k,iBlockRecv)))then
-                     State_VGB(:,i,j,k,iBlockRecv) = &
-                          BufferR_I(iBufferR+1:iBufferR+nVar)
-                  endif
-                  iBufferR = iBufferR + nVar
-               end do; end do; end do
-#endif
-            else
-               !$acc loop seq collapse(3)
-               do k=kRMin,kRmax,DkR; do j=jRMin,jRMax,DjR; do i=iRMin,iRmax,DiR
-                  !$acc loop seq
-                  do iVarR = 1, nVar
-                     State_VGB(iVarR,i,j,k,iBlockRecv) = &
-                          BufferR_I(iBufferR+iVarR)
-                  enddo
-                  iBufferR = iBufferR + nVar
-               end do; end do; end do
-            end if
-            if(iBufferR >= sum(nBufferR_P(0:iProcSend))) EXIT
-         end do
-      end do
-
-    end subroutine buffer_to_state
-    !==========================================================================
     subroutine buffer_to_state_parallel(iProcSend, iMsgSend,&
          iBufferR_IPI, BufferR_IP,&
          nVar, nG, State_VGB, UseTime, TimeOld_B, Time_B)
@@ -2694,6 +2594,7 @@ contains
               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
 
          if(UseTime)then
+#ifndef _OPENACC            
             ! Time interpolation
             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
@@ -2703,6 +2604,7 @@ contains
                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
                  iBlockRecv) + WeightNew * &
                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
+#endif            
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(3) private(iR,jR,kR)
@@ -3793,7 +3695,7 @@ contains
 !!! HighOrderResChange omitted
 
 !!! Sequential loop here
-                  !$acc loop vector collapse(3) private(iBufferS)
+                  !$acc loop vector collapse(3) private(iBufferS, Slope_V)
                   do kR = kRMin, kRMax, DkR
                      do jR = jRMin, jRMax, DjR
                         do iR = iRMin, iRMax, DiR
@@ -4034,7 +3936,6 @@ contains
                           /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
                      WeightNew = 1 - WeightOld
 
-                     !$acc loop vector collapse(3)
                      do kR = kRMin, kRMax, DkR
                         do jR = jRMin, jRMax, DjR
                            do iR = iRMin, iRMax, DiR
