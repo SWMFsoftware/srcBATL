@@ -472,7 +472,7 @@ contains
        !$acc update device( &
        !$acc DoSendCorner, DoResChangeOnly, MaxBlock, UseTime, &
        !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
-       !$acc UseHighResChange, UseMin, UseMax, nReal)
+       !$acc UseMin, UseMax, nReal)
 
 !!! The following can run (in series) on GPU as:
        ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
@@ -545,7 +545,7 @@ contains
           if(UseOpenACC) then
              !$acc update device(iSendStage, DoCountOnly, &
              !$acc nBufferR_P, nBufferS_P, iBufferS_P, &
-             !$acc UseHighResChange, nProlongOrder, iSendStage)
+             !$acc nProlongOrder, iSendStage)
 
              ! Loop through all blocks that may send a message
              !$acc parallel loop gang present(State_VGB)
@@ -723,7 +723,7 @@ contains
           if(UseOpenACC) then
              call timing_start('fill_buffer_gpu')
              ! Prepare the buffer for remote message passing
-             !$acc update device(UseHighResChange, nProlongOrder)
+             !$acc update device(nProlongOrder)
 
              ! Loop through all blocks that may send a message
              !$acc parallel present(State_VGB)
@@ -2753,7 +2753,8 @@ contains
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
-#ifndef _OPENACC ! highreschange is not supported for gpu
+      ! highreschange is not supported for gpu
+#ifndef _OPENACC 
       if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
