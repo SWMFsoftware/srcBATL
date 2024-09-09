@@ -2754,7 +2754,7 @@ contains
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
       ! highreschange is not supported for gpu
-#ifndef _OPENACC 
+#ifndef _OPENACC
       if(iSendStage == 4 .and. nK > 1 .and. &
            abs(iDir)+abs(jDir)+abs(kDir) == 1) then
          DoRecvFace = is_only_corner_fine(iNode_B(iBlockSend),iDir,jDir,kDir)
