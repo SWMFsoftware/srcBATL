@@ -42,6 +42,7 @@ module BATL_amr_criteria
        MaxArea, nCritGrid
 
   use ModUtilities, ONLY: CON_stop
+  use BATL_mpi,  ONLY: iProc
 
   implicit none
 
@@ -166,7 +167,6 @@ contains
          DomainSize_D, CellSizeRoot, IsLogRadius, IsGenRadius, Phi_
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nIJK_D
     use BATL_tree, ONLY: Unused_B,  nRoot_D
-    use BATL_mpi,  ONLY: iProc
 
     integer :: iBlock, iCrit, nCrit, iGeo, iArea, iAreaIdx, iVar
 
@@ -391,10 +391,21 @@ contains
        end if
     end if
 
+    ! If Area_I(:)%TypeCoordIn is not empty, the Geometry may need to be
+    ! updated. For example, in the solar wind simulation, the earthcone
+    ! may use 'GSE' so that the cone position will needs to be updated
+    ! if needed.
+    if (any(Area_I(:)%TypeCoordIn /= '')) then
+       do iBlock = 1, nBlock
+          if(Unused_B(iBlock)) CYCLE
+          call set_amr_geometry(iBlock)
+       end do
+    end if
+
     TypeAmr = 'all'
     if(present(TypeAmrIn))then
        TypeAmr = TypeAmrIn
-       if(DoTest) write(*,*) NameSub,' TypeAmrIn =', TypeAmrIn
+       if(iProc == 0 .and. DoTest) write(*,*) NameSub,' TypeAmrIn =', TypeAmrIn
     end if
 
     ! Compatible with simple AMR using #GRIDLEVEL/#GRIDRESOLUTION
@@ -404,7 +415,8 @@ contains
        else
           TypeAmr = 'geo'
        end if
-       if(DoTest) write(*,*) NameSub,' nPhysCritUsed, TypeAmr =', TypeAmr
+       if(iProc == 0 .and. DoTest) write(*,*) &
+            NameSub,' nPhysCritUsed, TypeAmr =', TypeAmr
     end if
 
     ! add external criteria into the list of all criteria
@@ -417,7 +429,7 @@ contains
        end do
     end if
 
-    if(DoTest)write(*,*) NameSub, &
+    if(iProc == 0 .and. DoTest)write(*,*) NameSub, &
          ': TypeAmr, nAmrCritUsed,  nPhysCritUsed, nCritDxLevel=', &
          TypeAmr, nAmrCritUsed,  nPhysCritUsed, nCritDxLevel
 
@@ -429,7 +441,7 @@ contains
     case('geo')
        iStartCrit = nPhysCritUsed - nCritDxLevel +1
        iEndCrit   = nAmrCritUsed
-       if(DoTest)write(*,*) NameSub, &
+       if(iProc == 0 .and. DoTest)write(*,*) NameSub, &
             ' geo iStartCrit, iEndCrit=', iStartCrit, iEndCrit
        call apply_unsorted_criteria
        RETURN
@@ -440,7 +452,7 @@ contains
        call CON_stop(NameSub // &
             ' ERROR: Unknown TypeAmr = '//TypeAmr)
     end select
-    if(DoTest) write(*,*) NameSub, &
+    if(iProc == 0 .and. DoTest) write(*,*) NameSub, &
          ' iStartCrit, iEndCrit=', iStartCrit, iEndCrit
 
     ! Estimation of the numerical error
@@ -1486,7 +1498,8 @@ contains
        end if
 
        if(DoTest)write(*,*) NameSub,' iCrit, nAreaCrit, UseCrit_IB=', &
-            iCrit, nAreaPerCritAll_I(iCrit), UseCrit_IB(iCrit,iBlock)
+            iCrit, nAreaPerCritAll_I(iCrit), UseCrit_IB(iCrit,iBlock),&
+            Area_I(abs(iAreaIdx_II(nAreaPerCritAll_I(iCrit),iCrit)))%NameRegion
     end do
 
   end subroutine set_amr_geometry
