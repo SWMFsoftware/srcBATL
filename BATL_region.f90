@@ -396,7 +396,8 @@ contains
     call read_var('StringShape', StringShape)
     StringShape = adjustl(StringShape)
 
-    ! Check for TypeCoordIn, only HGR, HGI and GSE is supported now
+    ! Check for TypeCoordIn, only HGR, HGI and earth/GSE is supported now
+    ! For earth/GSE, it will obtain the Earth location in simulation coord.
     if(index(StringShape, 'HGR') > 0) then
        i = index(StringShape, 'HGR')
        StringShape = StringShape(1:i-1)//StringShape(i+3:)
@@ -408,6 +409,10 @@ contains
     elseif(index(StringShape, 'GSE') > 0) then
        i = index(StringShape, 'GSE')
        StringShape = StringShape(1:i-1)//StringShape(i+3:)
+       TypeCoordIn = 'GSE'
+    elseif(index(StringShape, 'earth') > 0) then
+       i = index(StringShape, 'earth')
+       StringShape = StringShape(1:i-1)//StringShape(i+5:)
        TypeCoordIn = 'GSE'
     end if
 
