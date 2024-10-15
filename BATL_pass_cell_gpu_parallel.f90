@@ -247,7 +247,7 @@ contains
     !    ghost cells and physical cells of State_VGB, respectively.
     !    If these arguments are present, the ghost cells are interpolated
     !    in time. Default is a simple update with no temporal interpolation.
-    ! UseHighResChangeIn determines if the fifth-order accurate scheme iS
+    ! UseHighResChangeIn determines if the fifth-order accurate scheme is
     !    used to obtain the ghost cell values at resolution changes.
     !    Default is false.
     ! DefaultState_V determines if the variables in State_VGB should be kept
@@ -267,7 +267,6 @@ contains
 
     logical :: UseOpenACC
 
-!!! dev
     integer :: nMsgSend = 0
     integer :: nMsgRecv = 0
     integer :: nMsg = 0
@@ -402,7 +401,7 @@ contains
     ! Initialize logical for time interpolation/extrapolation
     UseTime = .false.
 
-    if(nProc>1)then
+    if(nProc > 1)then
        if (.not. allocated(nMsgSend_PBI)) then
           allocate(nMsgSend_PBI(0:nProc-1,nBlock,MaxProlongOrder))
           nMsgSend_PBI = 0
@@ -474,13 +473,13 @@ contains
        !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
        !$acc UseMin, UseMax, nReal)
 
-!!! The following can run (in series) on GPU as:
+       ! The following can run (in series) on GPU as:
        ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
 
        ! Set index ranges based on arguments
        call set_range
 
-!!! Since set_range runs on CPU, update the following on the device:
+       ! Since set_range runs on CPU, update the following on the device:
        !$acc update device(iEqualS_DII, iEqualR_DII, &
        !$acc iRestrictS_DII, iRestrictR_DII, iProlongS_DII, &
        !$acc iProlongR_DII)
@@ -790,7 +789,7 @@ contains
           !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
-             if(nProc>1)then
+             if(nProc > 1)then
                 call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
                      .false., TimeOld_B, Time_B, iLevelMin, iLevelMax, &
                      iMsgInit_PBI=iMsgInit_PBI)
@@ -825,8 +824,8 @@ contains
           call timing_stop('MPI_wait')
           call timing_start('buffer_to_state')
 
-!!! To call buffer_to_state on a GPU,
-!!! the following construct doesn't work:
+          ! To call buffer_to_state on a GPU,
+          ! the following construct doesn't work:
           ! acc serial
           ! ...
           ! acc end serial
@@ -1358,7 +1357,7 @@ contains
   !============================================================================
   subroutine message_count_block(iBlockSend, nVar, nG, &
        nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI, iLevelMin, iLevelMax)
-    ! run in series on cpu
+    ! run in serially on cpu
 !!! optional: use a scalar to get out after estimating nMsgSend and Recv
 
     use BATL_mpi, ONLY: iProc, nProc
@@ -1379,7 +1378,7 @@ contains
     integer, intent(in):: nVar  ! number of variables
     integer, intent(in):: nG    ! number of ghost cells for 1..nDim
 
-!!! memory maps for parallel algorithm
+    ! memory maps for parallel algorithm
     integer, intent(inout) :: nMsgSend_PBI(0:,:,:)
     integer, intent(inout) :: iBufferS_IPI(:,0:,:)
     integer, intent(inout) :: iMsgDir_IBPI(0:,:,0:,:)
@@ -1391,7 +1390,7 @@ contains
     integer :: iNodeSend
     integer :: iDir, jDir, kDir
 
-    ! is the sending node next to the symmetry axis?
+    ! Is the sending node next to the symmetry axis?
     logical :: IsAxisNode
 
     integer :: iLevelSend, DiLevel
@@ -1407,7 +1406,7 @@ contains
     logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
          (nK==1 .or. nK>7)
 
-!!! local variables for parallel algorithm
+    ! local variables for parallel algorithm
     integer:: iSend, jSend, kSend, iRecv, jRecv, kRecv
     integer:: iNodeRecv, iProcRecv, iBlockRecv
     integer:: iProcSend, iMsg
@@ -1738,8 +1737,8 @@ contains
 
                          ! convert (iSend,jSend,kSend) to 0-63 using base 4
                          IntDir = iSend
-                         if(nDim>1) IntDir = IntDir +  4*jSend
-                         if(nDim>2) IntDir = IntDir + 16*kSend
+                         if(nDim > 1) IntDir = IntDir +  4*jSend
+                         if(nDim > 2) IntDir = IntDir + 16*kSend
 
                          if(iProcRecv /= iProcSend) then
                             iMsgDir_IBPI(IntDir,iBlockSend,iProcRecv,&
@@ -1842,7 +1841,7 @@ contains
     integer, intent(in),optional:: iLevelMin, iLevelMax
     logical, intent(in),optional:: UseOpenACCIn
 
-!!! memory maps for parallel algorithm
+    ! memory maps for parallel algorithm
     integer, intent(inout),optional:: iMsgInit_PBI(0:,:,:)
     integer, intent(inout), optional:: iBufferS_IPI(:,0:,:)
     integer, intent(inout), optional:: iMsgDir_IBPI(0:,:,0:,:)
@@ -1869,7 +1868,7 @@ contains
     logical, parameter:: DoSixthCorrect = nI>7 .and. nJ>7 .and. &
          (nK==1 .or. nK>7)
 
-!!! local variables for parallel algorithm
+    ! local variables for parallel algorithm
     integer:: iSend, jSend, kSend, iRecv, jRecv, kRecv
     integer:: iNodeRecv, iProcRecv, iBlockRecv
     integer:: iProcSend
@@ -1970,7 +1969,7 @@ contains
 #endif
                 else
                    if(.not.DoResChangeOnly)then
-                      if(nProc>1 .and. DoRemote)then
+                      if(nProc > 1 .and. DoRemote)then
                          call do_equal(iDir, jDir, kDir,&
                               iNodeSend, iBlockSend, nVar, nG, State_VGB, &
                               DoRemote, IsAxisNode, iLevelMIn, Time_B, &
@@ -2483,8 +2482,6 @@ contains
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
-!!! dev
-      ! ACC: is 0:nProc-1 understood by NVFORTRAN?
       integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
       integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
       integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
@@ -2551,7 +2548,6 @@ contains
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
 
-!!! dev
       ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
 #ifndef _OPENACC
       if(iSendStage == 3) then
@@ -2625,8 +2621,8 @@ contains
 
          ! convert (iSend,jSend,kSend) to 0-63 using base 4
          IntDir = iSend
-         if(nDim>1) IntDir = IntDir + 4 * jSend
-         if(nDim>2) IntDir = IntDir + 16* kSend
+         if(nDim > 1) IntDir = IntDir +  4*jSend
+         if(nDim > 2) IntDir = IntDir + 16*kSend
 
          iMsgGlob = 1 + iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
               iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
@@ -2648,7 +2644,7 @@ contains
 !!! speed: collapse 3?
 
          !$acc loop vector collapse(4) private(iBufferS)
-         do k = kSMin,kSmax; do j = jSMin,jSMax; do i = iSMin,iSmax
+         do k = kSMin, kSmax; do j = jSMin, jSMax; do i = iSMin, iSmax
             do iVarS = 1, nVar
                iBufferS = nVar * ( &
                     abs(k-kSMin)*(abs(jSMax-jSMin)+1)*(abs(iSMax-iSMin)+1) + &
@@ -2690,7 +2686,6 @@ contains
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
 
-!!! dev
       integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
       integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
       integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
@@ -2710,7 +2705,6 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
-!!! dev
       integer :: IntDir, iMsgGlob
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
@@ -2903,8 +2897,8 @@ contains
       else ! iProc /= iProcRecv
          ! encode the send direction into an integer
          IntDir = iSend
-         if(nDim>1) IntDir = IntDir + 4 * jSend
-         if(nDim>2) IntDir = IntDir + 16* kSend
+         if(nDim > 1) IntDir = IntDir +  4*jSend
+         if(nDim > 2) IntDir = IntDir + 16*kSend
 
          iMsgGlob = 1 + iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
               iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
@@ -2937,11 +2931,9 @@ contains
                      iS1 = iSMin + iRatioRestr*abs(iR-iRMin)
                      iS2 = iS1 + iRatioRestr - 1
 
-!!! assume DijkR = 1. Consideration for -1 to be given later (using abs)
-!!! reduce the number of multiplication
-                     iBufferS = nVar*(abs(iR-iRMin) + (abs(iRMax-iRMin)+1)*(&
+                     iBufferS = nVar*(abs(iR-iRMin) + (abs(iRMax-iRMin)+1)*( &
                           abs(jR-jRMin)+(abs(jRMax-jRMin)+1)*abs(kR-kRMin))) +&
-                          iVar +&
+                          iVar + &
                           iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage) + 2*nDim
 
                      if(UseHighResChange) then
@@ -2984,7 +2976,7 @@ contains
       integer, optional, intent(in):: iLevelMin
       real,    optional, intent(in):: Time_B(MaxBlock)
       real,    optional, intent(in):: TimeOld_B(MaxBlock)
-!!! dev
+
       integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
       integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
       integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
@@ -3016,7 +3008,7 @@ contains
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-!!! dev
+
       integer :: IntDir, iMsgGlob
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
@@ -3130,13 +3122,16 @@ contains
                               ! DkR=-1:
                               ! interpolate left for even kR, right for odd kR
                               if(kRatio == 1) kS1 = kS
-                              if(kRatio == 2) kS1 = kS + DkR*(1-2*modulo(kR,2))
+                              if(kRatio == 2) kS1 = kS &
+                                   + DkR*(1 - 2*modulo(kR, 2))
 
                               if(jRatio == 1) jS1 = jS
-                              if(jRatio == 2) jS1 = jS + DjR*(1-2*modulo(jR,2))
+                              if(jRatio == 2) jS1 = jS &
+                                   + DjR*(1 - 2*modulo(jR, 2))
 
                               if(iRatio == 1) iS1 = iS
-                              if(iRatio == 2) iS1 = iS + DiR*(1-2*modulo(iR,2))
+                              if(iRatio == 2) iS1 = iS &
+                                   + DiR*(1 - 2*modulo(iR, 2))
 
                               if(UseMin)then
                                  State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
@@ -3145,7 +3140,7 @@ contains
                                       State_VGB(:,iS,jS1,kS,iBlockSend), &
                                       State_VGB(:,iS,jS,kS1,iBlockSend)  )
                               elseif(UseMax)then
-                                 State_VGB(:,iR,jR,kR,iBlockRecv) =  min( &
+                                 State_VGB(:,iR,jR,kR,iBlockRecv) =  max( &
                                       State_VGB(:,iS,jS,kS,iBlockSend), &
                                       State_VGB(:,iS1,jS,kS,iBlockSend), &
                                       State_VGB(:,iS,jS1,kS,iBlockSend), &
@@ -3193,8 +3188,8 @@ contains
 
                else ! iProc /= iProcRecv
                   IntDir = iSend
-                  if(nDim>1) IntDir = IntDir + 4 * jSend
-                  if(nDim>2) IntDir = IntDir + 16* kSend
+                  if(nDim > 1) IntDir = IntDir +  4*jSend
+                  if(nDim > 2) IntDir = IntDir + 16*kSend
 
                   iMsgGlob = 1+iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) +&
                        iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv,iSendStage)
