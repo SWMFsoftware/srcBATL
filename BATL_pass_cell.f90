@@ -2537,9 +2537,12 @@ contains
                do kR = kRMin, kRMax, DkR
                   do jR = jRMin, jRMax, DjR
                      do iR = iRMin, iRMax, DiR
-                        iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
-                        jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
-                        kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                        iS = iSMin + abs((iR+9)/iRatioRestr &
+                             -           (iRMin+9)/iRatioRestr)
+                        jS = jSMin + abs((jR+9)/jRatioRestr &
+                             -           (jRMin+9)/jRatioRestr)
+                        kS = kSMin + abs((kR+9)/kRatioRestr &
+                             -           (kRMin+9)/kRatioRestr)
                         if(nProlongOrder == 2) then
                            ! For kRatio = 1 simple shift:
                            !    kS = kSMin + |kR - kRMin|
@@ -2644,7 +2647,8 @@ contains
                            ! and get rounded down.
                            ! This works up to nG=10 ghost cells:
                            ! likely to be enough.
-                           kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                           kS = kSMin + abs((kR+9)/kRatioRestr &
+                                -           (kRMin+9)/kRatioRestr)
                            ! DkR=+1:
                            ! interpolate left for odd kR, right for even kR
                            ! DkR=-1:
@@ -2652,11 +2656,13 @@ contains
                            if(kRatio == 1) kS1 = kS
                            if(kRatio == 2) kS1 = kS + DkR*(1 - 2*modulo(kR,2))
 
-                           jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
+                           jS = jSMin + abs((jR+9)/jRatioRestr &
+                                -           (jRMin+9)/jRatioRestr)
                            if(jRatio == 1) jS1 = jS
                            if(jRatio == 2) jS1 = jS + DjR*(1 - 2*modulo(jR,2))
 
-                           iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
+                           iS = iSMin + abs((iR+9)/iRatioRestr &
+                                -           (iRMin+9)/iRatioRestr)
                            if(iRatio == 1) iS1 = iS
                            if(iRatio == 2) iS1 = iS + DiR*(1 - 2*modulo(iR,2))
 
