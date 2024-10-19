@@ -3102,9 +3102,12 @@ contains
                   do kR = kRMin, kRMax, DkR
                      do jR = jRMin, jRMax, DjR
                         do iR = iRMin, iRMax, DiR
-                           iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
-                           jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
-                           kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                           iS = iSMin + abs((iR+9)/iRatioRestr &
+                                -           (iRMin+9)/iRatioRestr)
+                           jS = jSMin + abs((jR+9)/jRatioRestr &
+                                -           (jRMin+9)/jRatioRestr)
+                           kS = kSMin + abs((kR+9)/kRatioRestr &
+                                -           (kRMin+9)/kRatioRestr)
                            if(nProlongOrder == 2) then
                               ! For kRatio = 1 simple shift:
                               !    kS = kSMin + |kR - kRMin|
@@ -3212,9 +3215,12 @@ contains
                   !$acc iS1, jS1, kS1) collapse(4)
                   do kR = kRMin, kRMax, DkR; do jR = jRMin, jRMax, DjR;&
                        do iR = iRMin, iRMax, DiR; do iVarS = 1,nVar
-                     iS = iSMin + abs((iR+9)/iRatio - (iRMin+9)/iRatio)
-                     jS = jSMin + abs((jR+9)/jRatio - (jRMin+9)/jRatio)
-                     kS = kSMin + abs((kR+9)/kRatio - (kRMin+9)/kRatio)
+                     iS = iSMin + abs((iR+9)/iRatioRestr &
+                          -           (iRMin+9)/iRatioRestr)
+                     jS = jSMin + abs((jR+9)/jRatioRestr &
+                          -           (jRMin+9)/jRatioRestr)
+                     kS = kSMin + abs((kR+9)/kRatioRestr &
+                          -           (kRMin+9)/kRatioRestr)
 
                      iBufferS =nVar*( abs(iR-iRMin) &
                           + (abs(iRMax-iRMin) + 1)*(abs(jR-jRMin)  &
