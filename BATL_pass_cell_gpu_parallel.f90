@@ -545,7 +545,6 @@ contains
              !$acc update device(iSendStage, DoCountOnly, &
              !$acc nProlongOrder, iSendStage)
              ! acc nBufferR_P, nBufferS_P, iBufferS_P, &
-             
 
              ! Loop through all blocks that may send a message
              call timing_start('msg_pass_block')
@@ -794,7 +793,7 @@ contains
                   TimeOld_B, Time_B, iLevelMin, iLevelMax)
 !             else
 !                call message_pass_block(iBlockSend, nVar, nG, State_VGB, &
-!                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax) 
+!                     .false., TimeOld_B, Time_B, iLevelMin, iLevelMax)
 !             end if
           end do ! iBlockSend
           !$acc end parallel
@@ -1888,7 +1887,7 @@ contains
     IsAxisNode = .false.
     UseTime = .false.
 
-    !acc loop seq
+    ! acc loop seq
     do kDir = -1, 1
        ! Do not message pass in ignored dimensions
        if(nDim < 3 .and. kDir /= 0) CYCLE
@@ -1899,7 +1898,7 @@ contains
             kDir == +1 .and. &
             CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
 
-       !acc loop seq
+       ! acc loop seq
        do jDir = -1, 1
           if(nDim < 2 .and. jDir /= 0) CYCLE
           ! Skip edges
@@ -1912,7 +1911,7 @@ contains
                jDir == +1 .and. &
                CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
 
-          !acc loop seq
+          ! acc loop seq
           do iDir = -1,1
              ! Ignore inner parts of the sending block
              if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
@@ -2457,7 +2456,7 @@ contains
 !     subroutine do_equal_single(iDir, jDir, kDir, iNodeSend, iBlockSend,nVar,&
 !          nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
 
-!       !$acc routine vector
+!       !$ acc routine vector
 !       use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
 !            iBlockTest, iVarTest, iDimTest, iSideTest
 !       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_, nDim
@@ -2591,7 +2590,7 @@ contains
 ! #endif
 !          else
 ! #ifdef _OPENACC
-!             !$acc loop vector collapse(4)
+!             !$ acc loop vector collapse(4)
 !             do kS=kSMin,kSMax;do jS=jSMin,jSMax;do iS=iSMin,iSMax;do iVar=1,nVar
 !                iR = iRMin + DiR*(iS-iSMin)
 !                jR = jRMin + DjR*(jS-jSMin)
@@ -2607,7 +2606,6 @@ contains
 !          end if
 !       end if
 !     end subroutine do_equal_single
-    !==========================================================================
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B, &
          iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
@@ -4716,7 +4714,7 @@ contains
     IsAxisNode = .false.
     UseTime = .false.
 
-    !acc loop seq
+    ! acc loop seq
     do kDir = -1, 1
        ! Do not message pass in ignored dimensions
        if(nDim < 3 .and. kDir /= 0) CYCLE
@@ -4727,7 +4725,7 @@ contains
             kDir == +1 .and. &
             CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
 
-       !acc loop seq
+       ! acc loop seq
        do jDir = -1, 1
           if(nDim < 2 .and. jDir /= 0) CYCLE
           ! Skip edges
@@ -4740,7 +4738,7 @@ contains
                jDir == +1 .and. &
                CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
 
-          !acc loop seq
+          ! acc loop seq
           do iDir = -1,1
              ! Ignore inner parts of the sending block
              if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
@@ -4786,7 +4784,7 @@ contains
                    call do_equal_local(iDir, jDir, kDir,&
                         iNodeSend, iBlockSend, nVar, nG, State_VGB, &
                         DoRemote, IsAxisNode, iLevelMIn, Time_B, &
-                        TimeOld_B)                     
+                        TimeOld_B)
                 end if
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
@@ -4843,7 +4841,7 @@ contains
       integer :: iMsgGlob
       integer :: IntDir
 
-      character(len=*), parameter:: NameSub = 'do_equal'
+      character(len=*), parameter:: NameSub = 'do_equal_local'
       !------------------------------------------------------------------------
       DoTest = .false.
 
