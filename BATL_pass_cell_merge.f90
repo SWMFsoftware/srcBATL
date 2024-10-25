@@ -249,7 +249,7 @@ contains
     ! Local variables
 
     ! if input params are the same compared with last call
-    logical :: IsCounted 
+    logical :: IsCounted
 
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: nSendStage
@@ -274,7 +274,7 @@ contains
     if(present(DoTestIn)) DoTest = DoTestIn .or. DoTest
 
     if(DoTest)write(*,*)NameSub,' starting with nVar=', nVar
-    
+
     call timing_start('batl_pass')
 
     call timing_start('init_pass')
@@ -1077,13 +1077,13 @@ contains
       ! acc routine seq
 
       ! Set ranges of send and receive regions
-      
+
       integer:: iDir, kDir ,jDir
       integer:: nWidthProlongS_D(MaxDim), iDim
-      !------------------------------------------------------------------------
 
       !$omp parallel
       ! Indexed by iDir/jDir/kDir for sender = -1,0,1
+      !------------------------------------------------------------------------
       iEqualS_DII(:,-1,Min_) = 1
       iEqualS_DII(:,-1,Max_) = nWidth
       iEqualS_DII(:, 0,Min_) = 1
@@ -2594,7 +2594,7 @@ contains
                     WeightNew*State_VGB(:,iS,jS,kS,iBlockSend)
             end do; end do; end do
          else
-            !$acc loop vector collapse(3) private(iR,jR,kR)            
+            !$acc loop vector collapse(3) private(iR,jR,kR)
             do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
                iR = iRMin + DiR*(iS-iSMin)
                jR = jRMin + DjR*(jS-jSMin)
@@ -2673,7 +2673,7 @@ contains
 #ifndef _OPENACC
       real, allocatable:: State_VG(:,:,:,:)
 #endif
-      
+
       integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
       integer :: iBlockRecv,iProcRecv,iNodeRecv
       ! Index range for recv and send segments of the blocks
@@ -2925,7 +2925,7 @@ contains
             enddo
          endif
 #endif
-         
+
          ! encode the send direction into an integer
          IntDir = iSend
          if(nDim > 1) IntDir = IntDir +  4*jSend
