@@ -2453,159 +2453,6 @@ contains
 
     end subroutine corrected_do_equal
     !==========================================================================
-!     subroutine do_equal_single(iDir, jDir, kDir, iNodeSend, iBlockSend,nVar,&
-!          nG, State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
-
-!       !$ acc routine vector
-!       use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
-!            iBlockTest, iVarTest, iDimTest, iSideTest
-!       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_, nDim
-!       use BATL_mpi, ONLY: iProc, nProc
-
-!       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
-!       real, intent(inout):: State_VGB(nVar,&
-!            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
-!       logical, intent(in):: DoRemote, IsAxisNode
-!       integer, optional, intent(in):: iLevelMin
-!       real,    optional, intent(in):: Time_B(MaxBlock)
-!       real,    optional, intent(in):: TimeOld_B(MaxBlock)
-
-!       integer :: iBufferS, iVarS, i, j, k, nSize, nWithin
-!       real    :: WeightOld, WeightNew
-
-!       integer :: iSend, jSend, kSend
-!       integer :: iBlockRecv, iProcRecv, iNodeRecv
-!       ! Index range for recv and send segments of the blocks
-!       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
-!       integer :: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
-!       ! Message passing across the pole can reverse the recv. index range
-!       integer :: DiR, DjR, DkR
-
-!       logical :: DoTest
-
-! #ifdef _OPENACC
-!       integer:: iS, jS, kS, iR, jR, kR, iVar
-! #endif
-!       integer :: iMsgGlob
-!       integer :: IntDir
-
-!       character(len=*), parameter:: NameSub = 'do_equal'
-!       !------------------------------------------------------------------------
-!       DoTest = .false.
-
-!       DiR = 1; DjR = 1; DkR = 1
-
-!       iSend = (3*iDir + 3)/2
-!       jSend = (3*jDir + 3)/2
-!       kSend = (3*kDir + 3)/2
-
-!       ! iNodeSend is passed in
-!       iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
-!       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
-
-!       if(iProc == iProcRecv .eqv. DoRemote) RETURN
-
-!       iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
-!       ! Skip blocks with a time level outside the range
-! #ifndef _OPENACC
-!       if(UseTimeLevel .and. present(iLevelMin))then
-!          if(  iTimeLevel_A(iNodeRecv) < iLevelMin .and. &
-!               iTimeLevel_A(iNodeSend) < iLevelMin) RETURN
-!       end if
-! #endif
-
-!       ! For part implicit and part steady schemes
-!       if(Unused_BP(iBlockRecv,iProcRecv)) RETURN
-
-!       ! No need to count data for local copy
-!       ! if(DoCountOnly .and. iProc == iProcRecv) RETURN
-
-! !!! Message size can be computed from arrays in set_range
-!       ! e.g. iDir,jDir,kDir = (1,0,0): send nj*nk*nG
-!       ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
-!       ! iDir,jDir,kDir = (1,0,1): send nG*nj*nG
-!       ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
-!       iRMin = iEqualR_DII(1,iDir,Min_)
-!       iRMax = iEqualR_DII(1,iDir,Max_)
-!       jRMin = iEqualR_DII(2,jDir,Min_)
-!       jRMax = iEqualR_DII(2,jDir,Max_)
-!       kRMin = iEqualR_DII(3,kDir,Min_)
-!       kRMax = iEqualR_DII(3,kDir,Max_)
-
-!       ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
-! #ifndef _OPENACC
-!       if(iSendStage == 3) then
-!          ! Only edge/corner cells need to be overwritten.
-!          nWithin = 0
-!          if(.not.(iRMin >= 0 .and. iRMin <= nI)) nWithin = nWithin + 1
-!          if(.not.(jRMin >= 0 .and. jRMin <= nJ)) nWithin = nWithin + 1
-!          if(.not.(kRMin >= 0 .and. kRMin <= nK)) nWithin = nWithin + 1
-!          if(nWithin < 1) RETURN
-!       endif
-! #endif
-
-!       if(IsAxisNode)then
-!          if(IsLatitudeAxis)then
-!             kRMin = iEqualR_DII(3,-kDir,Max_)
-!             kRMax = iEqualR_DII(3,-kDir,Min_)
-!          elseif(IsSphericalAxis)then
-!             jRMin = iEqualR_DII(2,-jDir,Max_)
-!             jRMax = iEqualR_DII(2,-jDir,Min_)
-!          elseif(IsCylindricalAxis)then
-!             iRMin = iEqualR_DII(1,1,Max_)
-!             iRMax = iEqualR_DII(1,1,Min_)
-!          end if
-!       end if
-
-!       iSMin = iEqualS_DII(1,iDir,Min_)
-!       iSMax = iEqualS_DII(1,iDir,Max_)
-!       jSMin = iEqualS_DII(2,jDir,Min_)
-!       jSMax = iEqualS_DII(2,jDir,Max_)
-!       kSMin = iEqualS_DII(3,kDir,Min_)
-!       kSMax = iEqualS_DII(3,kDir,Max_)
-
-!       if(iProc == iProcRecv)then
-!          ! Local copy
-!          if(nDim > 1) DiR = sign(1, iRMax - iRMin)
-!          if(nDim > 2) DjR = sign(1, jRMax - jRMin)
-!          if(nDim > 2) DkR = sign(1, kRMax - kRMin)
-
-!          if(present(Time_B)) &
-!               UseTime = (Time_B(iBlockSend) /= Time_B(iBlockRecv))
-
-!          if(UseTime)then
-! #ifndef _OPENACC
-!             ! Time interpolation
-!             WeightOld = (Time_B(iBlockSend) - Time_B(iBlockRecv)) &
-!                  /      (Time_B(iBlockSend) - TimeOld_B(iBlockRecv))
-!             WeightNew = 1 - WeightOld
-!             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
-!                  iBlockRecv) = WeightOld * &
-!                  State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR, &
-!                  iBlockRecv) + WeightNew * &
-!                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-! #endif
-!          else
-! #ifdef _OPENACC
-!             !$ acc loop vector collapse(4)
-!             do kS=kSMin,kSMax;do jS=jSMin,jSMax;do iS=iSMin,iSMax;do iVar=1,nVar
-!                iR = iRMin + DiR*(iS-iSMin)
-!                jR = jRMin + DjR*(jS-jSMin)
-!                kR = kRMin + DkR*(kS-kSMin)
-!                State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-!                     State_VGB(iVar,iS,jS,kS,iBlockSend)
-!             end do; end do; end do; end do
-! #else
-!             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
-!                  iBlockRecv)= &
-!                  State_VGB(:,iSMin:iSMax,jSMin:jSMax,kSMin:kSMax,iBlockSend)
-! #endif
-!          end if
-!       end if
-!     end subroutine do_equal_single
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B, &
          iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
@@ -2749,13 +2596,19 @@ contains
          else
 #ifdef _OPENACC
             !$acc loop vector collapse(4)
-            do kS=kSMin,kSMax;do jS=jSMin,jSMax;do iS=iSMin,iSMax;do iVar=1,nVar
-               iR = iRMin + DiR*(iS-iSMin)
-               jR = jRMin + DjR*(jS-jSMin)
-               kR = kRMin + DkR*(kS-kSMin)
-               State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                    State_VGB(iVar,iS,jS,kS,iBlockSend)
-            end do; end do; end do; end do
+            do kS=kSMin,kSMax
+               do jS=jSMin,jSMax
+                  do iS=iSMin,iSMax
+                     do iVar=1,nVar
+                        iR = iRMin + DiR*(iS-iSMin)
+                        jR = jRMin + DjR*(jS-jSMin)
+                        kR = kRMin + DkR*(kS-kSMin)
+                        State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
+                             State_VGB(iVar,iS,jS,kS,iBlockSend)
+                     end do
+                  end do
+               end do
+            end do
 #else
             State_VGB(:,iRMin:iRMax:DiR,jRMin:jRMax:DjR,kRMin:kRMax:DkR,&
                  iBlockRecv)= &
