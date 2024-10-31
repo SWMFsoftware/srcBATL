@@ -74,7 +74,7 @@ module BATL_pass_cell_gpu_parallel
 
   ! number of indexes sent with each message: iBlock and 2*nDim index limits
   integer, parameter:: nIndex = 1 + 2*nDim
-  ! number of reals = number of indexes + 1 if time interpolation is 
+  ! number of reals = number of indexes + 1 if time interpolation is
   ! implemented in the future
   integer:: nReal
   !$acc declare create(nReal)
@@ -238,7 +238,7 @@ contains
 
     logical :: DoTest
     logical :: IsCounted ! if input params are the same compared with last call
-    character(len=*), parameter:: NameSub = 'message_pass_real'
+    character(len=*), parameter:: NameSub = 'message_pass_real_gpu'
     !--------------------------------------------------------------------------
     DoTest = .false.
 
@@ -897,7 +897,7 @@ contains
     end subroutine set_range
     !==========================================================================
   end subroutine message_pass_real_gpu
-  !==========================================================================
+  !============================================================================
   subroutine message_count_block(iBlockSend, nVar, nG, &
        nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI)
     ! run in serially on cpu
@@ -1492,7 +1492,7 @@ contains
       integer :: iMsgGlob
       integer :: IntDir
 
-      character(len=*), parameter:: NameSub = 'do_equal'
+      character(len=*), parameter:: NameSub = 'do_equal_remote'
       !------------------------------------------------------------------------
       DoTest = .false.
 

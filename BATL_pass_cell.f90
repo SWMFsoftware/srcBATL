@@ -228,7 +228,6 @@ contains
        RETURN
     end if
 
-
     DoTest = .false.
 
     call test_start(NameSub,DoTest)
@@ -1098,7 +1097,7 @@ contains
          Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock)
 
     !$acc update device(Scalar_VGB)
-    
+
     call message_pass_cell(1, nG, Scalar_VGB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
@@ -1107,7 +1106,7 @@ contains
          UseOpenACCIn=UseOpenACCIn)
 
     !$acc update host(Scalar_VGB)
-    
+
     Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock) = &
          nint(Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock))
 
