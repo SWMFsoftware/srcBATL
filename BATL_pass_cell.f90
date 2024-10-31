@@ -3,6 +3,7 @@
 !  For more information, see http://csem.engin.umich.edu/tools/swmf
 module BATL_pass_cell
 
+  use BATL_pass_cell_gpu_parallel, ONLY: message_pass_real_gpu
   use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
        iBlockTest, iVarTest, iDimTest, iSideTest, iProcTest
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
@@ -219,6 +220,15 @@ contains
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
+    if(UseOpenACC)then
+       call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
+         nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, DoRestrictFaceIn, &
+         DoTestIn, NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn, &
+         UseOpenACCIn=UseOpenACCIn, iDecomposition=iDecomposition)
+       RETURN
+    end if
+
+
     DoTest = .false.
 
     call test_start(NameSub,DoTest)
@@ -1057,7 +1067,7 @@ contains
     ! Message pass scalar integer data with BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, &
          nBlock
-
+    use BATL_mpi, ONLY: iProc
     ! Arguments
     integer, intent(inout) :: Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock)
 
@@ -1087,12 +1097,17 @@ contains
     Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock) = &
          Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock)
 
+    !$acc update device(Scalar_VGB)
+    
     call message_pass_cell(1, nG, Scalar_VGB, nWidthIn=nWidthIn, &
          nProlongOrderIn=nProlongOrderIn, nCoarseLayerIn=nCoarseLayerIn, &
          DoSendCornerIn=DoSendCornerIn, DoRestrictFaceIn=DoRestrictFaceIn, &
          TimeOld_B=TimeOld_B, Time_B=Time_B, DoTestIn=DoTestIn, &
-         NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn)
+         NameOperatorIn=NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn,&
+         UseOpenACCIn=UseOpenACCIn)
 
+    !$acc update host(Scalar_VGB)
+    
     Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock) = &
          nint(Scalar_VGB(1,MinI:MaxI,MinJ:MaxJ,MinK:MaxK,1:nBlock))
 
