@@ -9,11 +9,6 @@ module BATL_pass_cell_gpu_parallel
        IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
        coord_to_xyz
   use ModNumConst, ONLY: cPi, cHalfPi
-  use BATL_high_order, ONLY: restrict_high_order_reschange, &
-       prolong_high_order_amr, &
-       prolong_high_order_face_ghost, &
-       correct_face_ghost_for_fine_block, &
-       limit_interpolation, restrict_high_order_amr
   use BATL_size, ONLY: MaxDim, nDim, nGang, nBlock
   use ModUtilities, ONLY: CON_stop, lower_case
   use ModMpi
@@ -203,22 +198,6 @@ contains
     !    cell values for the coarse ghost cell. Default is the average.
     ! DoResChangeOnlyIn determines if only ghost cells next to resolution
     !    changes are filled in. Default is false.
-    ! iLevelMin and iLevelMax restrict the communication for blocks with
-    !    grid or time (if Time_B is present) levels in the
-    !    iLevelMin..iLevelMax range.
-    !    Default is message passing among all levels.
-    ! TimeOld_B and Time_B are the simulation times associated with the
-    !    ghost cells and physical cells of State_VGB, respectively.
-    !    If these arguments are present, the ghost cells are interpolated
-    !    in time. Default is a simple update with no temporal interpolation.
-    ! UseHighResChangeIn determines if the fifth-order accurate scheme is
-    !    used to obtain the ghost cell values at resolution changes.
-    !    Default is false.
-    ! DefaultState_V determines if the variables in State_VGB should be kept
-    !    positive. Values larger than 0 indicates positive variables (like
-    !    density or pressure). These variables are kept positive by
-    !    the high order scheme. By default no variables are forced to
-    !    remain positive.
     ! DoTestIn determines if verbose information should be printed.
     ! Local variables
 
@@ -652,7 +631,7 @@ contains
           ! Local message passing
           call timing_start('local_mp_pass')
 
-          !$acc parallel !!!copyin(iLevelMin, iLevelMax)
+          !$acc parallel
           !$acc loop gang
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
@@ -1529,18 +1508,6 @@ contains
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
 
-      ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
-#ifndef _OPENACC
-      if(iSendStage == 3) then
-         ! Only edge/corner cells need to be overwritten.
-         nWithin = 0
-         if(.not.(iRMin >= 0 .and. iRMin <= nI)) nWithin = nWithin + 1
-         if(.not.(jRMin >= 0 .and. jRMin <= nJ)) nWithin = nWithin + 1
-         if(.not.(kRMin >= 0 .and. kRMin <= nK)) nWithin = nWithin + 1
-         if(nWithin < 1) RETURN
-      endif
-#endif
-
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
             kRMin = iEqualR_DII(3,-kDir,Max_)
@@ -2190,13 +2157,10 @@ contains
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
 
-      logical :: DoTest
-
-#ifdef _OPENACC
+      logical:: DoTest
       integer:: iS, jS, kS, iR, jR, kR, iVar
-#endif
-      integer :: iMsgGlob
-      integer :: IntDir
+      integer:: iMsgGlob
+      integer:: IntDir
 
       character(len=*), parameter:: NameSub = 'do_equal_local'
       !------------------------------------------------------------------------
@@ -2272,13 +2236,15 @@ contains
          if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
          !$acc loop vector collapse(4)
-         do kS=kSMin,kSMax; do jS=jSMin,jSMax; do iS=iSMin,iSMax; do iVar=1,nVar
-            iR = iRMin + DiR*(iS-iSMin)
-            jR = jRMin + DjR*(jS-jSMin)
-            kR = kRMin + DkR*(kS-kSMin)
-            State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
-                 State_VGB(iVar,iS,jS,kS,iBlockSend)
-         end do;end do;end do;end do
+         do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
+            do iVar=1,nVar
+               iR = iRMin + DiR*(iS-iSMin)
+               jR = jRMin + DjR*(jS-jSMin)
+               kR = kRMin + DkR*(kS-kSMin)
+               State_VGB(iVar,iR,jR,kR,iBlockRecv) = &
+                    State_VGB(iVar,iS,jS,kS,iBlockSend)
+            end do
+         end do; end do; end do
       end if
     end subroutine do_equal_local
     !==========================================================================
@@ -2352,14 +2318,6 @@ contains
 
       ! If this is the pure prolongation stage, all we did was counting
       if(iSendStage == 2) RETURN
-
-      ! For high resolution change, the finer block receives data from
-      ! coarser or equal blocks when iSendStage = 1. Restriction will
-      ! be done when iSendStage = 2.
-      ! if(UseHighResChange .and. iSendStage == 1) RETURN
-
-      ! Do prolongation for edge/corner ghost cells remotely.
-      ! if(UseHighResChange .and. iSendStage == 4) RETURN
 
       iRecv = iSend - 3*iDir
       jRecv = jSend - 3*jDir
