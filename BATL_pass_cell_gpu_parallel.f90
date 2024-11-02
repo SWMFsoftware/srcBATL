@@ -128,15 +128,14 @@ module BATL_pass_cell_gpu_parallel
 
   ! initialize iDecomposition to force counting for the first time
   integer :: iDecompositionOld = -1
-  logical :: DoSendCornerOld, DoRestrictFaceOld, DoResChangeOnlyOld, &
-       UseOpenACCOld
+  logical :: DoSendCornerOld, DoRestrictFaceOld, DoResChangeOnlyOld
 
 contains
   !============================================================================
   subroutine message_pass_real_gpu(nVar, nG, State_VGB, &
        nWidthIn, nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
        DoRestrictFaceIn, DoTestIn, NameOperatorIn, &
-       DoResChangeOnlyIn, UseOpenACCIn, iDecomposition)
+       DoResChangeOnlyIn, iDecomposition)
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
@@ -158,7 +157,7 @@ contains
     character(len=*), optional,intent(in) :: NameOperatorIn
     logical, optional, intent(in) :: DoResChangeOnlyIn
     logical, optional, intent(in) :: DoTestIn
-    logical, optional, intent(in) :: UseOpenACCIn
+
     ! if grid changes or load is rebalanced iDecomposition changes
     integer, optional, intent(in) :: iDecomposition
 
@@ -187,8 +186,6 @@ contains
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: nSendStage
     integer :: iBlock
-
-    logical :: UseOpenACC
 
     integer :: nMsgSend = 0
     integer :: nMsgRecv = 0
@@ -229,9 +226,6 @@ contains
     DoResChangeOnly =.false.
     if(present(DoResChangeOnlyIn)) DoResChangeOnly = DoResChangeOnlyIn
 
-    UseOpenACC = .false.
-    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
-
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
          ' cannot use 2nd order prolongation with face restriction')
@@ -254,8 +248,7 @@ contains
          nCoarseLayer == nCoarseLayerOld .and. &
          DoSendCorner .eqv. DoSendCornerOld .and. &
          DoRestrictFace .eqv. DoRestrictFaceOld .and. &
-         DoResChangeOnly .eqv. DoResChangeOnlyOld .and. &
-         UseOpenACC .eqv. UseOpenACCOld
+         DoResChangeOnly .eqv. DoResChangeOnlyOld
 
     if(present(iDecomposition))then
        IsCounted = IsCounted .and. iDecomposition == iDecompositionOld
@@ -352,25 +345,21 @@ contains
        end if
     end if
 
-    if(UseOpenACC) then
-       !$acc update device( &
-       !$acc DoSendCorner, DoResChangeOnly, MaxBlock,  &
-       !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
-       !$acc UseMin, UseMax, nIndex)
+    !$acc update device( &
+    !$acc DoSendCorner, DoResChangeOnly, MaxBlock,  &
+    !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
+    !$acc UseMin, UseMax, nIndex)
 
-       ! The following can run (in series) on GPU as:
-       ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
+    ! The following can run (in series) on GPU as:
+    ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
 
-       ! Set index ranges based on arguments
-       call set_range
+    ! Set index ranges based on arguments
+    call set_range
 
-       ! Since set_range runs on CPU, update the following on the device:
-       !$acc update device(iEqualS_DII, iEqualR_DII, &
-       !$acc iRestrictS_DII, iRestrictR_DII, iProlongS_DII, &
-       !$acc iProlongR_DII)
-    else
-       call set_range
-    endif
+    ! Since set_range runs on CPU, update the following on the device:
+    !$acc update device(iEqualS_DII, iEqualR_DII, &
+    !$acc iRestrictS_DII, iRestrictR_DII, iProlongS_DII, &
+    !$acc iProlongR_DII)
 
     call timing_stop('init_pass')
 
@@ -381,39 +370,21 @@ contains
     if(nProc == 1) then
 
        do iSendStage = 1, nSendStage
+          call timing_start('msg_pass_block')
+          !$acc update device(iSendStage)
 
-          call timing_start('single_pass')
+          ! Loop through all blocks that may send a message
+          !$acc parallel loop gang present(State_VGB)
+          do iBlockSend = 1, nBlock
+             if(Unused_B(iBlockSend)) CYCLE
+             if(DoTest .and. iBlockSend==iBlockTest)then
+                write(*,*)'On iProc=', iProc, ' iBlock=', iBlockSend, &
+                     'iTest=', iTest, 'jTest=', jTest, 'kTest=', kTest
+             end if
+             call message_pass_block_local(iBlockSend, nVar, nG,State_VGB)
+          end do ! iBlockSend
 
-          if(UseOpenACC) then
-             !$acc update device(iSendStage)
-
-             ! Loop through all blocks that may send a message
-             call timing_start('msg_pass_block')
-             !$acc parallel loop gang present(State_VGB)
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                if(DoTest .and. iBlockSend==iBlockTest)then
-                   write(*,*)'On iProc=', iProc, ' iBlock=', iBlockSend, &
-                        'iTest=', iTest, 'jTest=', jTest, 'kTest=', kTest
-                end if
-                call message_pass_block_local(iBlockSend, nVar, nG,State_VGB)
-             end do ! iBlockSend
-
-             call timing_stop('msg_pass_block')
-          else
-             ! Loop through all blocks that may send a message
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                if(DoTest .and. iBlockSend==iBlockTest)then
-                   write(*,*)'On iProc=', iProc, ' iBlock=', iBlockSend, &
-                        'iTest=', iTest, 'jTest=', jTest, 'kTest=', kTest
-                   write(*,*)''
-                end if
-                call message_pass_block_local(iBlockSend, nVar, nG,State_VGB)
-             end do ! iBlockSend
-          endif
-
-          call timing_stop('single_pass')
+          call timing_stop('msg_pass_block')
        end do
     else
        ! nProc > 1 case
@@ -422,14 +393,10 @@ contains
 
           call timing_start('remote_pass')
 
-          if (.not. allocated(iRequestS_I))&
-               allocate(iRequestS_I(1:nProc-1))
-          if (.not. allocated(iRequestR_I))&
-               allocate(iRequestR_I(1:nProc-1))
-          if (.not. allocated(iRequestSMap_I))&
-               allocate(iRequestSMap_I(1:nProc-1))
-          if (.not. allocated(iRequestRMap_I))&
-               allocate(iRequestRMap_I(1:nProc-1))
+          if (.not. allocated(iRequestS_I)) allocate(iRequestS_I(nProc-1))
+          if (.not. allocated(iRequestR_I)) allocate(iRequestR_I(nProc-1))
+          if (.not. allocated(iRequestSMap_I)) allocate(iRequestSMap_I(nProc-1))
+          if (.not. allocated(iRequestRMap_I))  allocate(iRequestRMap_I(nProc-1))
 
           ! Count only once for
           !   1. nMsgSend_PI, which is the size of memory maps
@@ -533,30 +500,18 @@ contains
              call timing_stop('Count_1')
           end if ! IsCounted
 
-          if(UseOpenACC) then
-             call timing_start('fill_buffer_gpu')
-             ! Prepare the buffer for remote message passing
-             !$acc update device(nProlongOrder)
+          call timing_start('fill_buffer_gpu')
+          ! Prepare the buffer for remote message passing
 
-             ! Loop through all blocks that may send a message
-             !$acc parallel present(State_VGB)
-             !$acc loop gang
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                call message_pass_block_remote(iBlockSend, nVar, nG, &
-                     State_VGB, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
-             end do ! iBlockSend
-             !$acc end parallel
-             call timing_stop('fill_buffer_gpu')
-          else
-             call timing_start('fill_buffer_cpu')
-             do iBlockSend = 1, nBlock
-                if(Unused_B(iBlockSend)) CYCLE
-                call message_pass_block_remote(iBlockSend, nVar, nG, &
-                     State_VGB, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
-             end do ! iBlockSend
-             call timing_stop('fill_buffer_cpu')
-          end if
+          ! Loop through all blocks that may send a message
+          !$acc parallel loop gang present(State_VGB)
+          do iBlockSend = 1, nBlock
+             if(Unused_B(iBlockSend)) CYCLE
+             call message_pass_block_remote(iBlockSend, nVar, nG, &
+                  State_VGB, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+          end do
+
+          call timing_stop('fill_buffer_gpu')
 
           call timing_stop('remote_pass')
 
@@ -567,13 +522,12 @@ contains
              iRequestS = iRequestS + 1
              call MPI_isend(BufferS_IP(1,iProcSend), &
                   nSizeBufferS_PI(iProcSend,iSendStage), MPI_REAL, iProcSend, &
-                  10, iComm, iRequestS_I(iRequestS),iError)
-             ! use iscounted for sending/recving iBuffer
+                  10, iComm, iRequestS_I(iRequestS), iError)
              ! if input parameters are new, resend iBuffer
-             if(.not. IsCounted) call MPI_isend(&
-                  iBufferS_IPI(1,iProcSend,iSendStage),&
+             if(.not. IsCounted) call MPI_isend( &
+                  iBufferS_IPI(1,iProcSend,iSendStage), &
                   nMsgSend_PI(iProcSend,iSendStage), MPI_INTEGER, iProcSend, &
-                  11, iComm, iRequestSMap_I(iRequestS),iError)
+                  11, iComm, iRequestSMap_I(iRequestS), iError)
           end do
           !$acc end host_data
 
@@ -582,13 +536,13 @@ contains
           do iProcSend = 0, nProc-1
              if(iProc == iProcSend) CYCLE
              iRequestR = iRequestR + 1
-             call MPI_irecv(BufferR_IP(1,iProcSend),&
+             call MPI_irecv(BufferR_IP(1,iProcSend), &
                   nSizeBufferR_PI(iProcSend,iSendStage), MPI_REAL, iProcSend, &
-                  10, iComm, iRequestR_I(iRequestR),iError)
-             if(.not. IsCounted) call MPI_irecv(&
-                  iBufferR_IPI(1,iProcSend,iSendStage),&
+                  10, iComm, iRequestR_I(iRequestR), iError)
+             if(.not. IsCounted) call MPI_irecv( &
+                  iBufferR_IPI(1,iProcSend,iSendStage), &
                   nMsgRecv_PI(iProcSend,iSendStage), MPI_INTEGER, iProcSend, &
-                  11, iComm, iRequestRMap_I(iRequestR),iError)
+                  11, iComm, iRequestRMap_I(iRequestR), iError)
           end do
           !$acc end host_data
 
@@ -645,7 +599,6 @@ contains
     DoSendCornerOld = DoSendCorner
     DoRestrictFaceOld = DoRestrictFace
     DoResChangeOnlyOld = DoResChangeOnly
-    UseOpenACCOld = UseOpenACC
 
     call timing_stop('part1_pass')
 

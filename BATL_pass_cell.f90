@@ -204,8 +204,7 @@ contains
     if(UseOpenACC)then
        call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
          nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, DoRestrictFaceIn, &
-         DoTestIn, NameOperatorIn, DoResChangeOnlyIn=DoResChangeOnlyIn, &
-         UseOpenACCIn=UseOpenACCIn, iDecomposition=iDecomposition)
+         DoTestIn, NameOperatorIn, DoResChangeOnlyIn, iDecomposition)
        RETURN
     end if
 #endif
