@@ -181,8 +181,8 @@ contains
     ! Local variables
 
     ! true if input parameters are as in the last call
-    logical :: IsCounted 
-    
+    logical :: IsCounted
+
     integer :: iProcRecv, iBlockSend, iProcSend
     integer :: nSendStage
     integer :: iBlock
@@ -880,7 +880,7 @@ contains
              if(iSendStage == 2 .and. DiLevel == 0) CYCLE
 !!! We should also not do prolongation in the first stage if
 !!! nProlongOrder == 2
-             
+
              ! find out each block does how many comms
              if(DiLevel == 0) then
                 ! Equal resolution
@@ -2017,7 +2017,7 @@ contains
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
       ! Only local message passing is done here
       if(iProcRecv /= iProc) RETURN
-      
+
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
       ! For part implicit and part steady schemes
