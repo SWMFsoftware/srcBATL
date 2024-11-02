@@ -89,7 +89,7 @@ module BATL_pass_cell_gpu_parallel
   ! second stage uses these to prolong and fill in finer ghost cells
   integer, parameter:: MaxStage=2
   ! indexes for multiple stages
-  integer :: iSendStage, iSubStage
+  integer :: iSendStage
   !$acc declare create(iSendStage)
 
   ! number of messages sent to another processor
@@ -923,8 +923,11 @@ contains
              ! nProlongOrder=2. We still need to call restriction
              ! and prolongation in both stages to calculate the
              ! amount of received data
+!!! This should be DiLevel >= 0. Restriction happens in stage 1.
              if(iSendStage == 2 .and. DiLevel == 0) CYCLE
-
+!!! We should also not do prolongation in the first stage if
+!!! nProlongOrder == 2
+             
              ! find out each block does how many comms
              if(DiLevel == 0) then
                 ! Equal resolution
@@ -1734,6 +1737,7 @@ contains
                ! For part implicit and part steady schemes
                if(Unused_BP(iBlockRecv,iProcRecv)) CYCLE
 
+!!! This should be done outside of the call
                ! For 2nd order prolongation no prolongation is done in stage 1
                if(iSendStage < nProlongOrder) CYCLE
 
@@ -1992,20 +1996,9 @@ contains
              ! Level difference = own_level - neighbor_level
              DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
 
-             ! Do prolongation in the second stage if
-             ! nProlongOrder=2. We still need to call restriction
-             ! and prolongation in both stages to calculate the
-             ! amount of received data
+             ! Do prolongation in the second stage if nProlongOrder=2
+!!! This should be <= 0
              if(iSendStage == 2 .and. DiLevel == 0) CYCLE
-
-             ! Fill in the edge/corner ghost cells with values from
-             ! face ghost cells.
-             ! if(iSendStage == 3 .and. DiLevel /= 0) CYCLE
-
-             ! Remote high order prolongation
-             ! if(iSendStage == 4 .and. DiLevel == 0) CYCLE
-
-             ! Due to isolation of the counting sub, no need to count here
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -2067,11 +2060,11 @@ contains
       jSend = (3*jDir + 3)/2
       kSend = (3*kDir + 3)/2
 
-      ! iNodeSend is passed in
       iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
-
+      ! Only local message passing is done here
+      if(iProcRecv /= iProc) RETURN
+      
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
       ! For part implicit and part steady schemes
@@ -2088,18 +2081,6 @@ contains
       jRMax = iEqualR_DII(2,jDir,Max_)
       kRMin = iEqualR_DII(3,kDir,Min_)
       kRMax = iEqualR_DII(3,kDir,Max_)
-
-      ! OpenACC: For 2nd and 1st order scheme, iSendStage can not be 3.
-#ifndef _OPENACC
-      if(iSendStage == 3) then
-         ! Only edge/corner cells need to be overwritten.
-         nWithin = 0
-         if(.not.(iRMin >= 0 .and. iRMin <= nI)) nWithin = nWithin + 1
-         if(.not.(jRMin >= 0 .and. jRMin <= nJ)) nWithin = nWithin + 1
-         if(.not.(kRMin >= 0 .and. kRMin <= nK)) nWithin = nWithin + 1
-         if(nWithin < 1) RETURN
-      endif
-#endif
 
       if(IsAxisNode)then
          if(IsLatitudeAxis)then
@@ -2144,6 +2125,7 @@ contains
          nVar, nG, State_VGB, IsAxisNode, &
          iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
       !$acc routine vector
+
       use BATL_mpi, ONLY: iProc
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
 
@@ -2196,8 +2178,9 @@ contains
       kSend = (3*kDir + 3 + kSide)/2
 
       iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
+      ! Only local message passing is done here
+      if(iProcRecv /= iProc) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
@@ -2342,7 +2325,6 @@ contains
       !------------------------------------------------------------------------
       DiR = 1; DjR = 1; DkR = 1
 
-      iGang = 1
       iGang = iBlockSend
 
       ! Loop through the subfaces or subedges
@@ -2357,8 +2339,9 @@ contains
                iRecv = iSend - 3*iDir
 
                iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
                iProcRecv  = iTree_IA(Proc_,iNodeRecv)
+               ! Only local message passing is done here
+               if(iProcRecv /= iProc) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
 
