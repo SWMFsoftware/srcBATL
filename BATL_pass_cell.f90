@@ -220,6 +220,7 @@ contains
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
+#ifdef _OPENACC
     if(UseOpenACC)then
        call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
          nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, DoRestrictFaceIn, &
@@ -227,6 +228,7 @@ contains
          UseOpenACCIn=UseOpenACCIn, iDecomposition=iDecomposition)
        RETURN
     end if
+#endif
 
     DoTest = .false.
 
