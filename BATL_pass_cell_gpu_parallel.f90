@@ -75,7 +75,6 @@ module BATL_pass_cell_gpu_parallel
   ! 2nd and 1st order prolongation schemes.
   !$acc declare create(iEqualS_DII, iEqualR_DII)
 
-
   integer :: iRequestR, iRequestS, iError
   integer, allocatable:: iRequestR_I(:), iRequestS_I(:)
   integer, allocatable:: iRequestRMap_I(:), iRequestSMap_I(:)
@@ -178,7 +177,7 @@ contains
     ! Local variables
 
     ! true if input parameters are as in the last call
-    logical :: IsCounted 
+    logical :: IsCounted
 
     integer :: iBlockSend, iProcSend
 
@@ -189,7 +188,6 @@ contains
     integer :: nMsg = 0
     integer :: nMsgSendCap = 0 ! dynamic array capacity
     !$acc declare create(nMsgSend, nMsgRecv, nMsg)
-
 
     logical :: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real_gpu'
@@ -393,8 +391,10 @@ contains
 
           if (.not. allocated(iRequestS_I)) allocate(iRequestS_I(nProc-1))
           if (.not. allocated(iRequestR_I)) allocate(iRequestR_I(nProc-1))
-          if (.not. allocated(iRequestSMap_I)) allocate(iRequestSMap_I(nProc-1))
-          if (.not. allocated(iRequestRMap_I))  allocate(iRequestRMap_I(nProc-1))
+          if (.not. allocated(iRequestSMap_I)) &
+               allocate(iRequestSMap_I(nProc-1))
+          if (.not. allocated(iRequestRMap_I)) &
+               allocate(iRequestRMap_I(nProc-1))
 
           ! Count only once for
           !   1. nMsgSend_PI, which is the size of memory maps
@@ -771,10 +771,10 @@ contains
   subroutine message_count_block(iBlockSend, nVar, nG, &
        nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI)
     ! run in serially on cpu
-!!! optional: use a scalar to get out after estimating nMsgSend and Recv
+!!! alternative algoritm:
+!!! use a scalar to get out after estimating nMsgSend and Recv
 
     use BATL_size, ONLY: iRatio, jRatio, kRatio
-    use BATL_grid, ONLY: CoordMin_DB, CoordMax_DB
     use BATL_tree, ONLY: &
          iNodeNei_IIIB, DiLevelNei_IIIB, iNode_B, &
          iTree_IA, Proc_, Block_, Coord1_, Coord2_, Coord3_
@@ -793,10 +793,6 @@ contains
     ! Local variables
     integer :: iNodeSend
     integer :: iDir, jDir, kDir
-
-    ! Is the sending node next to the symmetry axis?
-    logical :: IsAxisNode
-
     integer :: DiLevel
 
     ! local variables for parallel algorithm
@@ -812,30 +808,14 @@ contains
     !--------------------------------------------------------------------------
     iNodeSend = iNode_B(iBlockSend)
 
-    ! Skip if the sending block level is not in the level range
-    IsAxisNode = .false.
-
     do kDir = -1, 1
        ! Do not message pass in ignored dimensions
        if(nDim < 3 .and. kDir /= 0) CYCLE
 
-       if(nDim > 2 .and. IsLatitudeAxis) IsAxisNode = &
-            kDir == -1 .and. &
-            CoordMin_DB(Lat_,iBlockSend) < -cHalfPi + 1e-8 .or. &
-            kDir == +1 .and. &
-            CoordMax_DB(Lat_,iBlockSend) > +cHalfPi - 1e-8
-
        do jDir = -1, 1
           if(nDim < 2 .and. jDir /= 0) CYCLE
           ! Skip edges
-          if(.not.DoSendCorner .and. jDir /= 0 .and. kDir /= 0) &
-               CYCLE
-
-          if(nDim > 2 .and. IsSphericalAxis) IsAxisNode = &
-               jDir == -1 .and. &
-               CoordMin_DB(Theta_,iBlockSend) < 1e-8 .or. &
-               jDir == +1 .and. &
-               CoordMax_DB(Theta_,iBlockSend) > cPi - 1e-8
+          if(.not.DoSendCorner .and. jDir /= 0 .and. kDir /= 0) CYCLE
 
           do iDir = -1, 1
              ! Ignore inner parts of the sending block
@@ -844,9 +824,6 @@ contains
              ! Exclude corners where i and j or k is at the edge
              if(.not.DoSendCorner .and. iDir /= 0 .and. &
                   (jDir /= 0 .or.  kDir /= 0)) CYCLE
-
-             if(nDim > 1 .and. IsCylindricalAxis) IsAxisNode = &
-                  iDir == -1 .and. iTree_IA(Coord1_,iNodeSend) == 1
 
              ! Level difference = own_level - neighbor_level
              DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
@@ -1189,13 +1166,10 @@ contains
     integer, intent(in):: nG    ! number of ghost cells for 1..nDim
     real, intent(inout):: State_VGB(nVar, &
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
-    ! Send information from block iBlockSend to other blocks
-
     ! memory maps for parallel algorithm
-    integer, intent(inout), optional:: iMsgInit_PBI(0:,:,:)
-    integer, intent(inout), optional:: iBufferS_IPI(:,0:,:)
-    integer, intent(inout), optional:: iMsgDir_IBPI(0:,:,0:,:)
+    integer, intent(inout):: iMsgInit_PBI(0:,:,:)
+    integer, intent(inout):: iBufferS_IPI(:,0:,:)
+    integer, intent(inout):: iMsgDir_IBPI(0:,:,0:,:)
 
     ! Local variables
     integer :: iNodeSend
@@ -1205,8 +1179,6 @@ contains
     logical :: IsAxisNode
 
     integer :: DiLevel
-
-    ! local variables for parallel algorithm
     !--------------------------------------------------------------------------
     iNodeSend = iNode_B(iBlockSend)
 
@@ -1237,7 +1209,7 @@ contains
                CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
 
           ! acc loop seq
-          do iDir = -1,1
+          do iDir = -1, 1
              ! Ignore inner parts of the sending block
              if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
 
@@ -1283,8 +1255,7 @@ contains
   contains
     !==========================================================================
     subroutine do_equal_remote(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, &
-         nG, State_VGB, IsAxisNode, iMsgInit_PBI, iBufferS_IPI, &
-         iMsgDir_IBPI)
+         nG, State_VGB, IsAxisNode, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
 
       !$acc routine vector
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_, nDim
@@ -1293,12 +1264,10 @@ contains
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
       logical, intent(in):: IsAxisNode
-
-      integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
+      integer, intent(in):: iMsgInit_PBI(0:,:,:)
+      integer, intent(in):: iBufferS_IPI(:,0:,:)
+      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer :: iBufferS, iVarS, i, j, k
 
@@ -1311,7 +1280,6 @@ contains
       integer :: DiR, DjR, DkR
 
       logical :: DoTest
-
 
       integer :: iMsgGlob
       integer :: IntDir
@@ -1395,8 +1363,8 @@ contains
 
     end subroutine do_equal_remote
     !==========================================================================
-    subroutine do_restrict_remote(iDir, jDir, kDir, &
-         iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode, &
+    subroutine do_restrict_remote(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+         nVar, nG, State_VGB, IsAxisNode, &
          iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
       !$acc routine vector
 
@@ -1406,12 +1374,10 @@ contains
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
       logical, intent(in):: IsAxisNode
-
-      integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
+      integer, intent(in):: iMsgInit_PBI(0:,:,:)
+      integer, intent(in):: iBufferS_IPI(:,0:,:)
+      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer :: iR, jR, kR, iS1, jS1, kS1, iS2, jS2, kS2, iVar
       integer :: iRatioRestr, jRatioRestr, kRatioRestr
@@ -1575,12 +1541,10 @@ contains
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
       logical, intent(in):: IsAxisNode
-
-      integer, optional, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, optional, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, optional, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
+      integer, intent(in):: iMsgInit_PBI(0:,:,:)
+      integer, intent(in):: iBufferS_IPI(:,0:,:)
+      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer:: iR, jR, kR, iS, jS, kS, iS1, jS1, kS1
       integer:: iRatioRestr, jRatioRestr, kRatioRestr
@@ -1589,7 +1553,6 @@ contains
       real:: WeightI, WeightJ, WeightK
 
       integer :: iVarS
-
 
       integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
       integer :: iBlockRecv,iProcRecv,iNodeRecv, iGang
@@ -1849,7 +1812,7 @@ contains
                CoordMax_DB(Theta_,iBlockSend) > cPi-1e-8
 
           ! acc loop seq
-          do iDir = -1,1
+          do iDir = -1, 1
              ! Ignore inner parts of the sending block
              if(iDir == 0 .and. jDir == 0 .and. kDir == 0) CYCLE
 
@@ -1871,7 +1834,7 @@ contains
                 ! Send data to same-level neighbor
                 if(.not.DoResChangeOnly)then
                    call do_equal_local(iDir, jDir, kDir, &
-                        iNodeSend, iBlockSend, nVar, nG, State_VGB,IsAxisNode)
+                        iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
                 end if
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
@@ -1897,9 +1860,7 @@ contains
       integer, intent(in):: iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-
       logical, intent(in):: IsAxisNode
-
 
       integer :: iSend, jSend, kSend
       integer :: iBlockRecv, iProcRecv, iNodeRecv
