@@ -416,7 +416,7 @@ contains
                 if (Unused_B(iBlockSend))then
                    ! keep the initial index continuous
                    if(iBlockSend < nBlock)&
-                        iMsgInit_PBI(:,iBlockSend+1,iSendStage) =&
+                        iMsgInit_PBI(:,iBlockSend+1,iSendStage) = &
                         iMsgInit_PBI(:,iBlockSend,iSendStage)
                    CYCLE
                 else
@@ -832,10 +832,7 @@ contains
              ! nProlongOrder=2. We still need to call restriction
              ! and prolongation in both stages to calculate the
              ! amount of received data
-!!! This should be DiLevel >= 0. Restriction happens in stage 1.
              if(iSendStage == 2 .and. DiLevel == 0) CYCLE
-!!! We should also not do prolongation in the first stage if
-!!! nProlongOrder == 2
 
              ! find out each block does how many comms
              if(DiLevel == 0) then
@@ -1068,11 +1065,11 @@ contains
 
                                ! Block index, 2*nDim index limits, nVar*nCell
                                nSizeR = nIndex + &
-                                    nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)*&
+                                    nVar*(iRMax-iRMin+1)*(jRMax-jRMin+1)* &
                                     (kRMax-kRMin+1)
-                               nSizeBufferR_PI(iProcRecv,iSendStage) =&
-                                    nSizeBufferR_PI(iProcRecv,iSendStage)+&
-                                    nSizeR
+                               nSizeBufferR_PI(iProcRecv,iSendStage) = &
+                                    nSizeBufferR_PI(iProcRecv,iSendStage) &
+                                    + nSizeR
                             end if
                             CYCLE
                          end if
@@ -1223,13 +1220,8 @@ contains
              ! Level difference = own_level - neighbor_level
              DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
 
-             ! Do prolongation in the second stage if
-             ! nProlongOrder=2. We still need to call restriction
-             ! and prolongation in both stages to calculate the
-             ! amount of received data
-             if(iSendStage == 2 .and. DiLevel == 0) CYCLE
-
-             ! Due to isolation of the counting sub, no need to count here
+             ! Only prolongation in the second stage
+             if(iSendStage == 2 .and. DiLevel >= 0) CYCLE
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -1243,7 +1235,7 @@ contains
                 call do_restrict_remote(iDir, jDir, kDir, &
                      iNodeSend, iBlockSend, nVar, nG, State_VGB, &
                      IsAxisNode, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
-             elseif(DiLevel == -1)then
+             elseif(DiLevel == -1 .and. iSendStage == nProlongOrder)then
                 ! Send prolonged data to finer neighbor
                 call do_prolong_remote(iDir, jDir, kDir, &
                      iNodeSend, iBlockSend, nVar, nG, State_VGB, &
@@ -1337,15 +1329,14 @@ contains
       iMsgGlob = 1 + iMsgInit_PBI(iProcRecv,iBlockSend,iSendStage) + &
            iMsgDir_IBPI(IntDir, iBlockSend, iProcRecv, iSendStage)
       iBufferS = iBufferS_IPI(iMsgGlob,iProcRecv,iSendStage)
-      BufferS_IP(iBufferS, iProcRecv) = iBlockRecv
-      BufferS_IP(iBufferS+1, iProcRecv) = iRMin
-      BufferS_IP(iBufferS+2, iProcRecv) = iRMax
-      if(nDim > 1)BufferS_IP(iBufferS+3, iProcRecv) = jRMin
-      if(nDim > 1)BufferS_IP(iBufferS+4, iProcRecv) = jRMax
-      if(nDim > 2)BufferS_IP(iBufferS+5, iProcRecv) = kRMin
-      if(nDim > 2)BufferS_IP(iBufferS+6, iProcRecv) = kRMax
 
-!!! speed: collapse 3?
+      BufferS_IP(iBufferS,iProcRecv) = iBlockRecv
+      BufferS_IP(iBufferS+1,iProcRecv) = iRMin
+      BufferS_IP(iBufferS+2,iProcRecv) = iRMax
+      if(nDim > 1) BufferS_IP(iBufferS+3,iProcRecv) = jRMin
+      if(nDim > 1) BufferS_IP(iBufferS+4,iProcRecv) = jRMax
+      if(nDim > 2) BufferS_IP(iBufferS+5,iProcRecv) = kRMin
+      if(nDim > 2) BufferS_IP(iBufferS+6,iProcRecv) = kRMax
 
       !$acc loop vector collapse(4) private(iBufferS)
       do k = kSMin, kSmax; do j = jSMin, jSMax; do i = iSMin, iSmax
@@ -1395,7 +1386,6 @@ contains
 
       integer :: IntDir, iMsgGlob
       !------------------------------------------------------------------------
-      DiR = 1; DjR = 1; DkR = 1
 
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
@@ -1418,18 +1408,12 @@ contains
       kSend = (3*kDir + 3 + kSide)/2
 
       iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
       iProcRecv  = iTree_IA(Proc_,iNodeRecv)
-
       if(iProc == iProcRecv) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
       ! For part implicit and part steady schemes
       if(Unused_BP(iBlockRecv,iProcRecv)) RETURN
-
-      ! If this is the pure prolongation stage, all we did was counting
-      if(iSendStage == 2) RETURN
 
       iRecv = iSend - 3*iDir
       jRecv = jSend - 3*jDir
@@ -1456,6 +1440,7 @@ contains
          end if
       end if
 
+      DiR = 1; DjR = 1; DkR = 1
       if(nDim > 1) DiR = sign(1, iRMax - iRMin)
       if(nDim > 2) DjR = sign(1, jRMax - jRMin)
       if(nDim > 2) DkR = sign(1, kRMax - kRMin)
@@ -1583,19 +1568,12 @@ contains
                iRecv = iSend - 3*iDir
 
                iNodeRecv  = iNodeNei_IIIB(iSend,jSend,kSend,iBlockSend)
-
                iProcRecv  = iTree_IA(Proc_,iNodeRecv)
-
                if(iProc == iProcRecv) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
                ! For part implicit and part steady schemes
                if(Unused_BP(iBlockRecv,iProcRecv)) CYCLE
-
-!!! This should be done outside of the call
-               ! For 2nd order prolongation no prolongation is done in stage 1
-               if(iSendStage < nProlongOrder) CYCLE
 
                ! Receiving range depends on iRecv,kRecv,jRecv = 0..3
                iRMin = iProlongR_DII(1,iRecv,Min_)
@@ -1826,9 +1804,8 @@ contains
              ! Level difference = own_level - neighbor_level
              DiLevel = DiLevelNei_IIIB(iDir,jDir,kDir,iBlockSend)
 
-             ! Do prolongation in the second stage if nProlongOrder=2
-!!! This should be >= 0
-             if(iSendStage == 2 .and. DiLevel == 0) CYCLE
+             ! Do prolongation only in the second stage
+             if(iSendStage == 2 .and. DiLevel >= 0) CYCLE
 
              if(DiLevel == 0)then
                 ! Send data to same-level neighbor
@@ -1840,7 +1817,7 @@ contains
                 ! Send restricted data to coarser neighbor
                 call do_restrict_local(iDir, jDir, kDir, &
                      iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
-             elseif(DiLevel == -1)then
+             elseif(DiLevel == -1 .and. iSendStage == nProlongOrder)then
                 ! Send prolonged data to finer neighbor
                 call do_prolong_local(iDir, jDir, kDir, &
                      iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
@@ -1921,8 +1898,6 @@ contains
       kSMax = iEqualS_DII(3,kDir,Max_)
 
       DiR = 1; DjR = 1; DkR = 1
-
-      ! Local copy
       if(nDim > 1) DiR = sign(1, iRMax - iRMin)
       if(nDim > 2) DjR = sign(1, jRMax - jRMin)
       if(nDim > 2) DkR = sign(1, kRMax - kRMin)
@@ -1995,12 +1970,8 @@ contains
       if(iProcRecv /= iProc) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
       ! For part implicit and part steady schemes
       if(Unused_BP(iBlockRecv,iProcRecv)) RETURN
-
-      ! If this is the pure prolongation stage, all we did was counting
-      if(iSendStage == 2) RETURN
 
       iRecv = iSend - 3*iDir
       jRecv = jSend - 3*jDir
@@ -2130,13 +2101,8 @@ contains
                if(iProcRecv /= iProc) CYCLE
 
                iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
                ! For part implicit and part steady schemes
                if(Unused_BP(iBlockRecv,iProcRecv)) CYCLE
-
-!!! To be removed
-               ! For 2nd order prolongation no prolongation is done in stage 1
-               if(iSendStage < nProlongOrder) CYCLE
 
                ! Receiving range depends on iRecv,kRecv,jRecv = 0..3
                iRMin = iProlongR_DII(1,iRecv,Min_)
