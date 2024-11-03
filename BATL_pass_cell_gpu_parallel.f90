@@ -11,7 +11,6 @@ module BATL_pass_cell_gpu_parallel
   use BATL_size, ONLY: MaxDim, nDim
   use ModUtilities, ONLY: CON_stop, lower_case
   use ModMpi
-  use omp_lib
 
   ! Possible improvements:
   ! (1) Instead of sending the receiving block number
