@@ -2,10 +2,9 @@
 SHELL =/bin/sh
 
 include ../Makefile.def
-
 include ../Makefile.conf
-
 -include Makefile.DEPEND
+-include Makefile.RULES
 
 install:
 
@@ -20,6 +19,7 @@ OBJECTS = \
 	BATL_mpi.o  \
 	BATL_particles.o \
 	BATL_pass_cell.o \
+	BATL_pass_cell_gpu_parallel.o\
         BATL_pass_node.o \
         BATL_pass_face.o \
 	BATL_pass_face_field.o \

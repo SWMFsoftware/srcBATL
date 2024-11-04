@@ -9,7 +9,9 @@ module BATL_test
   use BATL_grid, ONLY: find_grid_block, show_grid_cell
   use ModUtilities, ONLY: CON_stop
 #ifdef _OPENACC
+#ifndef NOACCMODULE
   use openacc
+#endif
 #endif
 
   implicit none
@@ -252,11 +254,15 @@ contains
     !--------------------------------------------------------------------------
     DoTest = .false.
 #ifdef _OPENACC
+#ifndef NOACCMODULE
     if (acc_on_device(acc_device_host)) then
+#endif
 #endif
        call test_start_cpu(NameSub, DoTest, iBlock, i, j, k, DoTestAll)
 #ifdef _OPENACC
+#ifndef NOACCMODULE
     end if
+#endif
 #endif
   end subroutine test_start
   !============================================================================
