@@ -200,6 +200,9 @@ contains
     logical:: DoTest
     character(len=*), parameter:: NameSub = 'message_pass_real'
     !--------------------------------------------------------------------------
+    UseOpenACC = .false.
+    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
+
 #ifdef _OPENACC
     if(UseOpenACC)then
        call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
@@ -208,6 +211,7 @@ contains
        RETURN
     end if
 #endif
+    write(*,*)'CALLING CPU CODE'
 
     DoTest = .false.
 
@@ -241,9 +245,6 @@ contains
 
     UseHighResChange = .false.
     if(present(UseHighResChangeIn)) UseHighResChange = UseHighResChangeIn
-
-    UseOpenACC = .false.
-    if(present(UseOpenACCIn)) UseOpenACC = UseOpenACCIn
 
     ! Check arguments for consistency
     if(nProlongOrder == 2 .and. DoRestrictFace) call CON_stop(NameSub// &
