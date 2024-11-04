@@ -505,8 +505,7 @@ contains
           !$acc parallel loop gang present(State_VGB)
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
-             call message_pass_block_remote(iBlockSend, nVar, nG, &
-                  State_VGB, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+             call message_pass_block_remote(iBlockSend, nVar, nG, State_VGB)
           end do
 
           call timing_stop('fill_buffer_gpu')
@@ -1145,8 +1144,7 @@ contains
 
   end subroutine message_count_block
   !============================================================================
-  subroutine message_pass_block_remote(iBlockSend, nVar, nG, State_VGB, &
-       iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+  subroutine message_pass_block_remote(iBlockSend, nVar, nG, State_VGB)
     !$acc routine vector
 
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_, &
@@ -1163,10 +1161,6 @@ contains
     integer, intent(in):: nG    ! number of ghost cells for 1..nDim
     real, intent(inout):: State_VGB(nVar, &
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
-    ! memory maps for parallel algorithm
-    integer, intent(inout):: iMsgInit_PBI(0:,:,:)
-    integer, intent(inout):: iBufferS_IPI(:,0:,:)
-    integer, intent(inout):: iMsgDir_IBPI(0:,:,0:,:)
 
     ! Local variables
     integer :: iNodeSend
@@ -1227,27 +1221,25 @@ contains
                 ! Send data to same-level neighbor
                 if(.not.DoResChangeOnly)then
                    call do_equal_remote(iDir, jDir, kDir, &
-                        iNodeSend, iBlockSend, nVar, nG, State_VGB, &
-                        IsAxisNode, iMsgInit_PBI,iBufferS_IPI, iMsgDir_IBPI)
+                        iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
                 end if
              elseif(DiLevel == 1)then
                 ! Send restricted data to coarser neighbor
                 call do_restrict_remote(iDir, jDir, kDir, &
-                     iNodeSend, iBlockSend, nVar, nG, State_VGB, &
-                     IsAxisNode, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+                     iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
              elseif(DiLevel == -1 .and. iSendStage == nProlongOrder)then
                 ! Send prolonged data to finer neighbor
                 call do_prolong_remote(iDir, jDir, kDir, &
-                     iNodeSend, iBlockSend, nVar, nG, State_VGB, &
-                     IsAxisNode, iMsgInit_PBI, iBufferS_IPI,iMsgDir_IBPI)
+                     iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
              endif
           end do ! iDir
        end do ! jDir
     end do ! kDir
+
   contains
     !==========================================================================
-    subroutine do_equal_remote(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, &
-         nG, State_VGB, IsAxisNode, iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+    subroutine do_equal_remote(iDir, jDir, kDir, iNodeSend, iBlockSend, &
+         nVar, nG, State_VGB, IsAxisNode)
 
       !$acc routine vector
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_, nDim
@@ -1257,9 +1249,6 @@ contains
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
       logical, intent(in):: IsAxisNode
-      integer, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer :: iBufferS, iVarS, i, j, k
 
@@ -1355,8 +1344,7 @@ contains
     end subroutine do_equal_remote
     !==========================================================================
     subroutine do_restrict_remote(iDir, jDir, kDir, iNodeSend, iBlockSend, &
-         nVar, nG, State_VGB, IsAxisNode, &
-         iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+         nVar, nG, State_VGB, IsAxisNode)
       !$acc routine vector
 
       use BATL_mpi, ONLY: iProc
@@ -1366,9 +1354,6 @@ contains
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
       logical, intent(in):: IsAxisNode
-      integer, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer :: iR, jR, kR, iS1, jS1, kS1, iS2, jS2, kS2, iVar
       integer :: iRatioRestr, jRatioRestr, kRatioRestr
@@ -1518,8 +1503,7 @@ contains
     end subroutine do_restrict_remote
     !==========================================================================
     subroutine do_prolong_remote(iDir, jDir, kDir, &
-         iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode, &
-         iMsgInit_PBI, iBufferS_IPI, iMsgDir_IBPI)
+         iNodeSend, iBlockSend, nVar, nG, State_VGB, IsAxisNode)
       !$acc routine vector
 
       use BATL_mpi, ONLY: iProc
@@ -1527,9 +1511,6 @@ contains
       real, intent(inout):: State_VGB(nVar,&
            1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
       logical, intent(in):: IsAxisNode
-      integer, intent(in):: iMsgInit_PBI(0:,:,:)
-      integer, intent(in):: iBufferS_IPI(:,0:,:)
-      integer, intent(in):: iMsgDir_IBPI(0:,:,0:,:)
 
       integer:: iR, jR, kR, iS, jS, kS, iS1, jS1, kS1
       integer:: iRatioRestr, jRatioRestr, kRatioRestr
@@ -1728,6 +1709,7 @@ contains
             end do
          end do
       end do ! subedge subface triple loop
+
     end subroutine do_prolong_remote
     !==========================================================================
   end subroutine message_pass_block_remote
