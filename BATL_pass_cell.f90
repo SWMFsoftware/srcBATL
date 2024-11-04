@@ -211,7 +211,6 @@ contains
        RETURN
     end if
 #endif
-    write(*,*)'CALLING CPU CODE'
 
     DoTest = .false.
 
