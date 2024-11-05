@@ -206,8 +206,9 @@ contains
 #ifdef _OPENACC
     if(UseOpenACC)then
        call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
-         nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, DoRestrictFaceIn, &
-         DoTestIn, NameOperatorIn, DoResChangeOnlyIn, iDecomposition)
+            nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
+            DoRestrictFaceIn, DoTestIn, NameOperatorIn, DoResChangeOnlyIn, &
+            iDecomposition)
        RETURN
     end if
 #endif
