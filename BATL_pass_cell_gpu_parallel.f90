@@ -421,8 +421,7 @@ contains
                         iMsgInit_PBI(:,iBlockSend,iSendStage)
                    CYCLE
                 else
-                   call message_count_block(iBlockSend, nVar, nG, &
-                        nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI)
+                   call message_count_block(iBlockSend, nVar, nG)
 
                    ! update nMsgSend and nSizeBuffer for each block
                    nMsgSend = maxval(nMsgSend_PI)
@@ -765,12 +764,14 @@ contains
     !==========================================================================
   end subroutine message_pass_real_gpu
   !============================================================================
-  subroutine message_count_block(iBlockSend, nVar, nG, &
-       nMsgSend_PBI, iBufferS_IPI, iMsgDir_IBPI)
+  subroutine message_count_block(iBlockSend, nVar, nG)
     ! run in serially on cpu
 !!! alternative algoritm:
 !!! use a scalar to get out after estimating nMsgSend and Recv
 
+    ! set memory maps for parallel algorithm:
+    ! nMsgSend_PBI,  iBufferS_IPI, iMsgDir_IBPI
+    
     use BATL_size, ONLY: iRatio, jRatio, kRatio
     use BATL_tree, ONLY: &
          iNodeNei_IIIB, DiLevelNei_IIIB, iNode_B, &
@@ -781,11 +782,6 @@ contains
 
     integer, intent(in):: nVar  ! number of variables
     integer, intent(in):: nG    ! number of ghost cells for 1..nDim
-
-    ! memory maps for parallel algorithm
-    integer, intent(inout) :: nMsgSend_PBI(0:,:,:)
-    integer, intent(inout) :: iBufferS_IPI(:,0:,:)
-    integer, intent(inout) :: iMsgDir_IBPI(0:,:,0:,:)
 
     ! Local variables
     integer :: iNodeSend
@@ -1518,8 +1514,8 @@ contains
 
       integer :: iVarS
 
-      integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
-      integer :: iBlockRecv,iProcRecv,iNodeRecv, iGang
+      integer :: iSend, jSend, kSend, iRecv, jRecv, kRecv, iSide, jSide, kSide
+      integer :: iBlockRecv, iProcRecv, iNodeRecv
 
       ! Index range for recv and send segments of the blocks
       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
@@ -1530,10 +1526,6 @@ contains
 
       integer :: IntDir, iMsgGlob
       !------------------------------------------------------------------------
-      DiR = 1; DjR = 1; DkR = 1
-
-      iGang = 1
-      iGang = iBlockSend
 
       ! Loop through the subfaces or subedges
       do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio
@@ -1575,6 +1567,7 @@ contains
                   end if
                end if
 
+               DiR = 1; DjR = 1; DkR = 1
                if(nDim > 1) DiR = sign(1, iRMax - iRMin)
                if(nDim > 2) DjR = sign(1, jRMax - jRMin)
                if(nDim > 2) DkR = sign(1, kRMax - kRMin)
@@ -1841,15 +1834,9 @@ contains
       if(iProcRecv /= iProc) RETURN
 
       iBlockRecv = iTree_IA(Block_,iNodeRecv)
-
       ! For part implicit and part steady schemes
       if(Unused_BP(iBlockRecv,iProcRecv)) RETURN
 
-      ! Message size can be computed from arrays in set_range
-      ! e.g. iDir,jDir,kDir = (1,0,0): send nj*nk*nG
-      ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
-      ! iDir,jDir,kDir = (1,0,1): send nG*nj*nG
-      ! as a result iRMin,Max = 1-nG,0; jRMin,Max = 1,nj; kRMin,Max = 1,nk
       iRMin = iEqualR_DII(1,iDir,Min_)
       iRMax = iEqualR_DII(1,iDir,Max_)
       jRMin = iEqualR_DII(2,jDir,Min_)
@@ -1882,7 +1869,7 @@ contains
       if(nDim > 2) DjR = sign(1, jRMax - jRMin)
       if(nDim > 2) DkR = sign(1, kRMax - kRMin)
 
-      !$acc loop vector collapse(4)
+      !$acc loop vector collapse(4) private(iR, jR, kR)
       do kS = kSMin, kSMax; do jS = jSMin, jSMax; do iS = iSMin, iSMax
          do iVar = 1, nVar
             iR = iRMin + DiR*(iS-iSMin)
@@ -1920,9 +1907,7 @@ contains
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-
       !------------------------------------------------------------------------
-      DiR = 1; DjR = 1; DkR = 1
 
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
@@ -1978,6 +1963,7 @@ contains
          end if
       end if
 
+      DiR = 1; DjR = 1; DkR = 1
       if(nDim > 1) DiR = sign(1, iRMax - iRMin)
       if(nDim > 2) DjR = sign(1, jRMax - jRMin)
       if(nDim > 2) DkR = sign(1, kRMax - kRMin)
@@ -2049,8 +2035,8 @@ contains
       integer, parameter:: Di=iRatio-1, Dj=jRatio-1, Dk=kRatio-1
       real:: WeightI, WeightJ, WeightK
 
-      integer :: iSend,jSend,kSend,iRecv,jRecv,kRecv,iSide,jSide,kSide
-      integer :: iBlockRecv,iProcRecv,iNodeRecv, iGang
+      integer :: iSend, jSend, kSend, iRecv, jRecv, kRecv, iSide, jSide, kSide
+      integer :: iBlockRecv, iProcRecv, iNodeRecv
 
       ! Index range for recv and send segments of the blocks
       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
@@ -2058,11 +2044,7 @@ contains
 
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-
       !------------------------------------------------------------------------
-      DiR = 1; DjR = 1; DkR = 1
-
-      iGang = iBlockSend
 
       ! Loop through the subfaces or subedges
       do kSide = (1-kDir)/2, 1-(1+kDir)/2, 3-kRatio
@@ -2105,6 +2087,7 @@ contains
                   end if
                end if
 
+               DiR = 1; DjR = 1; DkR = 1
                if(nDim > 1) DiR = sign(1, iRMax - iRMin)
                if(nDim > 2) DjR = sign(1, jRMax - jRMin)
                if(nDim > 2) DkR = sign(1, kRMax - kRMin)
