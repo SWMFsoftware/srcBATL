@@ -580,7 +580,7 @@ contains
              !$acc present(BufferR_IP)
              do iMsgSend = 1, nMsgRecv_PI(iProcSend,iSendStage)
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
-                     iBufferR_IPI, BufferR_IP, nVar, nG, State_VGB)
+                     nVar, nG, State_VGB)
              end do
           end do
 
@@ -604,8 +604,7 @@ contains
     call timing_stop('batl_pass')
   contains
     !==========================================================================
-    subroutine buffer_to_state_parallel(iProcSend, iMsgSend,&
-         iBufferR_IPI, BufferR_IP,&
+    subroutine buffer_to_state_parallel(iProcSend, iMsgSend, &
          nVar, nG, State_VGB)
       !$acc routine vector
 
@@ -614,9 +613,6 @@ contains
 
       integer, intent(in):: iProcSend
       integer, intent(in):: iMsgSend
-      integer, intent(in):: iBufferR_IPI(:,0:,:)
-      real, intent(in):: BufferR_IP(:,0:)
-
       integer, intent(in):: nVar
       integer, intent(in):: nG
       real,    intent(inout):: State_VGB(nVar, &
@@ -663,6 +659,7 @@ contains
             State_VGB(iVarR,i,j,k,iBlockRecv) = BufferR_IP(iBufferR,iProcSend)
          end do
       end do; end do; end do
+
     end subroutine buffer_to_state_parallel
     !==========================================================================
     subroutine set_range
