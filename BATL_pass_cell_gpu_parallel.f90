@@ -1370,12 +1370,12 @@ contains
       integer :: DiR, DjR, DkR
 
       integer :: IntDir, iMsgGlob
-      !------------------------------------------------------------------------
 
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
       ! if the receiver block fills into the
       ! lower (D*Recv = 0) or upper (D*Rev=1) half of the block
+      !------------------------------------------------------------------------
       iSide = 0; if(iRatio==2) iSide = modulo(iTree_IA(Coord1_,iNodeSend)-1, 2)
       jSide = 0; if(jRatio==2) jSide = modulo(iTree_IA(Coord2_,iNodeSend)-1, 2)
       kSide = 0; if(kRatio==2) kSide = modulo(iTree_IA(Coord3_,iNodeSend)-1, 2)
