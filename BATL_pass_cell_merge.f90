@@ -583,7 +583,7 @@ contains
           call timing_start('local_mp_pass')
 
           !$acc parallel loop gang present(State_VGB) &
-          !$acc copyin(iLevelMin, iLevelMax) 
+          !$acc copyin(iLevelMin, iLevelMax)
           do iBlockSend = 1, nBlock
              if(Unused_B(iBlockSend)) CYCLE
              call message_pass_block_local(iBlockSend, nVar, nG, State_VGB, &
@@ -1484,12 +1484,12 @@ contains
       integer :: DiR, DjR, DkR
 
       integer :: IntDir, iMsgGlob
-      !------------------------------------------------------------------------
 
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
       ! if the receiver block fills into the
       ! lower (D*Recv = 0) or upper (D*Rev=1) half of the block
+      !------------------------------------------------------------------------
       iSide = 0; if(iRatio==2) iSide = modulo(iTree_IA(Coord1_,iNodeSend)-1, 2)
       jSide = 0; if(jRatio==2) jSide = modulo(iTree_IA(Coord2_,iNodeSend)-1, 2)
       kSide = 0; if(kRatio==2) kSide = modulo(iTree_IA(Coord3_,iNodeSend)-1, 2)
@@ -2114,16 +2114,16 @@ contains
       ! Index range for recv and send segments of the blocks
       integer :: iRMin, iRMax, jRMin, jRMax, kRMin, kRMax
       integer :: iSMin, iSMax, jSMin, jSMax, kSMin, kSMax
-      
+
       logical :: UseTime
       ! Message passing across the pole can reverse the recv. index range
       integer :: DiR, DjR, DkR
-      !------------------------------------------------------------------------
 
       ! For sideways communication from a fine to a coarser block
       ! the coordinate parity of the sender block tells
       ! if the receiver block fills into the
       ! lower (D*Recv = 0) or upper (D*Rev=1) half of the block
+      !------------------------------------------------------------------------
       iSide = 0; if(iRatio==2) iSide = modulo(iTree_IA(Coord1_,iNodeSend)-1, 2)
       jSide = 0; if(jRatio==2) jSide = modulo(iTree_IA(Coord2_,iNodeSend)-1, 2)
       kSide = 0; if(kRatio==2) kSide = modulo(iTree_IA(Coord3_,iNodeSend)-1, 2)
