@@ -5,7 +5,7 @@ module BATL_pass_cell
 
   use BATL_pass_cell_gpu_parallel, ONLY: message_pass_real_gpu
   use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
-       iBlockTest, iVarTest, iDimTest, iSideTest, iProcTest
+       iBlockTest
   use BATL_geometry, ONLY: IsCartesianGrid, IsRotatedCartesian, IsRoundCube, &
   	IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, Lat_, Theta_, &
   	coord_to_xyz
@@ -15,7 +15,7 @@ module BATL_pass_cell
   	prolong_high_order_face_ghost, &
   	correct_face_ghost_for_fine_block, &
   	limit_interpolation, restrict_high_order_amr
-  use BATL_size, ONLY: MaxDim, nGang
+  use BATL_size, ONLY: MaxDim
   use ModUtilities, ONLY: CON_stop, lower_case
   use ModMpi
   use omp_lib
@@ -206,8 +206,9 @@ contains
 #ifdef _OPENACC
     if(UseOpenACC)then
        call message_pass_real_gpu(nVar, nG, State_VGB, nWidthIn, &
-         nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, DoRestrictFaceIn, &
-         DoTestIn, NameOperatorIn, DoResChangeOnlyIn, iDecomposition)
+            nProlongOrderIn, nCoarseLayerIn, DoSendCornerIn, &
+            DoRestrictFaceIn, DoTestIn, NameOperatorIn, DoResChangeOnlyIn, &
+            iDecomposition)
        RETURN
     end if
 #endif
@@ -641,7 +642,6 @@ contains
 
       ! Copy buffer into recv block of State_VGB
       use BATL_size, ONLY:MaxBlock, nDim, nI, nJ, nK, jDim_, kDim_
-      use BATL_test, ONLY: iTest, jTest, kTest, iBlockTest, iVarTest
 
       integer, intent(in):: nBufferR_P(0:)
       real, intent(in):: BufferR_I(:)
@@ -967,7 +967,6 @@ contains
     ! Message pass scalar integer data with BATL_size::nG ghost cells
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG, &
          nBlock
-    use BATL_mpi, ONLY: iProc
     ! Arguments
     integer, intent(inout) :: Int_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock)
 
@@ -1016,7 +1015,6 @@ contains
   subroutine message_pass_block(iBlockSend, nVar, nG, State_VGB, &
        DoRemote, TimeOld_B, Time_B, iLevelMin, iLevelMax, UseOpenACCIn)
 
-    use BATL_mpi, ONLY: iProc
     use BATL_size, ONLY: MaxBlock, nI, nJ, nK, nIjk_D, &
          MaxDim, nDim, jDim_, kDim_, &
          iRatio, jRatio, kRatio, iRatio_D, InvIjkRatio, &
@@ -1616,8 +1614,6 @@ contains
     subroutine do_equal(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
 
-      use BATL_test, ONLY: test_start, test_stop, iTest, jTest, kTest, &
-           iBlockTest, iVarTest, iDimTest, iSideTest
       use BATL_size, ONLY: MaxBlock, nI, nJ, nK, jDim_, kDim_
       use BATL_mpi, ONLY: iProc
 
