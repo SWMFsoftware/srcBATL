@@ -573,11 +573,12 @@ contains
           call timing_stop('MPI_wait')
           call timing_start('buffer_to_state')
 
+          !$acc parallel loop gang collapse(2) &
+          !$acc present(BufferR_IP, iBufferR_IPI)
           do iProcSend = 0, nProc-1
-             if(iProcSend == iProc) CYCLE
-             !$acc parallel loop gang copyin(iProcSend, nVar) &
-             !$acc present(BufferR_IP)
-             do iMsgSend = 1, nMsgRecv_PI(iProcSend,iSendStage)
+             do iMsgSend = 1, nMsgRecv
+                if(iProcSend == iProc) CYCLE
+                if(iMsgSend > nMsgRecv_PI(iProcSend,iSendStage)) CYCLE
                 call buffer_to_state_parallel(iProcSend, iMsgSend, &
                      nVar, nG, State_VGB)
              end do
