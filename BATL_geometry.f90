@@ -447,7 +447,7 @@ contains
   end subroutine radius_to_gen
   !============================================================================
   subroutine gen_to_radius(r)
-    !$acc routine seq    
+    !$acc routine seq
     use ModInterpolate, ONLY: linear
 
     ! Convert generalized radial coordinate to true radial coordinate
