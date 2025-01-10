@@ -188,10 +188,8 @@ contains
     nRgen = -1
     if(allocated(LogRgen_I)) deallocate(LogRgen_I)
     if(IsGenRadius)then
-#ifndef _OPENACC
-       if(.not.present(RgenIn_I)) call CON_stop(NameSub// &
+       if(.not.present(RgenIn_I)) call CON_stop_simple(NameSub// &
             ': RgenIn_I argument is missing for TypeGeometry=' //TypeGeometry)
-#endif
        ! Store general radial coordinate table
        nRgen = size(RgenIn_I)
        allocate(LogRgen_I(nRgen))
@@ -347,9 +345,7 @@ contains
     if(IsLogRadius)then
        Coord_D(1) = exp(Coord_D(1))
     elseif(IsGenRadius)then
-#ifndef _OPENACC
        call gen_to_radius(Coord_D(1))
-#endif
     end if
 
     if(IsCylindrical)then
@@ -451,7 +447,7 @@ contains
   end subroutine radius_to_gen
   !============================================================================
   subroutine gen_to_radius(r)
-
+    !$acc routine seq
     use ModInterpolate, ONLY: linear
 
     ! Convert generalized radial coordinate to true radial coordinate
