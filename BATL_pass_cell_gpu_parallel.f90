@@ -343,7 +343,7 @@ contains
     !$acc update device( &
     !$acc DoSendCorner, DoResChangeOnly, MaxBlock,  &
     !$acc nWidth, nProlongOrder, nCoarseLayer, DoRestrictFace, &
-    !$acc UseMin, UseMax, nIndex)
+    !$acc UseMin, UseMax)
 
     ! The following can run (in series) on GPU as:
     ! acc parallel num_gangs(1) num_workers(1) vector_length(1)
