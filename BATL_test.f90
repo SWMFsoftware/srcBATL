@@ -57,7 +57,6 @@ module BATL_test
   !$acc declare create(iDimTest, iSideTest, iVarTest)
 contains
   !============================================================================
-
   subroutine read_test_param(NameCommand)
 
     character(len=*), intent(in):: NameCommand
@@ -287,11 +286,8 @@ contains
     integer, optional, intent(in) :: iBlock    ! block index
     integer, optional, intent(in) :: i, j, k   ! cell index
     logical, optional, intent(in) :: DoTestAll ! test on all processors
-
-    ! Start value for early returns
-
     !--------------------------------------------------------------------------
-    DoTest = .false.
+    DoTest = .false.     ! Start value for early returns
     if(lVerbose == 0) RETURN
     if(lVerbose == 1 .and. StringTest == '') RETURN
 
@@ -414,7 +410,6 @@ contains
 #endif
   end subroutine test_stop
   !============================================================================
-
   subroutine test_cell(iBlock, i, j, k, DoTestCell)
 
     ! Set DoTestCell to true if the processor, block and cell indexes
@@ -422,7 +417,6 @@ contains
 
     integer, intent(in) :: iBlock, i, j, k
     logical, intent(out):: DoTestCell
-
     !--------------------------------------------------------------------------
     DoTestCell =                                                     &
          (iProc == iProcTest .and. iBlock == iBlockTest .and.        &
@@ -432,6 +426,5 @@ contains
 
   end subroutine test_cell
   !============================================================================
-
 end module BATL_test
 !==============================================================================
