@@ -246,9 +246,9 @@ contains
     logical, parameter:: DoLimit = .true. ! change only for debugging
     integer:: i
 
-    ! use f3...f8 to interpolate G3.
     character(len=*), parameter:: NameSub = 'restrict_high_order_reschange'
     !--------------------------------------------------------------------------
+    ! use f3...f8 to interpolate G3.
     DoSymInterp = .true.
     if(present(DoSymInterpIn)) DoSymInterp = DoSymInterpIn
 
