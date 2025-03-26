@@ -36,9 +36,9 @@ module BATL_high_order
   public:: restrict_high_order_amr
 
   public:: limit_interpolation
+
 contains
   !============================================================================
-
   real function correct_face_value(FaceValue, CellValue_I)
   !$acc routine seq
 
@@ -46,6 +46,7 @@ contains
     ! Return 6th order approximation
 
     real, intent(in):: CellValue_I(:), FaceValue
+
     real:: Der2, Der4
     real, parameter:: c1over6 = 1./6, c1over180 = 1./180
     !--------------------------------------------------------------------------
@@ -57,7 +58,6 @@ contains
 
   end function correct_face_value
   !============================================================================
-
   real function calc_center_first_derivate(CellValue_I, DxIn)
 
     ! Calculate df/dx at x=x_i with f(k), where k = i-3,i-2 ... i+3.
@@ -66,6 +66,7 @@ contains
 
     real, intent(in):: CellValue_I(7)
     real, optional, intent(in):: DxIn
+
     real:: Dx
     real:: FaceL, FaceR
     real:: CorrectedFaceL, CorrectedFaceR
@@ -84,18 +85,17 @@ contains
          (CorrectedFaceR - CorrectedFaceL)/Dx
   end function calc_center_first_derivate
   !============================================================================
-
   real function calc_face_value(CellValue_I, DoLimitIn, IsPositiveIn)
     ! Calculate f_{i+1/2} with f(k), where k = i-2,i-1 ... i+3
     real, intent(in):: CellValue_I(:) ! size of 6
     logical, optional, intent(in):: DoLimitIn, IsPositiveIn
+
     logical:: DoLimit
     real, parameter:: c3over256 = 3./256, c25over256 = 25./256, &
          c150over256 = 150./256
     real:: FaceValue
     real:: Distance_I(4) = [-1.5, -0.5, 0.5, 1.5]
     !--------------------------------------------------------------------------
-
     DoLimit = .false.
     if(present(DoLimitIn)) DoLimit = DoLimitIn
 
@@ -109,21 +109,19 @@ contains
          IsPositiveIn=IsPositiveIn)
   end function calc_face_value
   !============================================================================
-
   real function limit_interpolation(FaceOrig, CellValue_I, Distance_I, &
        ValueMaxIn, ValueMinIn, IsPositiveIn, IsCell1AccurateIn, &
        IsCell4AccurateIn)
+
     ! This Limiter works for ununiform grid interpolation.
     ! See (2.18) in 'Accurate Monotonicity-Preserving Schemes with
     ! Runge-Kutta Time Stepping' by A. Suresh & H. T. Huynh (1997)
+    ! The return value should be less/larger than ValueMaxIn/ValueMinIn if
+    ! they are present. Both of them should present at the same time.
+    ! This option maybe useful, but have not been used anywhere so far.
 
     real, intent(in):: FaceOrig, CellValue_I(:), Distance_I(:) ! size 4
-
-    ! The return value should less/larger than ValueMaxIn/ValueMinIn if
-    ! they present. Both of them should present at the same time.
-    ! This option maybe useful, but have been not used at anywhere so far.
     real, optional, intent(in):: ValueMaxIn, ValueMinIn
-
     logical, optional, intent(in):: IsPositiveIn, IsCell1AccurateIn, &
          IsCell4AccurateIn
 
@@ -169,29 +167,31 @@ contains
     limit_interpolation = median(Mp5Result, ValueMax, ValueMin)
   end function limit_interpolation
   !============================================================================
-
   real function median(a,b,c)
+
     real, intent(in):: a, b, c
     !--------------------------------------------------------------------------
     median = max(min(a, max(b,c)), min(b,c))
+
   end function median
   !============================================================================
-
   real function two_points_interpolation(Cell_I, Distance_I)
+
     ! Cell_I(i) is at xi, calculate the value at x=0.
     ! Distance_I(i) = xi - x0
+
     real, intent(in):: Cell_I(:), Distance_I(:)
     real:: c1, c2
-
     !--------------------------------------------------------------------------
     c1 = Distance_I(2)/(Distance_I(2) - Distance_I(1))
     c2 = -Distance_I(1)/(Distance_I(2) - Distance_I(1))
     two_points_interpolation = c1*Cell_I(1) + c2*Cell_I(2)
+
   end function two_points_interpolation
   !============================================================================
-
   subroutine restrict_high_order_reschange(CoarseCell, FineCell_III, &
        Ghost_I, DoSymInterpIn,IsPositiveIn)
+
     ! For 2D:
     !         _________________________________
     !         | u1|   |   |   |   |   |   |   |
@@ -307,9 +307,12 @@ contains
   end subroutine restrict_high_order_reschange
   !============================================================================
   real function calc_edge_value(CellValue_II,DoLimitIn,IsPositiveIn)
+
     ! For 3D, need more tests.
+
     real, intent(in) :: CellValue_II(6,6)
     logical, optional, intent(in):: DoLimitIn, IsPositiveIn
+
     logical:: DoLimit
     real:: CellValue_I(6)
     integer:: i
@@ -326,9 +329,9 @@ contains
          IsPositiveIn=IsPositiveIn)
   end function calc_edge_value
   !============================================================================
-
   subroutine get_ghost_for_fine_blk(CoarseCell_III, FineCell_I, Ghost_I, &
        UseOrder4In, IsAccurateIn_II, IsPositiveIn)
+
     ! 2D:
     ! __________________________
     ! |        |       |       |
@@ -376,7 +379,6 @@ contains
     ! Type=3: Both jM2 and jM1 are not accurate.
     integer:: iTypeAccurate
     !--------------------------------------------------------------------------
-
     DoLimit = .true.
     UseOrder4 = .false.
     if(present(UseOrder4In)) UseOrder4 = UseOrder4In
@@ -432,14 +434,15 @@ contains
   !============================================================================
   subroutine interpolate_ghost_for_fine_blk(CoarseCell_I, FineCell_I,Ghost_I,&
        DoLimit,IsPositive)
+
     real, intent(in):: CoarseCell_I(:), FineCell_I(:)
     real, intent(out):: Ghost_I(3)
     logical, intent(in):: DoLimit,IsPositive
+
     real, parameter:: c11=-4./231, c12=4./7,c13=5./7, c14=-1./3, c15=5./77
     real, parameter:: c21=-9./572, c22=1./6,c23=1.05, c24=-3./11, c25=14./195
     real, parameter:: c31=-9./286, c32=5./7,c33=0.5, c34=-20./77, c35=1./13
     real:: Ghost, Cell_I(4), Distance_I(4)
-
     !--------------------------------------------------------------------------
     Ghost = c11*CoarseCell_I(2) + c12*CoarseCell_I(1) + &
          c13*FineCell_I(1) + c14*FineCell_I(2) + c15*FineCell_I(3)
@@ -455,7 +458,6 @@ contains
     else
        Ghost_I(1) = Ghost
     endif
-    !---------------------
 
     Ghost = c21*CoarseCell_I(3) + c22*CoarseCell_I(2) + &
             c23*CoarseCell_I(1) + c24*FineCell_I(1) + c25*FineCell_I(2)
@@ -471,7 +473,6 @@ contains
     else
        Ghost_I(2) = Ghost
     endif
-    !----------------------
 
     Ghost = c31*CoarseCell_I(3) + c32*CoarseCell_I(2) + &
          c33*CoarseCell_I(1) + c34*FineCell_I(1) + c35*FineCell_I(2)
@@ -492,9 +493,11 @@ contains
   !============================================================================
   real function interpolate_in_coarse_blk1d(Cell_I, DoLimitIn, UseOrder4In,&
        IsPositiveIn, iTypeInterpolateIn)
+
     real, intent(in):: Cell_I(0:)
     logical, optional, intent(in):: DoLimitIn, UseOrder4In, IsPositiveIn
     integer, optional, intent(in):: iTypeInterpolateIn
+
     logical:: DoLimit, UseOrder4, IsPositive
     integer:: iTypeInterpolate
     real   :: Cp3, Cpp, Cp, c0, Cm, Cmm
@@ -505,7 +508,6 @@ contains
     real:: Temp, Distance_I(4)=[-7,-3,1,5]
     logical :: IsCell1Accurate, IsCell4Accurate
     !--------------------------------------------------------------------------
-
     DoLimit = .true.
     if(present(DoLimitIn)) DoLimit = DoLimitIn
     UseOrder4 = .false.
@@ -563,17 +565,18 @@ contains
 
   end function interpolate_in_coarse_blk1d
   !============================================================================
-  real function interpolate_in_coarse_blk_amr1d(&
+  real function interpolate_in_coarse_blk_amr1d( &
        Cell_I, DoLimitIn, IsPositiveIn)
+
     real, intent(in):: Cell_I(:)
     logical, optional, intent(in):: DoLimitIn, IsPositiveIn
+
     logical:: DoLimit, IsPositive
     real   :: Cpp, Cp, c0, Cm, Cmm
     real, parameter:: c1over4 = 0.25, c3over4 = 0.75, c6=0.6
 
     integer, parameter:: Ipp_=1, Ip_=2, I_=3, Im_=4, Imm_=5
     real:: Temp, Distance_I(4)=[-7,-3,1,5]
-
     !--------------------------------------------------------------------------
     DoLimit = .true.
     if(present(DoLimitIn)) DoLimit = DoLimitIn
@@ -603,16 +606,17 @@ contains
   !============================================================================
   real function interpolate_in_coarse_blk2d(Cell_II, DoLimitIn, &
        UseOrder4In,IsAccurateIn_II,IsPositiveIn)
+
     real, intent(in):: Cell_II(0:5,0:5)
     logical, optional,intent(in):: DoLimitIn, UseOrder4In,&
          IsAccurateIn_II(0:5,0:5), IsPositiveIn
+
     logical:: DoLimit, UseOrder4
     logical:: IsAccurate_II(0:5,0:5)
     real:: Cell_I(0:5)
     integer:: i, iTypeAccurate
     integer, parameter:: Indexpp_=1, Indexp_=2, Index0_=3, &
          Indexm_=4, Indexmm_=5
-
     !--------------------------------------------------------------------------
     DoLimit = .true.
     if(present(DoLimitIn)) DoLimit = DoLimitIn
@@ -664,7 +668,6 @@ contains
          IsPositiveIn=IsPositiveIn, iTypeInterpolateIn=iTypeAccurate)
   end function interpolate_in_coarse_blk2d
   !============================================================================
-
   subroutine prolong_high_order_face_ghost(&
        iBlock, nVar, Field1_VG, Field_VG, DoOrder5Face_G, IsPositiveIn_V)
 
@@ -1457,25 +1460,21 @@ contains
     endif
   end subroutine prolong_high_order_face_ghost
   !============================================================================
-
-  subroutine correct_face_ghost_for_fine_block(iBlock, nVar, Field_VG,&
+  subroutine correct_face_ghost_for_fine_block(iBlock, nVar, Field_VG, &
        IsPositiveIn_V)
 
     use BATL_tree, ONLY: DiLevelNei_IIIB
     use BATL_size, ONLY: MinI, MaxI, MinJ, MaxJ, MinK, MaxK, &
          nI, nJ, nK
+
     integer, intent(in):: iBlock, nVar
     real, intent(inout):: Field_VG(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK)
     logical, optional,intent(in):: IsPositiveIn_V(nVar)
 
     logical:: IsPositive_V(nVar)
-
     logical:: IsCorrected_VG(nVar,MinI:MaxI,MinJ:MaxJ,MinK:MaxK)
-
     real:: Coef1_I(4) = ([-1./6, 2./3, 2./3, -1./6])
-
     real, parameter::  Distance_I(4) = [-2, -1, 1, 2]
-
     integer:: iDir, jDir, kDir, iDir1, jDir1, kDir1, nDir1, iDir2, jDir2, kDir2
     integer:: jBegin, jEnd, iBegin, iEnd, kBegin, kEnd
     integer:: Di, Dj, Dk, i, j, k
@@ -1958,12 +1957,15 @@ contains
 
   end subroutine correct_face_ghost_for_fine_block
   !============================================================================
-
   real function prolong_high_order_amr(Cell_III, IsPositiveIn,DoTestMeIn)
+
     ! Calc 5th order refined cell for AMR.
+
     use BATL_size, ONLY: kRatio
+
     real, intent(in):: Cell_III(5,5,5)
     logical, optional,intent(in):: IsPositiveIn, DoTestMeIn
+
     logical:: IsPositive, DoTest
     real:: Cell_I(5), Cell_II(5,5)
     integer:: i, j, k
@@ -2025,16 +2027,16 @@ contains
 
   end function prolong_high_order_amr
   !============================================================================
-
   real function restrict_high_order_amr(Cell_III, IsPositiveIn)
+
     ! Calc 6th order coarsened cell for AMR.
+
     use BATL_size, ONLY: kRatio
     real, intent(in):: Cell_III(6,6,6)
     logical, optional, intent(in):: IsPositiveIn
 
     real:: Cell_I(6), Cell_II(6,6)
     integer:: i, j, k
-
     !--------------------------------------------------------------------------
     if(kRatio == 2) then
        do j = 1, 6; do i = 1, 6
@@ -2052,8 +2054,8 @@ contains
     enddo
     restrict_high_order_amr = calc_face_value(Cell_I, DoLimitIn=.true.,&
          IsPositiveIn=IsPositiveIn)
+
   end function restrict_high_order_amr
   !============================================================================
-
 end module BATL_high_order
 !==============================================================================
