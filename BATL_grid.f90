@@ -1799,15 +1799,14 @@ contains
        call xyz_to_coord(XyzIn_D, Coord_D)
     end if
 
-    ! get corner coordinates and cel size of the block
-    CoordBlock_D =  CoordMin_DB(:,iBlock)
-    DCoord_D   = (CoordMax_DB(:,iBlock) - CoordMin_DB(:,iBlock)) / nIJK_D
+    ! get corner coordinates and cell size of the block
+    CoordBlock_D = CoordMin_DB(:,iBlock)
+    dCoord_D = CellSize_DB(:,iBlock)
 
     ! account for periodic or "flipped" coordinates:
     ! may need to adjust Coord_D if point is outside the block
-    if(any(&
-         Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlock) .or. &
-         Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlock)))then
+    if(any( Coord_D(1:nDim) <  CoordMin_DB(1:nDim,iBlock) &
+       .or. Coord_D(1:nDim) >= CoordMax_DB(1:nDim,iBlock)))then
        ! fix periodic coordinates
        ! NOTE: periodic coords are fixed BEFORE spherical theta,
        !       otherwise there's error near 0 longitude near axis
@@ -1815,11 +1814,11 @@ contains
           if(.not.IsPeriodic_D(iDim)) CYCLE
           ! example in polar coords: point's polar angle is close to 2pi,
           ! while block's boundary is 0 => subtract 2pi from point's angle
-          if(CoordMin_DB(iDim, iBlock)==CoordMin_D(iDim).and.&
-               CoordMax_D(iDim)-Coord_D(iDim) <= DCoord_D(iDim))then
+          if(CoordMin_DB(iDim,iBlock) == CoordMin_D(iDim) &
+               .and. CoordMax_D(iDim) - Coord_D(iDim) <= DCoord_D(iDim))then
              Coord_D(iDim) = Coord_D(iDim) - DomainSize_D(iDim)
-          elseif(CoordMax_DB(iDim, iBlock)==CoordMax_D(iDim).and.&
-               Coord_D(iDim)-CoordMin_D(iDim) < DCoord_D(iDim))then
+          elseif(CoordMax_DB(iDim,iBlock) == CoordMax_D(iDim) &
+               .and. Coord_D(iDim) - CoordMin_D(iDim) < DCoord_D(iDim))then
              Coord_D(iDim) = Coord_D(iDim) + DomainSize_D(iDim)
           end if
        end do
@@ -1828,17 +1827,17 @@ contains
        if(IsSpherical .or. IsRLonLat)then
           ! example in rlonlat coords: point's latitude is close to pi/2 and
           ! block is across the pole => reflect point so that latitude > pi/2
-          if(CoordMin_DB(Theta_, iBlock)==CoordMin_D(Theta_).and.&
-               abs(Coord_D(Phi_)-CoordMin_DB(Phi_,iBlock)) > &
+          if(CoordMin_DB(Theta_,iBlock) == CoordMin_D(Theta_) .and. &
+               abs(Coord_D(Phi_) - CoordMin_DB(Phi_,iBlock)) > &
                0.25*DomainSize_D(Phi_))then
              Coord_D(Theta_) = 2*CoordMin_D(Theta_) - Coord_D(Theta_)
              Coord_D(Phi_  ) = CoordMin_D(Phi_) &
                   + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
                   +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
-          elseif(CoordMax_DB(Theta_, iBlock)==CoordMax_D(Theta_).and.&
+          elseif(CoordMax_DB(Theta_, iBlock) == CoordMax_D(Theta_) .and. &
                abs(Coord_D(Phi_)-CoordMax_DB(Phi_,iBlock)) > &
                0.25*DomainSize_D(Phi_))then
-             Coord_D(Theta_) = 2*CoordMax_D(Theta_)-Coord_D(Theta_)
+             Coord_D(Theta_) = 2*CoordMax_D(Theta_) - Coord_D(Theta_)
              Coord_D(Phi_  ) = CoordMin_D(Phi_) &
                   + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
                   +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
@@ -1855,9 +1854,9 @@ contains
     where(abs(DiLevelNei_III)==1)DiLevelNei_III = - DiLevelNei_III
 
     ! call the wrapper for the shared AMR interpolation procedure
-    call interpolate_amr_gc(&
+    call interpolate_amr_gc( &
          nDim, Coord_D(1:nDim), CoordBlock_D(1:nDim),&
-         DCoord_D(1:nDim), nIJK_D(1:nDim), DiLevelNei_III, &
+         dCoord_D(1:nDim), nIJK_D(1:nDim), DiLevelNei_III, &
          nCell, iCell_DI(1:nDim,:), Weight_I, IsSecondOrder)
 
     ! return block number as well
@@ -1880,10 +1879,10 @@ contains
     integer, intent(out):: iPeOut, iBlockOut ! Pe and Block to be used
 
     ! Generalized Coordinates, for given Xyz_D
-    real    :: Coord_D(MaxDim)
+    real:: Coord_D(MaxDim)
 
     ! Direction along which the point goes out of the block inner part
-    logical :: DoSearch ! If .true. find iPeOut and iBlockOut via tree search
+    logical:: DoSearch ! If .true. find iPeOut and iBlockOut via tree search
 
     ! Shifts to subgrids from the lower left corner
     integer, parameter:: iShift_DI(3,8) = reshape([&
@@ -1999,7 +1998,7 @@ contains
             PositionMin_D(1:nDim) * DomainSize_D(1:nDim)
 
        ! cell size for the found block
-       dCoord_D =  (PositionMax_D(1:nDim) - PositionMin_D(1:nDim)) &
+       dCoord_D = (PositionMax_D(1:nDim) - PositionMin_D(1:nDim)) &
             *DomainSize_D(1:nDim)/nIjk_D(1:nDim)
 
        dCoordInv_D = 1/dCoord_D
@@ -2223,32 +2222,29 @@ contains
 
   end subroutine check_interpolate_amr_gc
   !============================================================================
-  subroutine interpolate_state_vector(&
-       XyzIn_D, nVar, State_VGB,    State_V, IsFound)
-    !
-    ! Interpolate state vactor to a given loc,
-    ! Need all ghost cells with ProlongOrder=1
-    ! If needed, use before
+  subroutine interpolate_state_vector( &
+       XyzIn_D, nVar, State_VGB, State_V, IsFound)
+
+    ! Interpolate state vactor to a given location and broadcast to all PEs.
+    ! Needs all ghost cells with ProlongOrder=1:
     ! call message_pass_cell(nVar, State_VGB, ProlongOrderIn=1)
-    !
+
     use ModMpi
-    !INPUTS:
+
     integer, intent (in) :: nVar
     real,    intent (in) :: XyzIn_D(MaxDim), State_VGB(nVar, &
          1-nG:nI+nG,1-nG*jDim_:nJ+nG*jDim_,1-nG*kDim_:nK+nG*kDim_,MaxBlock)
     !OUT:
     real,    intent(out) :: State_V(nVar)
     logical, optional, intent(out) :: IsFound
-    !
-    ! Local:
+
     ! Block and PE number at which to interpolate
     integer :: iProcFound, iBlockFound
-    ! Misc:
+
     integer :: iError, iCell
     real    :: Xyz_D(MaxDim)
-    !
+
     ! Interpolation stencil
-    !
     integer :: nCell, iCell_DI(0:nDim,2**nDim), iCell_D(MaxDim)
     real    :: Weight_I(2**nDim)
 
@@ -2256,15 +2252,11 @@ contains
     !--------------------------------------------------------------------------
     State_V = 0.0; Xyz_D = XyzIn_D
     call check_interpolate_amr_gc(Xyz_D, 1, iProcFound, iBlockFound)
-    if(iProcFound==Unset_)then
-       if(present(IsFound))then
-          IsFound = .false.
-          RETURN
-       else
-          ! Add a stop statement
-       end if
+    if(iProcFound == Unset_)then
+       if(present(IsFound)) IsFound = .false.
+       RETURN
     end if
-    if(iProc==iProcFound)then
+    if(iProc == iProcFound)then
        call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockFound, &
             nCell, iCell_DI, Weight_I)
        do iCell = 1, nCell
