@@ -61,6 +61,7 @@ module BATL_region
      real, allocatable     :: Rotate_DD(:,:)
      logical               :: IsSimple
      character(lTypeCoord) :: TypeCoordIn
+     character(len=10)     :: NameSat
   end type AreaType
 
   ! List of all geometric regions defined
@@ -363,6 +364,7 @@ contains
 
     character(lNameRegion):: NameRegion
     character(lTypeCoord) :: TypeCoordIn
+    character(len=10)     :: NameSat
     integer :: i, iDim
 
     real    :: AreaResolution  = 0.0
@@ -380,6 +382,7 @@ contains
     AreaResolution = 0.0
     nLevelArea     = 0
     TypeCoordIn    =''
+    NameSat        =''
 
     if(index(NameCommand, "REGION") > 0) then
        ! Read name of region for #REGION (or #AMRREGION) command
@@ -395,7 +398,23 @@ contains
     end if
     call read_var('StringShape', StringShape)
     StringShape = adjustl(StringShape)
-
+    if(index(StringShape, 'sat:earth') > 0)then
+       i = index(StringShape, 'sat:earth')
+       NameSat = 'earth'
+       StringShape = StringShape(1:i-1)//StringShape(i+9:)
+    elseif(index(StringShape, 'sat:sta') > 0)then
+       i = index(StringShape, 'sat:sta')
+       NameSat = 'sta'
+       StringShape = StringShape(1:i-1)//StringShape(i+7:)
+    elseif(index(StringShape, 'sat:stb') > 0)then
+       i = index(StringShape, 'sat:stb')
+       NameSat = 'stb'
+       StringShape = StringShape(1:i-1)//StringShape(i+7:)
+    elseif(index(StringShape, 'sat:mars') > 0)then
+       i = index(StringShape, 'sat:mars')
+       NameSat = 'mars'
+       StringShape = StringShape(1:i-1)//StringShape(i+8:)
+    end if
     ! Check for TypeCoordIn, only HGR, HGI and earth/GSE is supported now
     ! For earth/GSE, it will obtain the Earth location in simulation coord.
     if(index(StringShape, 'HGR') > 0) then
@@ -470,6 +489,7 @@ contains
     Area%Weight   = -1.0
     Area%DoRotate = .false.
     Area%TypeCoordIn = ''
+    Area%NameSat  = ''
 
     ! Check for the word rotated in the name
     i = index(StringShape, 'rotated')
@@ -643,6 +663,20 @@ contains
     end if
 
     if (TypeCoordIn /= '') Area%TypeCoordIn=TypeCoordIn
+    if (NameSat /= '')then
+       ! The StringShape such as "conex0 sat:earth" is equivalent to
+       ! "conex0 rotate" with
+       ! xRorateArea =  0
+       ! yRotateArea = -Latitude
+       ! zRotateArea =  Longitude,
+       ! where (Latitude, Longitude) are the polar angle of direction
+       ! vector from the coordinate origin toward the earth location
+       ! Check that the shape is x-oriented
+       if(iPar/=1)call CON_stop('Satellite name='//trim(NameSat)//&
+            ' can only be used with "x" shapes')
+       Area%NameSat=NameSat
+       if(.not.allocated(Area%Rotate_DD))allocate(Area%Rotate_DD(3,3))
+    end if
 
   end subroutine read_region_param
   !============================================================================
