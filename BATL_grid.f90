@@ -208,7 +208,7 @@ contains
     end if
 
     allocate(Used_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
-    
+
     if(IsRoundCube) IsPeriodic_D = .false.
 
     !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D)
