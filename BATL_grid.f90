@@ -78,12 +78,10 @@ module BATL_grid
   logical, public:: IsNodeBasedGrid = .true.
 
   logical, public, allocatable::  &
-       Used_GB(:,:,:,:)               ! Used cells on local processors
-  
-  !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
-  !$acc declare create(Xyz_DGB, Xyz_DNB)
+       Used_GB(:,:,:,:)              ! Used cells on local processors
 
-  ! acc declare create(Xyz_DGB)
+  !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
+  !$acc declare create(Xyz_DGB, Xyz_DNB, Used_GB)
 
   !$acc declare create(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
   !$acc declare create(CellVolume_B, CellVolume_GB)
