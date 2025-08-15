@@ -77,6 +77,9 @@ module BATL_grid
   ! If true, cell faces are assumed to be flat polygons formed by the nodes
   logical, public:: IsNodeBasedGrid = .true.
 
+  logical, public, allocatable::  &
+       Used_GB(:,:,:,:)               ! Used cells on local processors
+  
   !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
   !$acc declare create(Xyz_DGB, Xyz_DNB)
 
@@ -206,6 +209,8 @@ contains
 
     end if
 
+    allocate(Used_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
+    
     if(IsRoundCube) IsPeriodic_D = .false.
 
     !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D)

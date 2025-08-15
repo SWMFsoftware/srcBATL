@@ -135,8 +135,8 @@ module BATL_tree
   integer, public, allocatable :: iNode_B(:)
 
   logical, public, allocatable :: &
-       Unused_B(:), Unused_BP(:,:), & ! Unused blocks on local/all processors
-       Used_GB(:,:,:,:)               ! Used cells on local processors
+       Unused_B(:), Unused_BP(:,:) ! Unused blocks on local/all processors
+       
 
   ! Target is useful to allow pointer from C wrapper
   integer, public, allocatable, target :: &
