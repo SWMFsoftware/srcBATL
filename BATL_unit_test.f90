@@ -2704,7 +2704,6 @@ contains
     integer, parameter:: nVar = nDim
     real, allocatable:: State_VGB(:, :, :, :, :), Dt_B(:)
     real, allocatable:: TestState_VC(:, :, :, :)
-    logical, allocatable:: Used_GB(:, :, :, :)
     integer, allocatable:: iEffectedNode_A(:)
     integer:: iBlock, iDim, iNode, iVar, i, j, k
     integer:: iChild
@@ -2773,10 +2772,8 @@ contains
     ! tests with mask
     if (DoTest) write(*,*) 'test masked cells and extra data'
 
-    allocate (Used_GB(MinI:MaxI, MinJ:MaxJ, MinK:MaxK, MaxBlockTest), &
+    allocate( &
          TestState_VC(nVar,nI,nJ,nK), ExtraData_IB(nExtraData,MaxBlockTest))
-
-    Used_GB = .true.
 
     do iBlock = 1, nBlock
        if (Unused_B(iBlock)) CYCLE
@@ -2877,8 +2874,7 @@ contains
 
     call check_state_mask
 
-    deallocate (State_VGB, Dt_B, Used_GB, iEffectedNode_A, TestState_VC, &
-         ExtraData_IB)
+    deallocate (State_VGB, Dt_B, iEffectedNode_A, TestState_VC, ExtraData_IB)
 
     call clean_grid
     call clean_tree
