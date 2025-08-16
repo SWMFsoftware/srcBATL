@@ -271,9 +271,10 @@ contains
     if (DoTest) write(*,*) 'Testing init_geometry for Cartesian'
     call init_geometry
 
-    if (TypeGeometry /= 'cartesian') &
+    if (TypeGeometryBatl /= 'cartesian') &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'TypeGeometry=', TypeGeometry, ' should be Cartesian by default'
+         'TypeGeometryBatl=', TypeGeometryBatl, &
+         ' should be Cartesian by default'
 
     if (.not. IsCartesian .or. IsRotatedCartesian .or. &
          IsRzGeometry .or. IsSpherical .or. IsCylindrical) &
@@ -308,9 +309,9 @@ contains
 
        call init_geometry('rz', IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
 
-       if (TypeGeometry /= 'rz') &
+       if (TypeGeometryBatl /= 'rz') &
             write(*,*) 'ERROR: init_geometry failed, ', &
-            'TypeGeometry=', TypeGeometry, ' should be rz'
+            'TypeGeometryBatl=', TypeGeometryBatl, ' should be rz'
 
        if (.not. IsRzGeometry .or. IsCartesian .or. IsSpherical .or. &
             IsCylindrical) &
@@ -324,7 +325,7 @@ contains
 
        if (any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
             write(*,*) 'ERROR: init_geometry failed, ', &
-            'for TypeGeometry=', TypeGeometry, &
+            'for TypeGeometryBatl=', TypeGeometryBatl, &
             'IsPeriodic_D =', IsPeriodic_D(1:nDim), &
             ' should be ', IsPeriodicTest_D(1:nDim)
 
@@ -351,9 +352,9 @@ contains
     call init_geometry('cylindrical_lnr', &
          IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
 
-    if (TypeGeometry /= 'cylindrical_lnr') &
+    if (TypeGeometryBatl /= 'cylindrical_lnr') &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'TypeGeometry=', TypeGeometry, ' should be cylindrical_lnr'
+         'TypeGeometryBatl=', TypeGeometryBatl, ' should be cylindrical_lnr'
 
     if (.not. IsCylindrical .or. IsCartesian .or. IsRzGeometry .or. &
          IsSpherical) &
@@ -367,7 +368,7 @@ contains
 
     if (any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'IsPeriodic_D =', IsPeriodic_D(1:nDim), &
          ' should be ', IsPeriodicTest_D(1:nDim)
 
@@ -385,9 +386,9 @@ contains
     call init_geometry('roundcube', &
          IsPeriodicIn_D=IsPeriodicTest_D(1:nDim))
 
-    if (TypeGeometry /= 'roundcube') &
+    if (TypeGeometryBatl /= 'roundcube') &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'TypeGeometry=', TypeGeometry, ' should be roundcube'
+         'TypeGeometryBatl=', TypeGeometryBatl, ' should be roundcube'
 
     if (.not. IsRoundCube .or. IsCartesian .or. IsRzGeometry &
          .or. IsCylindrical .or. IsSpherical) &
@@ -401,7 +402,7 @@ contains
 
     if (any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'IsPeriodic_D =', IsPeriodic_D(1:nDim), &
          ' should be ', IsPeriodicTest_D(1:nDim)
 
@@ -562,9 +563,9 @@ contains
     call init_geometry('spherical_genr', IsPeriodicIn_D=IsPeriodicTest_D, &
          RgenIn_I=Rgen_I)
 
-    if (TypeGeometry /= 'spherical_genr') &
+    if (TypeGeometryBatl /= 'spherical_genr') &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'TypeGeometry=', TypeGeometry, ' should be spherical_genr'
+         'TypeGeometryBatl=', TypeGeometryBatl, ' should be spherical_genr'
 
     if (.not. IsSpherical .or. IsCartesian .or. IsRzGeometry .or. &
          IsCylindrical) &
@@ -578,23 +579,23 @@ contains
 
     if (any(IsPeriodic_D(1:nDim) .neqv. IsPeriodicTest_D(1:nDim))) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'IsPeriodic_D =', IsPeriodic_D(1:nDim), &
          ' should be ', IsPeriodicTest_D(1:nDim)
 
     if (nRgen /= size(Rgen_I)) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'nRgen=', nRgen, ' should be ', size(Rgen_I)
 
     if (.not. allocated(LogRgen_I)) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'LogRgen_I is not allocated'
 
     if (any(abs(exp(LogRgen_I) - Rgen_I) > 1e-6)) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'exp(LogRgen_I) =', exp(LogRgen_I), ' should be ', Rgen_I
 
     if (DoTest) write(*,*) 'Testing radius_to_gen and gen_to_radius'
@@ -662,7 +663,7 @@ contains
 
     if (any(IsPeriodic_D .neqv. IsPeriodicTest_D)) &
          write(*,*) 'ERROR: init_geometry failed, ', &
-         'for TypeGeometry=', TypeGeometry, &
+         'for TypeGeometryBatl=', TypeGeometryBatl, &
          'IsPeriodic_D =', IsPeriodic_D, &
          ' should be ', IsPeriodicTest_D
 
