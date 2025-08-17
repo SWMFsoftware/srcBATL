@@ -78,7 +78,7 @@ module BATL_lib
   ! Inherited from BATL_tree
   public:: MaxNode, nNode, nNodeUsed, nRoot_D, nRoot
   public:: MaxLevel, nLevelMin, nLevelMax, MaxCoord_I
-  public:: Unused_B, Unused_BP, Used_GB
+  public:: Unused_B, Unused_BP
   public:: iNode_B, iMortonNode_A, iNodeMorton_I
   public:: DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P
   public:: iStatusNew_A, Refine_, Coarsen_, Unset_
@@ -106,7 +106,7 @@ module BATL_lib
   public:: IsNodeBasedGrid
   public:: CoordMin_D, CoordMax_D, DomainSize_D
   public:: CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot
-  public:: Xyz_DGB, Xyz_DNB
+  public:: Xyz_DGB, Xyz_DNB, Used_GB
   public:: CellFace_DB, CellFace_DFB, FaceNormal_DDFB
   public:: CellVolume_B, CellVolume_GB
   public:: find_grid_block, interpolate_grid, average_grid_node

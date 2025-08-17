@@ -77,10 +77,11 @@ module BATL_grid
   ! If true, cell faces are assumed to be flat polygons formed by the nodes
   logical, public:: IsNodeBasedGrid = .true.
 
-  !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
-  !$acc declare create(Xyz_DGB, Xyz_DNB)
+  ! Used cells on local processors
+  logical, public, allocatable:: Used_GB(:,:,:,:)
 
-  ! acc declare create(Xyz_DGB)
+  !$acc declare create(CoordMin_DB, CoordMax_DB, CellSize_DB, CellSizeRoot)
+  !$acc declare create(Xyz_DGB, Xyz_DNB, Used_GB)
 
   !$acc declare create(CellFace_DB, CellFace_DFB, FaceNormal_DDFB)
   !$acc declare create(CellVolume_B, CellVolume_GB)
@@ -206,9 +207,12 @@ contains
 
     end if
 
+    allocate(Used_GB(MinI:MaxI,MinJ:MaxJ,MinK:MaxK,MaxBlock))
+    Used_GB = .true.
+
     if(IsRoundCube) IsPeriodic_D = .false.
 
-    !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D)
+    !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D, Used_GB)
 
     ! Variables from init_geometry
     !$acc update device(TypeGeometry, IsCartesianGrid, IsCartesian)
@@ -231,7 +235,7 @@ contains
     IsNodeBasedGrid  = .true.
 
     deallocate(CoordMin_DB, CoordMax_DB, CellSize_DB, CellFace_DB, &
-         CellVolume_B, Xyz_DGB)
+         CellVolume_B, Xyz_DGB, Used_GB)
     if(allocated(CellVolume_GB))   deallocate(CellVolume_GB)
     if(allocated(CellFace_DFB))    deallocate(CellFace_DFB)
     if(allocated(Xyz_DNB))         deallocate(Xyz_DNB)
@@ -323,7 +327,7 @@ contains
                   CellFace_DB(1,iBlock)*abs(Xyz_DGB(2,1,j,1,iBlock))
           end do
           do j = 1, nJ+1
-             ! Could use node coordinate here !!!
+             ! Could use node coordinate here
              CellFace_DFB(2,1:nI,j,1:nK,iBlock) = CellFace_DB(2,iBlock) &
                   *0.5*abs(sum(Xyz_DGB(2,1,j-1:j,1,iBlock)))
           end do

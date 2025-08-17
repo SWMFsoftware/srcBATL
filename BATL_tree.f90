@@ -135,8 +135,7 @@ module BATL_tree
   integer, public, allocatable :: iNode_B(:)
 
   logical, public, allocatable :: &
-       Unused_B(:), Unused_BP(:,:), & ! Unused blocks on local/all processors
-       Used_GB(:,:,:,:)               ! Used cells on local processors
+       Unused_B(:), Unused_BP(:,:) ! Unused blocks on local/all processors
 
   ! Target is useful to allow pointer from C wrapper
   integer, public, allocatable, target :: &
@@ -202,7 +201,7 @@ module BATL_tree
 
   !$acc declare create(MaxNode, nNode, nNodeUsed, nRoot_D, nRoot)
   !$acc declare create(MaxLevel, nLevelMin, nLevelMax, MaxCoord_I)
-  !$acc declare create(Unused_B, Unused_BP, Used_GB)
+  !$acc declare create(Unused_B, Unused_BP)
   !$acc declare create(iNode_B, iMortonNode_A, iNodeMorton_I)
   !$acc declare create(DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P)
   !$acc declare create(iStatusNew_A, Refine_, Coarsen_, Unset_)

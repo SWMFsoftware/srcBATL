@@ -1019,8 +1019,8 @@ contains
     use BATL_size, ONLY: nBlock
     use BATL_grid,  ONLY: CoordMin_DB, CoordMax_DB, CellSize_DB, &
          Xyz_DGB, Xyz_DNB, CellFace_DB, CellFace_DFB, &
-         FaceNormal_DDFB, CellVolume_B, CellVolume_GB
-    use BATL_tree,  ONLY: nNode, nNodeUsed, Unused_B, Unused_BP, Used_GB, &
+         FaceNormal_DDFB, CellVolume_B, CellVolume_GB, Used_GB
+    use BATL_tree,  ONLY: nNode, nNodeUsed, Unused_B, Unused_BP,  &
          iNode_B, DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P, &
          iTree_IA
     !--------------------------------------------------------------------------
