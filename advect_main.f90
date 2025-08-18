@@ -548,8 +548,8 @@ contains
   subroutine save_plot
 
     use BATL_lib, ONLY: MaxDim, nBlock, Unused_B, &
-         iComm, nProc, iProc, iNode_B, &
-         TypeGeometry, IsCylindrical, IsSpherical, IsRLonLat, IsGenRadius, &
+         iComm, nProc, iProc, iNode_B, TypeGeometryBatl, &
+         IsCylindrical, IsSpherical, IsRLonLat, IsGenRadius, &
          Phi_, nDimAmr, CoordMin_D, CoordMax_D, nRgen, LogRgen_I, &
          CellVolume_GB, CellSize_DB, Xyz_DGB, CoordMin_DB, CoordMax_DB, &
          rRound0, rRound1, SqrtNDim, nDim
@@ -754,12 +754,12 @@ contains
 
           write(UnitTmp_,'(a)') '#GRIDGEOMETRYLIMIT'
           if(IsRLonLat)then
-             write(UnitTmp_,'(a,a18)') 'spherical'//TypeGeometry(8:20), &
+             write(UnitTmp_,'(a,a18)') 'spherical'//TypeGeometryBatl(8:20), &
                   'TypeGeometry'
           else
-             write(UnitTmp_,'(a,a18)')TypeGeometry, 'TypeGeometry'
+             write(UnitTmp_,'(a,a18)')TypeGeometryBatl, 'TypeGeometry'
           end if
-          if(TypeGeometry == 'roundcube')then
+          if(TypeGeometryBatl == 'roundcube')then
              write(UnitTmp_,'(es13.5," rRound0")') rRound0
              write(UnitTmp_,'(es13.5," rRound1")') rRound1
              write(UnitTmp_,'(es13.5," SqrtNDim")') SqrtNDim

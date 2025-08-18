@@ -215,7 +215,7 @@ contains
     !$acc update device(CoordMin_D, CoordMax_D, DomainSize_D, Used_GB)
 
     ! Variables from init_geometry
-    !$acc update device(TypeGeometry, IsCartesianGrid, IsCartesian)
+    !$acc update device(TypeGeometryBatl, IsCartesianGrid, IsCartesian)
     !$acc update device(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
     !$acc update device(IsSpherical, IsRLonLat, IsCylindrical)
     !$acc update device(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis)
@@ -639,7 +639,7 @@ contains
                 end do
              end do
           else
-             call CON_stop(NameSub//': '//TypeGeometry// &
+             call CON_stop(NameSub//': '//TypeGeometryBatl// &
                   ' geometry is not yet implemented')
           end if
 
@@ -812,7 +812,7 @@ contains
          deallocate(SinThetaFace_I)
 
       else
-         call CON_stop(NameSub//': '//TypeGeometry// &
+         call CON_stop(NameSub//': '//TypeGeometryBatl// &
               ' geometry is not yet implemented')
       end if
 

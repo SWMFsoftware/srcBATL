@@ -90,7 +90,7 @@ module BATL_lib
   public:: AmrRemoved_, AmrUnchanged_, AmrMoved_, AmrRefined_, AmrCoarsened_
 
   ! Inherited from BATL_geometry
-  public:: TypeGeometry, IsCartesianGrid, IsCartesian, IsRzGeometry
+  public:: TypeGeometryBatl, IsCartesianGrid, IsCartesian, IsRzGeometry
   public:: IsRotatedCartesian, GridRot_DD
   public:: IsSpherical, IsRLonLat, IsCylindrical
   public:: IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis, IsAnyAxis

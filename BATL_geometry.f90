@@ -31,7 +31,7 @@ module BATL_geometry
      module procedure cart_to_rot_vector, cart_to_rot_matrix
   end interface
 
-  character(len=20), public:: TypeGeometry = 'cartesian'
+  character(len=20), public:: TypeGeometryBatl = 'cartesian'
 
   real, public:: CoordMin_D(MaxDim)   = -0.5    ! Min gen. coords of domain
   real, public:: CoordMax_D(MaxDim)   =  0.5    ! Max gen. coords of domain
@@ -92,7 +92,7 @@ module BATL_geometry
   ! For cubed sphere need to know which of the 6 panels is used
   integer, public:: iCubedSphere = 1
 
-  !$acc declare create(TypeGeometry, IsCartesianGrid, IsCartesian)
+  !$acc declare create(TypeGeometryBatl, IsCartesianGrid, IsCartesian)
   !$acc declare create(IsRzGeometry, IsRotatedCartesian, GridRot_DD)
   !$acc declare create(IsSpherical, IsRLonLat, IsCylindrical)
   !$acc declare create(IsCylindricalAxis, IsSphericalAxis, IsLatitudeAxis)
@@ -143,24 +143,24 @@ contains
 
     character(len=*), parameter:: NameSub = 'init_geometry'
     !--------------------------------------------------------------------------
-    TypeGeometry = 'cartesian'
-    if(present(TypeGeometryIn)) TypeGeometry = TypeGeometryIn
+    TypeGeometryBatl = 'cartesian'
+    if(present(TypeGeometryIn)) TypeGeometryBatl = TypeGeometryIn
 
     IsPeriodic_D = .false.
     if(present(IsPeriodicIn_D)) IsPeriodic_D(1:nDim) = IsPeriodicIn_D
 
     ! Logicals are useful for efficient code
-    IsCartesian        = TypeGeometry(1:9)  == 'cartesian'
-    IsRotatedCartesian = TypeGeometry(1:16) == 'rotatedcartesian'
-    IsRzGeometry       = TypeGeometry(1:2)  == 'rz'
-    IsSpherical        = TypeGeometry(1:3)  == 'sph'
-    IsRLonLat          = TypeGeometry(1:3)  == 'rlo'
-    IsCylindrical      = TypeGeometry(1:3)  == 'cyl'
-    IsRoundCube        = TypeGeometry(1:5)  == 'round'
-    IsCubedSphere      = TypeGeometry(1:5)  == 'cubed'
+    IsCartesian        = TypeGeometryBatl(1:9)  == 'cartesian'
+    IsRotatedCartesian = TypeGeometryBatl(1:16) == 'rotatedcartesian'
+    IsRzGeometry       = TypeGeometryBatl(1:2)  == 'rz'
+    IsSpherical        = TypeGeometryBatl(1:3)  == 'sph'
+    IsRLonLat          = TypeGeometryBatl(1:3)  == 'rlo'
+    IsCylindrical      = TypeGeometryBatl(1:3)  == 'cyl'
+    IsRoundCube        = TypeGeometryBatl(1:5)  == 'round'
+    IsCubedSphere      = TypeGeometryBatl(1:5)  == 'cubed'
 
-    IsLogRadius   = index(TypeGeometry,'lnr')  > 0
-    IsGenRadius   = index(TypeGeometry,'genr') > 0
+    IsLogRadius   = index(TypeGeometryBatl,'lnr')  > 0
+    IsGenRadius   = index(TypeGeometryBatl,'genr') > 0
 
     ! Grid is Cartesian (even in RZ geometry)
     IsCartesianGrid = IsCartesian .or. IsRzGeometry
@@ -189,7 +189,8 @@ contains
     if(allocated(LogRgen_I)) deallocate(LogRgen_I)
     if(IsGenRadius)then
        if(.not.present(RgenIn_I)) call CON_stop_simple(NameSub// &
-            ': RgenIn_I argument is missing for TypeGeometry=' //TypeGeometry)
+            ': RgenIn_I argument is missing for TypeGeometryBatl=' &
+            //TypeGeometryBatl)
        ! Store general radial coordinate table
        nRgen = size(RgenIn_I)
        allocate(LogRgen_I(nRgen))
@@ -304,7 +305,7 @@ contains
        end if
     else
        call CON_stop_simple(NameSub// &
-            ' not yet implemented for TypeGeometry=', TypeGeometry)
+            ' not yet implemented for TypeGeometryBatl=', TypeGeometryBatl)
     end if
 
     if(IsNegativePhiMin)then
@@ -419,7 +420,7 @@ contains
        end if
     else
        call CON_stop_simple(NameSub// &
-            ' not yet implemented for TypeGeometry=', TypeGeometry)
+            ' not yet implemented for TypeGeometryBatl=', TypeGeometryBatl)
     end if
 
   end subroutine coord_to_xyz
