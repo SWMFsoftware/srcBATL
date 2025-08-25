@@ -414,6 +414,14 @@ contains
        i = index(StringShape, 'sat:mars')
        NameSat = 'mars'
        StringShape = StringShape(1:i-1)//StringShape(i+8:)
+    elseif(index(StringShape, 'sat:solo') > 0)then
+       i = index(StringShape, 'sat:solo')
+       NameSat = 'solo'
+       StringShape = StringShape(1:i-1)//StringShape(i+8:)
+    elseif(index(StringShape, 'sat:psp') > 0)then
+       i = index(StringShape, 'sat:psp')
+       NameSat = 'psp'
+       StringShape = StringShape(1:i-1)//StringShape(i+7:)
     end if
     ! Check for TypeCoordIn, only HGR, HGI and earth/GSE is supported now
     ! For earth/GSE, it will obtain the Earth location in simulation coord.
