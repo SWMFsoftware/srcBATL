@@ -42,7 +42,7 @@ module BATL_lib
   public:: MaxDim, nDim, Dim1_, Dim2_, Dim3_, iDim_, jDim_, kDim_
   public:: iRatio, jRatio, kRatio
   public:: nDimAmr, iDimAmr_D
-  public:: MaxBlock, nBlock
+  public:: MaxBlock, nBlock, nGang
   public:: nI, nJ, nK, nIJK, nIJK_D, MinIJK_D, MaxIJK_D
   public:: MinI, MaxI, MinJ, MaxJ, MinK, MaxK, nG
   public:: j0_, j2_, nJp1_, nJm1_, k0_, k2_, nKp1_, nKm1_, i0_, nIp1_
