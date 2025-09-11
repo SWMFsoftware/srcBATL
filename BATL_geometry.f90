@@ -108,7 +108,7 @@ contains
   subroutine init_geometry(TypeGeometryIn, IsPeriodicIn_D, RgenIn_I, &
        UseFDFaceFluxIn)
 
-    use ModNumConst,       ONLY: i_DD
+    use ModNumConst, ONLY: i_DD
     use ModCoordTransform, ONLY: rot_matrix_z
 
     character(len=*), optional, intent(in):: TypeGeometryIn
@@ -222,7 +222,7 @@ contains
     !$acc routine seq
 
     use ModCoordTransform, ONLY: atan2_check, xyz_to_sph, xyz_to_rlonlat
-    use ModNumConst,       ONLY: cTwoPi
+    use ModNumConst, ONLY: cTwoPi
 
     real, intent(in) :: XyzIn_D(MaxDim)
     real, intent(out):: CoordOut_D(MaxDim)

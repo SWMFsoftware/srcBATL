@@ -42,7 +42,7 @@ module BATL_amr_criteria
        MaxArea, nCritGrid
 
   use ModUtilities, ONLY: CON_stop
-  use BATL_mpi,  ONLY: iProc
+  use BATL_mpi, ONLY: iProc
 
   implicit none
 
@@ -1156,9 +1156,8 @@ contains
 
     use ModReadParam, ONLY: read_var
     use ModUtilities, ONLY: lower_case
-    use BATL_tree,    ONLY: MaxTotalBlock, iTree_IA,MaxLevel_,&
-         MaxLevel
-    use BATL_mpi,     ONLY: iProc
+    use BATL_tree, ONLY: MaxTotalBlock, iTree_IA, MaxLevel_, MaxLevel
+    use BATL_mpi, ONLY: iProc
     use ModUtilities, ONLY: split_string
 
     character(len=*), intent(in) :: NameCommand
@@ -1557,11 +1556,11 @@ contains
   !============================================================================
   subroutine set_block_dx_level(iBlock)
 
-    use BATL_grid,     ONLY: Xyz_DNB,CellSize_DB
-    use BATL_size,     ONLY: nINode,nJNode,nKNode,nDim
+    use BATL_grid, ONLY: Xyz_DNB,CellSize_DB
+    use BATL_size, ONLY: nINode,nJNode,nKNode,nDim
     use BATL_geometry, ONLY: IsCartesianGrid, Phi_, IsLogRadius, IsGenRadius
-    use BATL_tree,     ONLY: iNode_B, iTree_IA, Level_
-    use ModNumConst,   ONLY: cRadToDeg
+    use BATL_tree, ONLY: iNode_B, iTree_IA, Level_
+    use ModNumConst, ONLY: cRadToDeg
 
     integer, intent(in) :: iBlock
 

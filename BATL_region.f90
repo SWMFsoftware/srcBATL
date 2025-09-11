@@ -9,7 +9,7 @@ module BATL_region
   ! also store the required grid resolution/level.
   ! Also read the initial grid refinement resolution/level.
 
-  use BATL_mpi,  ONLY: iProc
+  use BATL_mpi, ONLY: iProc
   use BATL_size, ONLY: nDim, Dim1_, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
        nI, nJ, nK, nIJK, MinI, MinJ, MinK, MaxI, MaxJ, MaxK, MaxIJK,&
        nINode, nJNode, nKNode
@@ -105,9 +105,9 @@ contains
   !============================================================================
   subroutine init_region
 
-    use BATL_geometry,     ONLY: Phi_, Theta_, IsCartesianGrid, &
+    use BATL_geometry, ONLY: Phi_, Theta_, IsCartesianGrid, &
          IsLogRadius, IsGenRadius, radius_to_gen, CellSizeRoot
-    use ModNumConst,       ONLY: cDegToRad
+    use ModNumConst, ONLY: cDegToRad
 
     integer :: iGeo
     real:: rMin, rMax
@@ -340,11 +340,11 @@ contains
 
   subroutine read_region_param(NameCommand, UseStrictIn)
 
-    use ModReadParam,      ONLY: read_var, lStringLine
-    use ModNumConst,       ONLY: cDegToRad
+    use ModReadParam, ONLY: read_var, lStringLine
+    use ModNumConst, ONLY: cDegToRad
     use ModCoordTransform, ONLY: &
          rot_matrix, rot_matrix_x, rot_matrix_y, rot_matrix_z
-    use ModUtilities, ONLY : lower_case
+    use ModUtilities, ONLY: lower_case
 
     character(len=*),  intent(inout) :: NameCommand
     logical, optional, intent(in)    :: UseStrictIn
@@ -694,7 +694,7 @@ contains
     ! iRegion_I
 
     use BATL_geometry, ONLY: IsCartesianGrid
-    use ModUtilities,  ONLY: lower_case
+    use ModUtilities, ONLY: lower_case
 
     integer, intent(in):: iRegion_I(:)
     real,    intent(in):: Xyz_D(nDim)
@@ -748,7 +748,7 @@ contains
        IsInside, IsInside_I, Value_I, WeightDefaultIn, user_specify_region)
 
     use BATL_geometry, ONLY: IsCartesianGrid
-    use ModUtilities,  ONLY: lower_case
+    use ModUtilities, ONLY: lower_case
 
     ! Check the intersection of block iBlock with one or more regions
     ! indexed by the iRegion_I array. Positive region index means

@@ -48,7 +48,7 @@ contains
 
     use BATL_size, ONLY: MaxBlock, MinI, MaxI, MinJ, MaxJ, MinK, MaxK, &
          nI, nJ, nK, nIJK, iRatio, jRatio, kRatio
-    use BATL_mpi,  ONLY: iComm, nProc, iProc
+    use BATL_mpi, ONLY: iComm, nProc, iProc
 
     use BATL_tree, ONLY: nNode, Unused_BP, &
          iTree_IA, iProcNew_A, Proc_, Block_, Coord1_, Coord2_, Coord3_, &
@@ -1017,10 +1017,10 @@ contains
     ! sync grid information from cpu to gpu after AMR and initially
 
     use BATL_size, ONLY: nBlock
-    use BATL_grid,  ONLY: CoordMin_DB, CoordMax_DB, CellSize_DB, &
+    use BATL_grid, ONLY: CoordMin_DB, CoordMax_DB, CellSize_DB, &
          Xyz_DGB, Xyz_DNB, CellFace_DB, CellFace_DFB, &
          FaceNormal_DDFB, CellVolume_B, CellVolume_GB, Used_GB
-    use BATL_tree,  ONLY: nNode, nNodeUsed, Unused_B, Unused_BP,  &
+    use BATL_tree, ONLY: nNode, nNodeUsed, Unused_B, Unused_BP,  &
          iNode_B, DiLevelNei_IIIB, iNodeNei_IIIB, IsNeighbor_P, &
          iTree_IA
     !--------------------------------------------------------------------------

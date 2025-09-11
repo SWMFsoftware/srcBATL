@@ -80,7 +80,7 @@ contains
   subroutine barrier_mpi
 
     use ModUtilities, ONLY: flush_unit
-    use ModIoUnit,    ONLY: STDOUT_
+    use ModIoUnit, ONLY: STDOUT_
 
     integer:: iError
     !--------------------------------------------------------------------------
