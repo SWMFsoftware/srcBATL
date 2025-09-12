@@ -1,6 +1,6 @@
 module BATL_interpolate_amr
 
-  use BATL_mpi,  ONLY: iProc
+  use BATL_mpi, ONLY: iProc
   use BATL_size, ONLY: nIJK_D, nDim, nDimAmr, MaxDim, &
        iRatio, jRatio, kRatio, iRatio_D, Dim2_
   use BATL_tree, ONLY: Unset_, find_tree_node, Proc_, Block_,&

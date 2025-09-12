@@ -10,7 +10,7 @@ module BATL_unit_test
 
   ! public entities not passed to BATL_lib
   use BATL_tree, ONLY: di_level_nei, Child1_, iProcNew_A
-  use BATL_amr,  ONLY: do_amr, init_amr
+  use BATL_amr, ONLY: do_amr, init_amr
 
   ! Other things
   use ModNumConst, ONLY: cPi, cTwoPi, cHalfPi

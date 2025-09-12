@@ -135,7 +135,7 @@ contains
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D
-    use BATL_mpi,  ONLY: iComm, nProc, iProc
+    use BATL_mpi, ONLY: iComm, nProc, iProc
     use BATL_tree, ONLY: Unused_B
 
     ! Arguments

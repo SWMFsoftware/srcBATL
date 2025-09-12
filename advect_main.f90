@@ -220,7 +220,7 @@ contains
   !============================================================================
   function exact_v(Xyz_D, Time)
 
-    use BATL_lib,    ONLY: IsCartesianGrid, IsRzGeometry, IsPeriodic_D, &
+    use BATL_lib, ONLY: IsCartesianGrid, IsRzGeometry, IsPeriodic_D, &
          IsRotatedCartesian, GridRot_DD, DomainSize_D
     use ModNumConst, ONLY: cHalfPi
     use ModCoordTransform, ONLY: rot_matrix_z
@@ -493,7 +493,7 @@ contains
     ! Calculate the totals on processor 0
     use BATL_lib, ONLY: nBlock, Unused_B, CellVolume_GB, Xyz_DGB, &
          iComm, iProc, nProc
-    use ModMpi,    ONLY: MPI_reduce, MPI_REAL, MPI_SUM
+    use ModMpi, ONLY: MPI_reduce, MPI_REAL, MPI_SUM
     use ModIoUnit, ONLY: UnitTmp_
 
     integer:: iBlock, i, j, k, iError
@@ -554,9 +554,9 @@ contains
          CellVolume_GB, CellSize_DB, Xyz_DGB, CoordMin_DB, CoordMax_DB, &
          rRound0, rRound1, SqrtNDim, nDim
 
-    use ModMpi,    ONLY: MPI_REAL, MPI_INTEGER, MPI_MIN, MPI_SUM, MPI_reduce
+    use ModMpi, ONLY: MPI_REAL, MPI_INTEGER, MPI_MIN, MPI_SUM, MPI_reduce
     use ModIoUnit, ONLY: UnitTmp_
-    use ModKind,   ONLY: nByteReal
+    use ModKind, ONLY: nByteReal
     use ModNumConst, ONLY: cPi, cTwoPi, cHalfPi
 
     character(len=100):: NameSnapshot, NameFile

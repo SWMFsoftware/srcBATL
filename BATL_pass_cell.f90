@@ -123,7 +123,7 @@ contains
 
     use BATL_size, ONLY: MaxBlock, nBlock, nI, nJ, nK, nIjk_D, &
          nDim, jDim_, kDim_, iRatio_D, MinI, MinJ, MinK, MaxI, MaxJ, MaxK
-    use BATL_mpi,  ONLY: iComm, nProc, iProc
+    use BATL_mpi, ONLY: iComm, nProc, iProc
     use BATL_tree, ONLY: DiLevelNei_IIIB, Unused_B, iNode_B
 
     ! Arguments
@@ -2131,7 +2131,7 @@ contains
     subroutine do_prolong(iDir, jDir, kDir, iNodeSend, iBlockSend, nVar, nG, &
          State_VGB, DoRemote, IsAxisNode, iLevelMIn, Time_B, TimeOld_B)
 
-      use BATL_size,     ONLY: nDimAmr
+      use BATL_size, ONLY: nDimAmr
       use ModCoordTransform, ONLY: cross_product
       use BATL_tree, ONLY: get_tree_position
       use BATL_mpi, ONLY: iProc

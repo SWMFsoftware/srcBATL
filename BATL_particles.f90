@@ -220,7 +220,7 @@ contains
   subroutine check_particle_location(iKindParticle,iParticle, iProcOut, &
        DoMove, IsGone)
     use BATL_tree, ONLY: Unset_
-    use BATL_mpi,  ONLY: iProc
+    use BATL_mpi, ONLY: iProc
 
     integer,           intent(in) :: iKindParticle
     integer,           intent(in) :: iParticle
@@ -499,7 +499,7 @@ contains
   !============================================================================
   subroutine put_particles(iKindParticle, StateIn_VI, iLastIdIn, &
        iIndexIn_II, UseInputInGenCoord, DoReplace, nParticlePE)
-    use BATL_mpi,      ONLY: iProc
+    use BATL_mpi, ONLY: iProc
     use BATL_geometry, ONLY: coord_to_xyz
     integer,         intent(in)  :: iKindParticle
     real,            intent(in)  :: StateIn_VI(:,:)
@@ -699,7 +699,7 @@ contains
     !==========================================================================
     function is_for_all_pe(DoStop) RESULT(DoStopAll)
       use ModMpi
-      use BATL_mpi, ONLY  : iComm, nProc
+      use BATL_mpi, ONLY: iComm, nProc
       logical, intent(in) :: DoStop
       logical             :: DoStopAll
       integer :: iError
