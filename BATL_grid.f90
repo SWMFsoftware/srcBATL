@@ -1968,17 +1968,12 @@ contains
     end if
 
     ! Decide whether need to perform search in the global tree structure
-    ! If the point is out of the first layer of ghostcells, neither iBlockIn
-    ! or its connectivity list can be used for interpolation
     if(Unused_B(iBlockIn))then
        DoSearch = .true.
     else
-       DoSearch = &
-            any(&
-            Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn)  &
-            - CellSize_DB(1:nDim,iBlockIn)              .or.&
-            Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn)  &
-            + CellSize_DB(1:nDim,iBlockIn))
+       DoSearch = any(&
+            Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn).or.&
+            Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn) )
     end if
 
     if(DoSearch)then
