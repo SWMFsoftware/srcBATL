@@ -706,9 +706,9 @@ contains
     real:: XyzFull_D(MaxDim), Coord_D(MaxDim)
 
     logical:: DoTest = .false.
+
     character(len=*), parameter:: NameSub = 'is_point_inside_regions'
     !--------------------------------------------------------------------------
-
     nRegion = size(iRegion_I)
     if(nRegion < 1) call CON_stop(NameSub//': empty region index array')
 
