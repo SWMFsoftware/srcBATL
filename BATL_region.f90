@@ -693,7 +693,8 @@ contains
     ! return true if point Xyz_D is inside any region defined by
     ! iRegion_I
 
-    use BATL_geometry, ONLY: IsCartesianGrid
+    use BATL_geometry, ONLY: IsCartesianGrid, xyz_to_coord
+    use BATL_size, ONLY: MaxDim
     use ModUtilities, ONLY: lower_case
 
     integer, intent(in):: iRegion_I(:)
@@ -702,6 +703,7 @@ contains
     integer:: nRegion, iRegion, iArea, iSign
     logical:: IsInside = .false., IsInsideOld = .false.
     real:: Xyz_DI(nDim, 1)
+    real:: XyzFull_D(MaxDim), Coord_D(MaxDim)
 
     logical:: DoTest = .false.
     character(len=*), parameter:: NameSub = 'is_point_inside_regions'
@@ -722,7 +724,17 @@ contains
        Area => Area_I(iArea)
        NameShape = Area%NameShape
 
-       Xyz_DI(1:nDim, 1) = Xyz_D
+       ! For brick_coord regions on non-Cartesian grids, convert
+       ! Cartesian coordinates to generalized coordinates, similar
+       ! to how block_inside_regions handles this via set_coord.
+       if(NameShape == 'brick_coord' .and. .not. IsCartesianGrid) then
+          XyzFull_D = 0.0
+          XyzFull_D(1:nDim) = Xyz_D
+          call xyz_to_coord(XyzFull_D, Coord_D)
+          Xyz_DI(1:nDim, 1) = Coord_D(1:nDim)
+       else
+          Xyz_DI(1:nDim, 1) = Xyz_D
+       end if
 
        call points_inside_region(1, Xyz_DI, Area, IsInside)
 
