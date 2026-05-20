@@ -5,274 +5,359 @@ module BATL_c
   use iso_c_binding
   use BATL_lib
   ! Additional modules for internal functions not in BATL_lib
-  use BATL_tree, ONLY: init_tree, set_tree_root, refine_tree_node, &
+  use BATL_tree, only: init_tree, set_tree_root, refine_tree_node, &
                        coarsen_tree_node, distribute_tree, &
                        find_tree_node, find_tree_cell, interpolate_tree, &
                        i_node_new, is_point_inside_node, show_tree
-  use BATL_geometry, ONLY: init_geometry, xyz_to_coord, coord_to_xyz
+  use BATL_geometry, only: init_geometry, xyz_to_coord, coord_to_xyz
 
   implicit none
 
 contains
-  !============================================================================
 
-  ! --- BATL_size parameters ---
-
-  integer(c_int) function c_batl_get_ni() bind(c)
-    c_batl_get_ni = int(nI, c_int)
+!==============================================================================
+  function c_batl_get_ni() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nI, c_int)
   end function c_batl_get_ni
 !==============================================================================
-
-  integer(c_int) function c_batl_get_nj() bind(c)
-    c_batl_get_nj = int(nJ, c_int)
+  function c_batl_get_nj() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nJ, c_int)
   end function c_batl_get_nj
 !==============================================================================
-
-  integer(c_int) function c_batl_get_nk() bind(c)
-    c_batl_get_nk = int(nK, c_int)
+  function c_batl_get_nk() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nK, c_int)
   end function c_batl_get_nk
 !==============================================================================
-
-  integer(c_int) function c_batl_get_ng() bind(c)
-    c_batl_get_ng = int(nG, c_int)
+  function c_batl_get_ng() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nG, c_int)
   end function c_batl_get_ng
 !==============================================================================
-
-  integer(c_int) function c_batl_get_ndim() bind(c)
-    c_batl_get_ndim = int(nDim, c_int)
+  function c_batl_get_ndim() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nDim, c_int)
   end function c_batl_get_ndim
 !==============================================================================
-
-  integer(c_int) function c_batl_get_maxblock() bind(c)
-    c_batl_get_maxblock = int(MaxBlock, c_int)
+  function c_batl_get_maxblock() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(MaxBlock, c_int)
   end function c_batl_get_maxblock
 !==============================================================================
-
-  ! --- BATL_geometry variables & accessors ---
-
-  integer(c_int) function c_batl_is_cartesian() bind(c)
+  function c_batl_is_cartesian() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
     if (IsCartesian) then
-       c_batl_is_cartesian = 1
+       iRes = 1
     else
-       c_batl_is_cartesian = 0
+       iRes = 0
     end if
   end function c_batl_is_cartesian
 !==============================================================================
-
-  integer(c_int) function c_batl_is_rz_geometry() bind(c)
+  function c_batl_is_rz_geometry() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
     if (IsRzGeometry) then
-       c_batl_is_rz_geometry = 1
+       iRes = 1
     else
-       c_batl_is_rz_geometry = 0
+       iRes = 0
     end if
   end function c_batl_is_rz_geometry
 !==============================================================================
-
-  ! --- BATL_tree variables ---
-
-  integer(c_int) function c_batl_get_nroot() bind(c)
-    c_batl_get_nroot = int(nRoot, c_int)
+  function c_batl_get_nroot() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nRoot, c_int)
   end function c_batl_get_nroot
 !==============================================================================
-
-  integer(c_int) function c_batl_get_nnode() bind(c)
-    c_batl_get_nnode = int(nNode, c_int)
+  function c_batl_get_nnode() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nNode, c_int)
   end function c_batl_get_nnode
 !==============================================================================
-
-  ! --- Lifecycle & Core API ---
-
   subroutine c_init_mpi() bind(c)
-  !----------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call init_mpi()
   end subroutine c_init_mpi
 !==============================================================================
-
-  subroutine c_init_batl(CoordMinIn_D, CoordMaxIn_D, MaxBlockIn) bind(c)
+  subroutine c_init_batl( &
+      CoordMinIn_D, CoordMaxIn_D, MaxBlockIn) bind(c)
     real(c_double), intent(in) :: CoordMinIn_D(nDim)
     real(c_double), intent(in) :: CoordMaxIn_D(nDim)
     integer(c_int), intent(in), value :: MaxBlockIn
-  !----------------------------------------------------------------------------------------------
-    call init_batl(real(CoordMinIn_D), real(CoordMaxIn_D), int(MaxBlockIn))
+    !--------------------------------------------------------------------------
+    call init_batl(real(CoordMinIn_D), real(CoordMaxIn_D), &
+         int(MaxBlockIn))
   end subroutine c_init_batl
 !==============================================================================
-
   subroutine c_clean_batl() bind(c)
-  !----------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call clean_batl()
   end subroutine c_clean_batl
 !==============================================================================
-
   subroutine c_init_grid_batl() bind(c)
-  !----------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call init_grid_batl()
   end subroutine c_init_grid_batl
 !==============================================================================
-
   subroutine c_regrid_batl(nVar, State_VGB) bind(c)
     integer(c_int), intent(in), value :: nVar
-    real(c_double), intent(inout) :: State_VGB(nVar, MinI:MaxI, MinJ:MaxJ, MinK:MaxK, MaxBlock)
-  !----------------------------------------------------------------------------------------------
+    real(c_double), intent(inout) :: &
+      State_VGB(nVar, MinI:MaxI, MinJ:MaxJ, MinK:MaxK, MaxBlock)
+    !--------------------------------------------------------------------------
     call regrid_batl(int(nVar), State_VGB)
   end subroutine c_regrid_batl
 !==============================================================================
-
-  ! --- BATL_tree subroutines ---
-
   subroutine c_init_tree(MaxBlockIn) bind(c)
     integer(c_int), intent(in), value :: MaxBlockIn
-  !----------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call init_tree(int(MaxBlockIn))
   end subroutine c_init_tree
 !==============================================================================
-
   subroutine c_set_tree_root(nRootIn_D) bind(c)
     integer(c_int), intent(in) :: nRootIn_D(nDim)
-    integer :: nRoot_F(MaxDim)
-  !----------------------------------------------------------------------------------------------
-    nRoot_F = 1
-    nRoot_F(1:nDim) = int(nRootIn_D)
-    call set_tree_root(nRoot_F)
+    integer :: nRoot_A(MaxDim)
+    !--------------------------------------------------------------------------
+    nRoot_A = 1
+    nRoot_A(1:nDim) = int(nRootIn_D)
+    call set_tree_root(nRoot_A)
   end subroutine c_set_tree_root
 !==============================================================================
-
-  integer(c_int) function c_i_node_new() bind(c)
-    c_i_node_new = int(i_node_new(), c_int)
+  function c_i_node_new() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(i_node_new(), c_int)
   end function c_i_node_new
 !==============================================================================
-
   subroutine c_refine_tree_node(iNode) bind(c)
     integer(c_int), intent(in), value :: iNode
-  !------------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call refine_tree_node(int(iNode))
   end subroutine c_refine_tree_node
 !==============================================================================
-
   subroutine c_coarsen_tree_node(iNode) bind(c)
     integer(c_int), intent(in), value :: iNode
-  !------------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     call coarsen_tree_node(int(iNode))
   end subroutine c_coarsen_tree_node
 !==============================================================================
-
-  subroutine c_distribute_tree(DoBalanceOnlyIn) bind(c)
-    integer(c_int), intent(in), value :: DoBalanceOnlyIn
-  !------------------------------------------------------------------------------------------------
-    call distribute_tree(DoBalanceOnlyIn /= 0)
+  subroutine c_distribute_tree(iDoBalanceOnlyIn) bind(c)
+    integer(c_int), intent(in), value :: iDoBalanceOnlyIn
+    !--------------------------------------------------------------------------
+    call distribute_tree(iDoBalanceOnlyIn /= 0)
   end subroutine c_distribute_tree
 !==============================================================================
-
   subroutine c_find_tree_node(Coord_D, iNode) bind(c)
     real(c_double), intent(in) :: Coord_D(nDim)
     integer(c_int), intent(out) :: iNode
-    integer :: iNode_F
-    real :: Coord_F(MaxDim)
-  !------------------------------------------------------------------------------------------------
-    Coord_F = 0.0
-    Coord_F(1:nDim) = real(Coord_D)
-    call find_tree_node(Coord_F, iNode_F)
-    iNode = int(iNode_F, c_int)
+    integer :: iNodeF
+    real :: Coord_A(MaxDim)
+    !--------------------------------------------------------------------------
+    Coord_A = 0.0
+    Coord_A(1:nDim) = real(Coord_D)
+    call find_tree_node(Coord_A, iNodeF)
+    iNode = int(iNodeF, c_int)
   end subroutine c_find_tree_node
 !==============================================================================
-
-  integer(c_int) function c_is_point_inside_node(Coord_D, iNode) bind(c)
+  function c_is_point_inside_node(Coord_D, iNode) bind(c) result(iRes)
     real(c_double), intent(in) :: Coord_D(nDim)
     integer(c_int), intent(in), value :: iNode
-    real :: Coord_F(MaxDim)
-    Coord_F = 0.0
-    Coord_F(1:nDim) = real(Coord_D)
-    if (is_point_inside_node(Coord_F, int(iNode))) then
-       c_is_point_inside_node = 1
+    integer(c_int) :: iRes
+    real :: Coord_A(MaxDim)
+    !--------------------------------------------------------------------------
+    Coord_A = 0.0
+    Coord_A(1:nDim) = real(Coord_D)
+    if (is_point_inside_node(Coord_A, int(iNode))) then
+       iRes = 1
     else
-       c_is_point_inside_node = 0
+       iRes = 0
     end if
   end function c_is_point_inside_node
 !==============================================================================
-
-  subroutine c_show_tree(StringIn) bind(c)
-    character(kind=c_char), intent(in) :: StringIn(*)
-    character(len=100) :: String_F
+  subroutine c_show_tree(StringIn_A) bind(c)
+    character(kind=c_char), intent(in) :: StringIn_A(*)
+    character(len=100) :: StringF
     integer :: i
-  !--------------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     i = 1
-    String_F = ''
-    do while (StringIn(i) /= c_null_char)
-       String_F(i:i) = StringIn(i)
+    StringF = ''
+    do while (StringIn_A(i) /= c_null_char)
+       StringF(i:i) = StringIn_A(i)
        i = i + 1
     end do
     if (i > 1) then
-       call show_tree(trim(String_F))
+       call show_tree(trim(StringF))
     else
        call show_tree('')
     end if
   end subroutine c_show_tree
 !==============================================================================
-
-  ! --- BATL_geometry subroutines ---
-
-  subroutine c_init_geometry(TypeGeometryIn) bind(c)
-    character(kind=c_char), intent(in) :: TypeGeometryIn(*)
-    character(len=100) :: Type_F
+  subroutine c_init_geometry(TypeGeometryIn_A) bind(c)
+    character(kind=c_char), intent(in) :: TypeGeometryIn_A(*)
+    character(len=100) :: TypeF
     integer :: i
-  !--------------------------------------------------------------------------------------------------
+    !--------------------------------------------------------------------------
     i = 1
-    Type_F = ''
-    do while (TypeGeometryIn(i) /= c_null_char)
-       Type_F(i:i) = TypeGeometryIn(i)
+    TypeF = ''
+    do while (TypeGeometryIn_A(i) /= c_null_char)
+       TypeF(i:i) = TypeGeometryIn_A(i)
        i = i + 1
     end do
-    call init_geometry(TypeGeometryIn=trim(Type_F))
+    call init_geometry(TypeGeometryIn=trim(TypeF))
   end subroutine c_init_geometry
 !==============================================================================
-
   subroutine c_xyz_to_coord(Xyz_D, Coord_D) bind(c)
     real(c_double), intent(in)  :: Xyz_D(nDim)
     real(c_double), intent(out) :: Coord_D(nDim)
-    real :: Xyz_F(MaxDim), Coord_F(MaxDim)
-  !--------------------------------------------------------------------------------------------------
-    Xyz_F = 0.0
-    Xyz_F(1:nDim) = real(Xyz_D)
-    call xyz_to_coord(Xyz_F, Coord_F)
-    Coord_D = real(Coord_F(1:nDim), c_double)
+    real :: Xyz_A(MaxDim), Coord_A(MaxDim)
+    !--------------------------------------------------------------------------
+    Xyz_A = 0.0
+    Xyz_A(1:nDim) = real(Xyz_D)
+    call xyz_to_coord(Xyz_A, Coord_A)
+    Coord_D = real(Coord_A(1:nDim), c_double)
   end subroutine c_xyz_to_coord
 !==============================================================================
-
   subroutine c_coord_to_xyz(Coord_D, Xyz_D) bind(c)
     real(c_double), intent(in)  :: Coord_D(nDim)
     real(c_double), intent(out) :: Xyz_D(nDim)
-    real :: Coord_F(MaxDim), Xyz_F(MaxDim)
-  !--------------------------------------------------------------------------------------------------
-    Coord_F = 0.0
-    Coord_F(1:nDim) = real(Coord_D)
-    call coord_to_xyz(Coord_F, Xyz_F)
-    Xyz_D = real(Xyz_F(1:nDim), c_double)
+    real :: Coord_A(MaxDim), Xyz_A(MaxDim)
+    !--------------------------------------------------------------------------
+    Coord_A = 0.0
+    Coord_A(1:nDim) = real(Coord_D)
+    call coord_to_xyz(Coord_A, Xyz_A)
+    Xyz_D = real(Xyz_A(1:nDim), c_double)
   end subroutine c_coord_to_xyz
 !==============================================================================
-
-  ! --- High-level Unit Tests ---
-
   subroutine c_test_tree() bind(c)
-    use BATL_unit_test, ONLY: test_tree
-  !--------------------------------------------------------------------------------------------------
+    use BATL_unit_test, only: test_tree
+    !--------------------------------------------------------------------------
     call test_tree()
   end subroutine c_test_tree
 !==============================================================================
-
   subroutine c_test_geometry() bind(c)
-    use BATL_unit_test, ONLY: test_geometry
-  !--------------------------------------------------------------------------------------------------
+    use BATL_unit_test, only: test_geometry
+    !--------------------------------------------------------------------------
     call test_geometry()
   end subroutine c_test_geometry
 !==============================================================================
-
-  ! --- Pointer Accessors ---
-
-  function c_batl_get_xyz_ptr() bind(c) result(res)
-    type(c_ptr) :: res
-  !--------------------------------------------------------------------------------------------------
-    res = c_loc(Xyz_DGB)
+  function c_batl_get_xyz_ptr() bind(c) result(Res)
+    type(c_ptr) :: Res
+    !--------------------------------------------------------------------------
+    Res = c_loc(Xyz_DGB)
   end function c_batl_get_xyz_ptr
 !==============================================================================
-
-end module BATL_c
+  function c_batl_get_cellvolume_ptr() bind(c) result(Res)
+    type(c_ptr) :: Res
+    !--------------------------------------------------------------------------
+    Res = c_loc(CellVolume_GB)
+  end function c_batl_get_cellvolume_ptr
 !==============================================================================
+  function c_batl_get_cellsize_ptr() bind(c) result(Res)
+    type(c_ptr) :: Res
+    !--------------------------------------------------------------------------
+    Res = c_loc(CellSize_DB)
+  end function c_batl_get_cellsize_ptr
+!==============================================================================
+  function c_batl_get_xyz_nb_ptr() bind(c) result(Res)
+    type(c_ptr) :: Res
+    !--------------------------------------------------------------------------
+    Res = c_loc(Xyz_DNB)
+  end function c_batl_get_xyz_nb_ptr
+!==============================================================================
+  function c_batl_get_nblock() bind(c) result(iRes)
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(nBlock, c_int)
+  end function c_batl_get_nblock
+!==============================================================================
+  function c_batl_is_block_used(iBlock) bind(c) result(iRes)
+    integer(c_int), intent(in), value :: iBlock
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    if (Unused_B(iBlock)) then
+       iRes = 0
+    else
+       iRes = 1
+    end if
+  end function c_batl_is_block_used
+!==============================================================================
+  function c_batl_get_block_node(iBlock) bind(c) result(iRes)
+    integer(c_int), intent(in), value :: iBlock
+    integer(c_int) :: iRes
+    !--------------------------------------------------------------------------
+    iRes = int(iNode_B(iBlock), c_int)
+  end function c_batl_get_block_node
+!==============================================================================
+  subroutine c_message_pass_cell(nVar, State_VGB) bind(c)
+    integer(c_int), intent(in), value :: nVar
+    real(c_double), intent(inout) :: &
+      State_VGB(nVar, MinI:MaxI, MinJ:MaxJ, MinK:MaxK, MaxBlock)
+    !--------------------------------------------------------------------------
+    call message_pass_cell(int(nVar), State_VGB)
+  end subroutine c_message_pass_cell
+!==============================================================================
+  subroutine c_barrier_mpi() bind(c)
+    !--------------------------------------------------------------------------
+    call barrier_mpi()
+  end subroutine c_barrier_mpi
+!==============================================================================
+  subroutine c_regrid_batl_full( &
+      nVar, State_VGB, iDoBalanceEachLevel) bind(c)
+    integer(c_int), intent(in), value :: nVar
+    real(c_double), intent(inout) :: &
+      State_VGB(nVar, MinI:MaxI, MinJ:MaxJ, MinK:MaxK, MaxBlock)
+    integer(c_int), intent(in), value :: iDoBalanceEachLevel
+    !--------------------------------------------------------------------------
+    call regrid_batl(int(nVar), State_VGB, &
+         DoBalanceEachLevelIn=(iDoBalanceEachLevel /= 0))
+  end subroutine c_regrid_batl_full
+!==============================================================================
+  subroutine c_adapt_tree() bind(c)
+    !--------------------------------------------------------------------------
+    call adapt_tree()
+  end subroutine c_adapt_tree
+!==============================================================================
+  subroutine c_distribute_tree_full(iDoMove) bind(c)
+    integer(c_int), intent(in), value :: iDoMove
+    !--------------------------------------------------------------------------
+    call distribute_tree(iDoMove /= 0)
+  end subroutine c_distribute_tree_full
+!==============================================================================
+  subroutine c_create_grid() bind(c)
+    !--------------------------------------------------------------------------
+    call create_grid()
+  end subroutine c_create_grid
+!==============================================================================
+  subroutine c_find_tree_cell(Coord_D, iBlock, iResCell_D) bind(c)
+    use BATL_tree, only: find_tree_cell, iTree_IA, Block_, Unset_
+    real(c_double), intent(in) :: Coord_D(nDim)
+    integer(c_int), intent(out) :: iBlock
+    integer(c_int), intent(out) :: iResCell_D(nDim)
+
+    real :: Coord_A(MaxDim)
+    integer :: iNode
+    integer :: iCell_D(MaxDim)
+    !--------------------------------------------------------------------------
+    Coord_A = 0.0
+    Coord_A(1:nDim) = real(Coord_D)
+
+    call find_tree_cell(Coord_A, iNode, iCell_D)
+
+    if (iNode /= Unset_) then
+       iBlock = int(iTree_IA(Block_, iNode), c_int)
+    else
+       iBlock = int(Unset_, c_int)
+    end if
+    iResCell_D(1:nDim) = int(iCell_D(1:nDim), c_int)
+  end subroutine c_find_tree_cell
+!==============================================================================
+end module BATL_c
