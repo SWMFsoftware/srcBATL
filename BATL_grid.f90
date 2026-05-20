@@ -60,7 +60,7 @@ module BATL_grid
   ! Coordinate limits and size of domain inherited from BATL_geometry
   public:: CoordMin_D, CoordMax_D, DomainSize_D, CellSizeRoot
 
-  real, public, allocatable::   &
+  real, public, target, allocatable::   &
        CoordMin_DB(:,:),        &    ! Min gen. coordinates of a block domain
        CoordMax_DB(:,:),        &    ! Max gen. coordinates of a block domain
        CellSize_DB(:,:),        &    ! Cell size in gen. coordinates

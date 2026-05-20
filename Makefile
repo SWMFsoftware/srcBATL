@@ -2,6 +2,7 @@ SHELL =/bin/sh
 
 include ../Makefile.def
 include ../Makefile.conf
+
 -include Makefile.DEPEND
 -include Makefile.RULES
 
@@ -29,6 +30,7 @@ OBJECTS = \
 
 ALLOBJECTS = \
 	${OBJECTS} \
+	BATL_c.o \
 	BATL_unit_test.o \
 	batl.o \
 	advect_main.o \
@@ -59,11 +61,10 @@ LIBSO: DEPEND
 	@echo ${MY_DYN_LIB} has been brought up to date.
 	@echo
 
-${MY_DYN_LIB}: ${OBJECTS}
-	${COMPILE.f90} ${Cflag3} -Wall -fPIC external_routines.f90
-	${LINK.f90} -shared -fPIC -o ${MY_DYN_LIB} ${OBJECTS} external_routines.o \
+${MY_DYN_LIB}: ${OBJECTS} BATL_c.o BATL_unit_test.o
+	${LINK.f90} -shared -fPIC -o ${MY_DYN_LIB} ${OBJECTS} \
+	BATL_c.o BATL_unit_test.o \
 	-L${LIBDIR} -lTIMING -lSHARE ${LflagMpi}
-
 BATL_dynamic:
 	make DEPEND
 	${COMPILE.f90} ${Cflag3} batl.f90
