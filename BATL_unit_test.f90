@@ -1519,9 +1519,9 @@ contains
              do iVar = 1, nVar
                 select case (NameOperator)
                 case ("mean")
-                   if (FineGridGlobal_IIIV(iFG, jFG, kFG, iVar)/ &
-                        FineGridGlobal_IIIV(iFG, jFG, kFG, nVar + 1) /= &
-                        State_VNB(iVar,i,j,k,iBlock)) then
+                   if (abs(FineGridGlobal_IIIV(iFG, jFG, kFG, iVar)/ &
+                        FineGridGlobal_IIIV(iFG, jFG, kFG, nVar + 1) - &
+                        State_VNB(iVar,i,j,k,iBlock)) > 1e-10) then
                       write(*,*) "Error for operator, variable, iBlock= ", &
                            NameOperator, iVar, iBlock, ", value=", &
                            FineGridGlobal_IIIV(iFG, jFG, kFG, iVar)/ &
