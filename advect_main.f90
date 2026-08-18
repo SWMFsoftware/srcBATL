@@ -184,13 +184,12 @@ program advect
 
 contains
   !============================================================================
-
   subroutine adapt_grid
 
     use BATL_lib, ONLY: regrid_batl, nBlock, Unused_B, iNode_B, &
          iStatusNew_A, Refine_, Coarsen_, IsRzGeometry, Xyz_DGB
 
-    real :: Factor
+    real :: Factor, RhoLin_V(2)
     integer:: iBlock, i, j, k
     !--------------------------------------------------------------------------
     Factor = 1.0
@@ -198,16 +197,18 @@ contains
        if(Unused_B(iBlock)) CYCLE
        ! Check refinement first
        do k = 1, nK; do j = 1, nJ; do i = 1, nI
+          RhoLin_V = exact_v(Xyz_DGB(:,i,j,k,iBlock), Time)
           if(IsRzGeometry) Factor = 1./Xyz_DGB(r_,i,j,k,iBlock)
-          if(State_VGB(Rho_,i,j,k,iBlock) > Factor*RhoRefine) then
+          if(RhoLin_V(1) > Factor*RhoRefine) then
              iStatusNew_A(iNode_B(iBlock)) = Refine_
              CYCLE BLOCK
           end if
        end do; end do; end do
        ! If not refined, check for coarsening
        do k = 1, nK; do j = 1, nJ; do i = 1, nI
+          RhoLin_V = exact_v(Xyz_DGB(:,i,j,k,iBlock), Time)
           if(IsRzGeometry) Factor = 1./Xyz_DGB(r_,i,j,k,iBlock)
-          if(State_VGB(Rho_,i,j,k,iBlock) < Factor*RhoCoarsen)then
+          if(RhoLin_V(1) < Factor*RhoCoarsen)then
              iStatusNew_A(iNode_B(iBlock)) = Coarsen_
              CYCLE BLOCK
           end if
@@ -284,7 +285,6 @@ contains
 
   end function exact_v
   !============================================================================
-
   subroutine initialize
 
     use BATL_lib, ONLY: init_mpi, init_batl, init_grid_batl, &
@@ -309,7 +309,6 @@ contains
     logical:: IsNodeBasedRead = .true.
     logical:: UseUniformAxis
     !--------------------------------------------------------------------------
-
     call init_mpi
 
     call read_file('PARAM.in')
@@ -487,7 +486,6 @@ contains
 
   end subroutine initialize
   !============================================================================
-
   subroutine save_log
 
     ! Calculate the totals on processor 0
@@ -544,7 +542,6 @@ contains
 
   end subroutine save_log
   !============================================================================
-
   subroutine save_plot
 
     use BATL_lib, ONLY: MaxDim, nBlock, Unused_B, &
@@ -790,7 +787,6 @@ contains
     character(len=100):: NameFile
     character (len=10) :: TypePosition = 'rewind'
     !--------------------------------------------------------------------------
-
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
 
@@ -850,7 +846,6 @@ contains
     real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim), State_V(nVar)
 
     integer:: i, j, k
-
     !--------------------------------------------------------------------------
     call get_tree_position(iNode_B(iBlock), PositionMin_D, PositionMax_D)
 
@@ -1117,7 +1112,6 @@ contains
 
     integer:: iDim, Di, Dj, Dk, i, j, k
     !--------------------------------------------------------------------------
-
     ! Calculate upwinded fluxes
     do iDim = 1, nDim
        Di = i_DD(1,iDim); Dj = i_DD(2,iDim); Dk = i_DD(3,iDim)
@@ -1150,7 +1144,6 @@ contains
 
   end subroutine calc_vface_normal
   !============================================================================
-
   subroutine advance_explicit
 
     use BATL_lib, ONLY: message_pass_cell, nBlock, Unused_B, &
@@ -1556,7 +1549,6 @@ contains
 
   end function is_incorrect_block
   !============================================================================
-
 end program advect
 !==============================================================================
 
