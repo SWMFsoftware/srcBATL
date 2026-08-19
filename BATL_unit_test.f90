@@ -1965,7 +1965,6 @@ contains
     end subroutine test_scalar
     !==========================================================================
     subroutine test_non_cartesian
-
       !------------------------------------------------------------------------
       do iTest = 1, 6
          ! The code is quite inaccurate for partial AMR across the pole
