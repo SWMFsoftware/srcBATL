@@ -304,10 +304,10 @@ contains
 
     integer:: nRoot_D(MaxDim) = [4,4,2]
     logical, allocatable:: DoRefine_B(:)
-    real :: BlobRadius, Rgen_I(3)
+    real :: BlobRadius = 5.0, Rgen_I(3)
     integer :: iDim, i, j, k, iBlock, iLevel
     logical:: IsNodeBasedRead = .true.
-    logical:: UseUniformAxis
+    logical:: UseUniformAxis = .false.
     !--------------------------------------------------------------------------
     call init_mpi
 
