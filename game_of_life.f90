@@ -76,7 +76,6 @@ program game_of_life
 
 contains
   !============================================================================
-
   subroutine save_plot_block
 
     use ModPlotFile, ONLY: save_plot_file
@@ -87,7 +86,6 @@ contains
     character(len=100):: NameFile
     character (len=10) :: TypePosition = 'rewind'
     !--------------------------------------------------------------------------
-
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
 
@@ -111,7 +109,6 @@ contains
 
   end subroutine save_plot_block
   !============================================================================
-
 end program game_of_life
 !==============================================================================
 

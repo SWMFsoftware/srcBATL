@@ -202,9 +202,7 @@ contains
 
   end subroutine init_region
   !============================================================================
-
   subroutine clean_region
-
     !--------------------------------------------------------------------------
     if(allocated(iPerp_I))        deallocate(iPerp_I)
     if(allocated(SlopePerp_D))    deallocate(SlopePerp_D)
@@ -247,7 +245,6 @@ contains
     write(*,*) "Region IsSimple  :: ", Area1%IsSimple
   end subroutine show_region
   !============================================================================
-
   integer function i_signed_region(NameRegionIn)
 
     ! Return the index of the region matching NameRegionIn.
@@ -337,7 +334,6 @@ contains
 
   end subroutine set_i_par_perp
   !============================================================================
-
   subroutine read_region_param(NameCommand, UseStrictIn)
 
     use ModReadParam, ONLY: read_var, lStringLine
@@ -990,7 +986,6 @@ contains
 
   contains
     !==========================================================================
-
     subroutine set_coord
 
       ! Set point positions in generalized coordinates
@@ -1237,7 +1232,6 @@ contains
 
     end subroutine set_xyz
     !==========================================================================
-
   end subroutine block_inside_regions
   !============================================================================
   logical function is_block_inside(iBlock, Area, DoSetCorner)
@@ -1758,6 +1752,5 @@ contains
 
   end subroutine points_inside_region
   !============================================================================
-
 end module BATL_region
 !==============================================================================

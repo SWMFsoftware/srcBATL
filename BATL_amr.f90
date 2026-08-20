@@ -29,19 +29,16 @@ module BATL_amr
 
 contains
   !============================================================================
-
   subroutine init_amr
 
     use BATL_geometry, ONLY: IsRzGeometry
     !--------------------------------------------------------------------------
-
     ! Set UseSimpleRefinement based on geometry.
     ! The current curvilinear algorithm is only good for RZ geometry.
     UseSimpleRefinement = .not. IsRzGeometry
 
   end subroutine init_amr
   !============================================================================
-
   subroutine do_amr(nVar, State_VGB, Dt_B, Used_GB, DoBalanceOnlyIn, DoTestIn,&
        nExtraData, pack_extra_data, unpack_extra_data, UseHighOrderAMRIn,&
        DefaultStateIn_V)
@@ -391,7 +388,6 @@ contains
 
   contains
     !==========================================================================
-
     integer function i_block_available(iProcRecv, iNodeRecv, iAmrChange)
 
       integer, intent(in):: iProcRecv, iNodeRecv, iAmrChange
@@ -437,7 +433,6 @@ contains
 
       integer, intent(in):: iNodeSend, iBlockSend, iProcSend
       !------------------------------------------------------------------------
-
       iTree_IA(Status_,iNodeSend) = Unused_
       Unused_BP(iBlockSend,iProcSend) = .true.
       iBlockAvailable_P(iProcSend) = &
@@ -453,7 +448,6 @@ contains
 
       integer:: iBuffer, i, j, k
       !------------------------------------------------------------------------
-
       iBuffer = 0
       if(DoBalanceOnly)then
          do k = MinK, MaxK; do j = MinJ, MaxJ; do i = MinI, MaxI
@@ -487,7 +481,6 @@ contains
 
       integer:: iBuffer, i, j, k
       !------------------------------------------------------------------------
-
       if(DoBalanceOnly)then
          iBuffer = nIJKG*nVar
       else
@@ -521,7 +514,6 @@ contains
 
     end subroutine recv_block
     !==========================================================================
-
     subroutine send_coarsened_block
 
       use BATL_size, ONLY:  InvIjkRatio
@@ -631,7 +623,6 @@ contains
       integer:: iMin, jMin, kMin, iMax, jMax, kMax
       integer:: i, j, k
       !------------------------------------------------------------------------
-
       if(iProcRecv /= iProcSend)then
          iBuffer = nIJK*nVar/IjkRatio
          if(present(Dt_B))  iBuffer = iBuffer + 1
@@ -673,7 +664,6 @@ contains
 
       integer:: DiM1, DiP2
       !------------------------------------------------------------------------
-
       ! Find the part of the block to be prolonged
       iSide = modulo(iTree_IA(Coord1_,iNodeRecv)-1, iRatio)
       jSide = modulo(iTree_IA(Coord2_,iNodeRecv)-1, jRatio)
@@ -829,7 +819,6 @@ contains
 
       logical:: DoCheckMask
       logical:: UseSlopeI, UseSlopeJ, UseSlopeK
-
       !------------------------------------------------------------------------
       UseSlopeI = .true.
       UseSlopeJ = .true.
