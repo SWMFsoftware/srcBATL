@@ -1124,8 +1124,8 @@ contains
              if(RadialVelocity > 0.)then
                 Velocity_D = XyzFace_D/sqrt(sum(XyzFace_D**2))*RadialVelocity
              else
-                Velocity_D(Dim1_) = -AngularVelocity*XyzFace_D(Dim1_)
-                Velocity_D(Dim2_) =  AngularVelocity*XyzFace_D(Dim2_)
+                Velocity_D(Dim1_) = -AngularVelocity*XyzFace_D(Dim2_)
+                Velocity_D(Dim2_) =  AngularVelocity*XyzFace_D(Dim1_)
              end if
           end if
 
