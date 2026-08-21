@@ -239,7 +239,7 @@ contains
     real :: r1, r2, Rho, Rot_DD(3,3)
     !--------------------------------------------------------------------------
     ! Move position back to initial point
-    if(RadialVelocity > 0.0) then
+    if(RadialVelocity /= 0.0) then
        r1 = sqrt(sum(Xyz_D**2))
        r2 = max(0.0, r1 - Time*RadialVelocity)
        XyzShift_D = (r2/r1)*Xyz_D
@@ -272,7 +272,7 @@ contains
     Rho = 1.0
     if(r2 < BlobRadius2) Rho = Rho + cos(cHalfPi*sqrt(r2/BlobRadius2))**2
 
-    if(RadialVelocity > 0)then
+    if(RadialVelocity /= 0.0)then
        ! Scale by 1/r1**(D-1) so radial flow is stationary solution
        exact_v(Rho_) = Rho/r1**(nDim-1)
     elseif(IsRzGeometry) then
@@ -636,7 +636,7 @@ contains
              end if
              do j = 1, nJ;
                 if(  iPlot == 1 .and.       IsSpherical .or. &
-                     iPlot == 2 .and. .not. IsSPherical)then
+                     iPlot == 2 .and. .not. IsSpherical)then
                    ! Check for sign change of Y or Z along second coordinate
                    if(product(Xyz_DGB(iXyz,1,j-1:j+1:2,1,iBlock)) > 0) CYCLE
                 end if
@@ -933,7 +933,7 @@ contains
           end if
        end if
 
-       if(PositionMax_D(3) == 1 - 1e-10)then
+       if(PositionMax_D(3) > 1 - 1e-10)then
           ! Max in dimension 3
           if(IsPeriodic_D(3))then
              ! Update Lin including first physical cells (!)
@@ -1118,14 +1118,14 @@ contains
        do k = 1, nK+Dk; do j =1, nJ+Dj; do i = 1, nI+Di
 
           ! Calculate velocity
-          if(RadialVelocity > 0. .or. AngularVelocity > 0.)then
+          if(RadialVelocity /= 0.0 .or. AngularVelocity /= 0.0)then
              XyzFace_D = 0.5*(Xyz_DGB(1:nDim,i,j,k,iBlock) &
                   +           Xyz_DGB(1:nDim,i+Di,j+Dj,k+Dk,iBlock))
-             if(RadialVelocity > 0.)then
+             if(RadialVelocity /= 0.0)then
                 Velocity_D = XyzFace_D/sqrt(sum(XyzFace_D**2))*RadialVelocity
              else
-                Velocity_D(Dim1_) = -AngularVelocity*XyzFace_D(Dim1_)
-                Velocity_D(Dim2_) =  AngularVelocity*XyzFace_D(Dim2_)
+                Velocity_D(Dim1_) = -AngularVelocity*XyzFace_D(Dim2_)
+                Velocity_D(Dim2_) =  AngularVelocity*XyzFace_D(Dim1_)
              end if
           end if
 
@@ -1317,7 +1317,7 @@ contains
 
     do iBlock = 1, nBlock
        if(Unused_B(iBlock)) CYCLE
-       Dt_B(iBlock) = Cfl / sum( Velocity_D/CellSize_DB(1:nDim,iBlock) )
+       Dt_B(iBlock) = Cfl / sum( abs(Velocity_D)/CellSize_DB(1:nDim,iBlock) )
        Time_B(iBlock) = Time
     end do
     DtMin = minval(Dt_B(1:nBlock), MASK = .not. Unused_B(1:nBlock))
