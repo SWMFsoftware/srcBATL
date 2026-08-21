@@ -281,7 +281,13 @@ contains
        exact_v(Rho_) = Rho
     end if
 
-    exact_v(Lin_) = sum(Linear_D*(Xyz_D - Velocity_D*Time))
+    if(AngularVelocity /= 0.0 .or. RadialVelocity /= 0.0)then
+       ! Use linear profile for transformed location (including periodicity)
+       exact_v(Lin_) = sum(Linear_D*XyzShift_D)
+    else
+       ! Use linear profile for shifted location without periodicity
+       exact_v(Lin_) = sum(Linear_D*(Xyz_D - Velocity_D*Time))
+    end if
 
   end function exact_v
   !============================================================================
@@ -563,9 +569,8 @@ contains
     integer :: iDim, iBlock, i, j, k, iError
     integer :: nCell, nCellAll, nPlotDim, iPlot, nPlot, iXyz
     character(len=1) :: CharDim
-
-    ! Calculate minimum cell size
     !--------------------------------------------------------------------------
+    ! Calculate minimum cell size
     do iDim = 1, MaxDim
        CellSizeMin_D(iDim) = &
             minval(CellSize_DB(iDim,1:nBlock), MASK=.not.Unused_B(1:nBlock))
