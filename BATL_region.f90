@@ -13,6 +13,7 @@ module BATL_region
   use BATL_size, ONLY: nDim, Dim1_, Dim2_, Dim3_, j0_, nJp1_, k0_, nKp1_, &
        nI, nJ, nK, nIJK, MinI, MinJ, MinK, MaxI, MaxJ, MaxK, MaxIJK,&
        nINode, nJNode, nKNode
+  use BATL_test, ONLY: iBlockTest, test_start, test_stop
   use ModUtilities, ONLY: CON_stop
   use omp_lib
   use CON_axes, ONLY: dLongitudeHgr, dLongitudeHgi, XyzPlanetHgi_D
@@ -149,7 +150,7 @@ contains
        Area%NameShape = "brick_coord"
 
        ! Recalculate area center and size in generalized coordinates
-       if(IsLogRadius .or.IsGenRadius)then
+       if(IsLogRadius .or. IsGenRadius)then
           rMin = max(1e-30, Area % Center_D(1) - Area % Size_D(1))
           rMax = max(1e-30, Area % Center_D(1) + Area % Size_D(1))
           if(IsLogRadius) rMin = log(rMin)
@@ -238,7 +239,7 @@ contains
     write(*,*) "Region Size_D    :: ", Area1%Size_D
     write(*,*) "Region Radius1   :: ", Area1%Radius1
     write(*,*) "Region Taper     :: ", Area1%Taper
-    write(*,*) "Region Weight     :: ", Area1%Weight
+    write(*,*) "Region Weight    :: ", Area1%Weight
     write(*,*) "Region DoRotate  :: ", Area1%DoRotate
     if(Area1%DoRotate) write(*,*) &
          "Region Rotate_DD :: ",       Area1%Rotate_DD
@@ -348,14 +349,14 @@ contains
     logical :: UseStrict
 
     character(len=lStringLine):: StringShape = 'all'
-    real    :: RadiusArea    =0.0
+    real    :: RadiusArea    = 0.0
     logical :: DoReadAreaCenter = .false.
     real    :: XyzStartArea_D(nDim)=0.0, XyzEndArea_D(nDim)=0.0
     real    :: xRotateArea   = 0.0
     real    :: yRotateArea   = 0.0
     real    :: zRotateArea   = 0.0
     logical :: DoTaperArea   = .false.
-    logical :: DoReadWeight   = .false.
+    logical :: DoReadWeight  = .false.
     logical :: DoStretch     = .false.
 
     character(lNameRegion):: NameRegion
@@ -830,6 +831,7 @@ contains
     logical:: DoTest = .false.
     character(len=*), parameter:: NameSub = 'block_inside_regions'
     !--------------------------------------------------------------------------
+    call test_start(NameSub, DoTest, iBlock)
 
     DoBlock  = present(IsInside)
     DoMask   = present(IsInside_I)
@@ -983,6 +985,7 @@ contains
        if(DoValue) write(*,*)' min, max Value =', &
             minval(Value_I), maxval(Value_I)
     end if
+    call test_stop(NameSub, DoTest, iBlock)
 
   contains
     !==========================================================================
@@ -1347,12 +1350,15 @@ contains
 
   end function is_block_inside
   !============================================================================
-  subroutine points_inside_region(&
+  subroutine points_inside_region( &
        nPoint, Xyz_DI, Area, IsInside, IsInside_I, Value_I)
 
-    use BATL_geometry, ONLY: IsCartesianGrid, IsPeriodic_D, DomainSize_D
+    use BATL_geometry, ONLY: IsCartesianGrid, IsPeriodic_D, DomainSize_D, &
+         IsLogRadius, IsGenRadius, gen_to_radius, Phi_, Theta_, coord_to_xyz
+    use BATL_size, ONLY: MaxDim
 
-    ! Check if the points listed in Xyz_DI are inside the Area
+    ! Check if the points listed in Xyz_DI are inside the Area.
+    ! For brick_coord Xyz_DI is set to the generalized coordinates!
 
     ! The optional logical IsInside is set to true if any of the points
     ! are inside.
@@ -1380,7 +1386,8 @@ contains
     real:: Radius, RadiusSqr, Dist1, Dist2
     real:: Radius1, Radius1Sqr, Slope1
     real:: Taper, TaperFactor_D(nDim), TaperFactor1_D(nDim)
-    real:: Slope_D(nDim)
+    real:: Slope_D(nDim), rMin, rMax, rCenter, Dist
+    real:: XyzFull_D(MaxDim), CoordFull_D(MaxDim), Norm_D(nDim)
 
     logical, parameter:: DoTest = .false.
     character(len=*), parameter:: NameSub = 'points_inside_region'
@@ -1476,19 +1483,41 @@ contains
     ! Set value for the shape
     select case(NameShape)
     case('brick', 'brick_coord')
-       Norm_DI = abs(Norm_DI)
        if(.not.DoTaper)then
           do iPoint = 1, nPoint
-             if(maxval(Norm_DI(:,iPoint)) >= 1) CYCLE
+             if(any(abs(Norm_DI(:,iPoint)) >= 1)) CYCLE
              if(DoBlock) IsInside = .true.
              if(DoBlockOnly) EXIT
              if(DoMask)  IsInside_I(iPoint) = .true.
              if(DoValue) Value_I(iPoint) = 1
           end do
-       else
+       elseif(NameShape == 'brick' .or. IsCartesianGrid)then
+          ! Get distance from brick and use Slope_D for the taper
           do iPoint = 1, nPoint
              Value_I(iPoint) = max(0.0, min(1.0, &
-                  1 - maxval( Slope_D*(Norm_DI(:,iPoint)-1) )))
+                  1 - maxval( Slope_D*(abs(Norm_DI(:,iPoint)) - 1) )))
+          end do
+       else
+          do iPoint = 1, nPoint
+             if(all(abs(Norm_DI(:,iPoint)) <= 1))then
+                ! Point is inside
+                Value_I(iPoint) = 1.0
+             else
+                CoordFull_D = 0.0
+                ! Get Cartesian coordinates from Xyz_DI
+                CoordFull_D(1:nDim) = Xyz_DI(:,iPoint)
+                call coord_to_xyz(CoordFull_D, XyzFull_D)
+                Xyz_D = XyzFull_D(1:nDim)
+                ! Find closest point of the area in general coordinates
+                Norm_D = min(1.0, max(-1.0, Norm_DI(:,iPoint)))
+                ! Get the Cartesian position of the closest point
+                CoordFull_D(1:nDim) = Norm_D*Size_D + Area % Center_D
+                call coord_to_xyz(CoordFull_D, XyzFull_D)
+                ! Calculate distance and taper value
+                Xyz_D = Xyz_D - XyzFull_D(1:nDim)
+                Dist = norm2(Xyz_D)
+                Value_I(iPoint) = max(0.0, 1 - Dist/Taper)
+             end if
           end do
        end if
     case('sphere')
