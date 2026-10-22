@@ -1870,11 +1870,10 @@ contains
   !============================================================================
   subroutine check_interpolate_amr_gc(Xyz_D, iBlockIn, iPeOut, iBlockOut)
 
+    use BATL_interpolate_amr, ONLY: interpolate_amr_gc
     ! Checks if a point with the Cartesian coordinates, Xyz_D,
     ! can be interpolated using the data in the block iBlockIn at the
     ! given processor, with the ghost cell values included, if needed
-    use ModInterpolateAMR, ONLY: get_reference_block
-
     ! INPUTS:
     real,    intent(inout):: Xyz_D(MaxDim) ! Point Cartesian coordinates
     integer, intent(in)   :: iBlockIn      ! block index assumed to be used
@@ -1883,59 +1882,10 @@ contains
     integer, intent(out):: iPeOut, iBlockOut ! Pe and Block to be used
 
     ! Generalized Coordinates, for given Xyz_D
-    real:: Coord_D(MaxDim)
-
-    ! Direction along which the point goes out of the block inner part
-    logical:: DoSearch ! If .true. find iPeOut and iBlockOut via tree search
-
-    ! Shifts to subgrids from the lower left corner
-    integer, parameter:: iShift_DI(3,8) = reshape([&
-         0,0,0, 1,0,0, 0,1,0, 1,1,0, &
-         0,0,1, 1,0,1, 0,1,1, 1,1,1],[3,8])
-
-    ! Powers of 2
-    integer, parameter:: iPowerOf2_D(3) = [1,2,4]
-
-    ! For a search throughout the tree
-    real:: CoordTree_D(MaxDim)
-    real:: PositionMin_D(MaxDim), PositionMax_D(MaxDim)
-    integer:: iNode
-
-    ! If can avoid tree search, copy parameters from indicated node
-    integer:: iNodeCopy_I(2**nDim)
-
-    ! Dimensionless coords of the point relative to the block's corner
-    real:: Dimless_D(nDim)
-
-    ! Corners of a block that contains the point
-    real:: CoordBlockMin_D(nDim)
-
-    ! Its refinement level
-    integer:: iLevelNode
-
-    ! Discriminator for point's displacement relative to block's interior
-    integer:: iDiscr_D(MaxDim)
-
-    ! Discriminator used to find  block containing point if it is within
-    ! first layer of ghost cells of input block
-    integer:: iDiscrSearch_D(MaxDim)
-
-    ! Coordinates of the supergrid
-    real:: CoordGrid_DI(nDim, 2**nDim)
-
-    ! Parameters of the supergrid
-    integer:: iLevel_I(2**nDim), iNode_I(2**nDim)
-    logical:: IsOut_I(2**nDim)
-
-    ! Cell sizes
-    real:: dCoord_D(nDim), dCoordInv_D(nDim), dCoordNei_D(nDim)
-
-    ! Loop variable
-    integer:: iGrid
-
-    ! The reference block
-    integer:: iGridRef
-    integer:: iDimAmr = 1
+    real    :: Coord_D(MaxDim)
+    integer :: nCell
+    integer :: iCell_II(0:nDim,2**nDim)
+    real    :: Weight_I(2**nDim)
 
     character(len=*), parameter:: NameSub = 'check_interpolate_amr_gc'
     !--------------------------------------------------------------------------
@@ -1945,279 +1895,26 @@ contains
     else
        call xyz_to_coord(Xyz_D, Coord_D)
     end if
+    ! Check if the point is inside the interior of input block
+    if(.not.unused_B(iBlockIn))then
+       if( all(Coord_D(1:nDim) >= CoordMin_DB(1:nDim,iBlockIn) + 0.50*&
+            CellSize_DB(1:nDim,iBlockIn).and.&
+            Coord_D(1:nDim) < CoordMax_DB(1:nDim,iBlockIn)  - 0.50*&
+            CellSize_DB(1:nDim,iBlockIn)) ) then
+          iPeOut = iProc; iBlockOut = iBlockIn
+          RETURN
+       end if
+    end if
 
-    ! For periodic boundary conditions fix the input coordinate if
-    ! beyond the tree bounadaries
-    where(IsPeriodic_D(1:nDim)) Coord_D(1:nDim) = CoordMin_D(1:nDim) + &
-         modulo(Coord_D(1:nDim) - CoordMin_D(1:nDim), DomainSize_D(1:nDim))
+    call interpolate_amr_gc(Coord_D, nCell, iCell_II, Weight_I, &
+         iProcOut = iPeOut)
 
-    ! Fix coordinates for periodic boundary conditions
-    ! For Cartesian grid: for all dimensions
-    if(IsCartesianGrid .and. any(IsPeriodic_D(1:nDim))) &
-         Xyz_D = Coord_D
-
-    ! For cylindrical coordinates: along z asis only:
-    if((IsCylindrical.or.IsRzGeometry) .and. IsPeriodic_D(nDim)) &
-         Xyz_D(nDim) = Coord_D(nDim)
-
-    ! Figure out if the point falls out of the computational domain
-    if(any(   Coord_D(1:nDim) <  CoordMin_D(1:nDim)&
-         .or. Coord_D(1:nDim) >= CoordMax_D(1:nDim)))then
+    ! Check if the block is found
+    if(nCell <= 0) then
        iPeOut = Unset_; iBlockOut = Unset_
        RETURN
     end if
-
-    ! Decide whether need to perform search in the global tree structure
-    if(Unused_B(iBlockIn))then
-       DoSearch = .true.
-    else
-       DoSearch = any(&
-            Coord_D(1:nDim) < CoordMin_DB(1:nDim,iBlockIn).or.&
-            Coord_D(1:nDim) >=CoordMax_DB(1:nDim,iBlockIn) )
-    end if
-
-    if(DoSearch)then
-       ! find a block that contains the point
-
-       ! Calculate normalized (to DomainSize_D) coordinates for tree search
-       CoordTree_D = 0
-       CoordTree_D(1:nDim) = &
-            ( Coord_D(1:nDim) - CoordMin_D(1:nDim) ) / DomainSize_D(1:nDim)
-       ! call internal BATL find subroutine
-       call find_tree_node(CoordIn_D=CoordTree_D, iNode=iNode)
-       ! Check if the block is found
-       if(iNode<=0) call CON_stop('Failure in '//NameSub//': node not found')
-
-       ! find block's corners
-       call get_tree_position(iNode=iNode,&
-            PositionMin_D=PositionMin_D,  &
-            PositionMax_D=PositionMax_D )
-       ! Convert from normalized by one coordinates
-       CoordBlockMin_D(1:nDim) =  CoordMin_D(1:nDim) + &
-            PositionMin_D(1:nDim) * DomainSize_D(1:nDim)
-
-       ! cell size for the found block
-       dCoord_D = (PositionMax_D(1:nDim) - PositionMin_D(1:nDim)) &
-            *DomainSize_D(1:nDim)/nIjk_D(1:nDim)
-
-       dCoordInv_D = 1/dCoord_D
-
-       ! Check if the block is suitable to interpolate with ghost cells
-       iDiscr_D = 0
-
-       ! Discriminator equals zero if the point is within the grid of
-       ! the physical cell centers, +- 1 otherwise
-       iDiscr_D(1:nDim) = floor(&
-            (Coord_D(1:nDim) - CoordBlockMin_D  - 0.5*dCoord_D)*dCoordInv_D / &
-            (nIJK_D(1:nDim) - 1))
-
-       ! point may be well inside the block
-       if(all(iDiscr_D(1:nDim)==0))then
-          iBlockOut = iTree_IA(Block_,iNode)
-          iPeOut    = iTree_IA(Proc_, iNode)
-          RETURN
-       end if
-
-       ! reset arrays with info about interpolation stencil
-       iNode_I  = iNode
-       iLevel_I = 0
-       IsOut_I  = .false.
-
-       ! Fill in grid point coordinates
-       ! first point can be found from dimless coordinates of the point
-       ! relative to block's corner:
-       Dimless_D = &
-            (Coord_D(1:nDim) - CoordBlockMin_D(1:nDim)) / &
-            dCoord_D(1:nDim)
-       CoordGrid_DI(:,1) = CoordBlockMin_D(1:nDim) +      &
-            dCoord_D(1:nDim) * (floor(0.50 + Dimless_D) - 0.50)
-
-       ! fill array that contains node index to copy info from
-       ! if it is possible to avoid tree search
-       iNodeCopy_I(1) = 1
-
-       ! the rest of the supergrid can be found from the first one
-       ! and displacements towards them
-       do iGrid = 2, 2**nDim
-          CoordGrid_DI(:, iGrid) = CoordGrid_DI(:, 1) + &
-               dCoord_D(1:nDim) * iShift_DI(1:nDim, iGrid)
-          ! tree search can be avoided if iDiscr_Dis 0 at appropriate dimension
-          ! copy from node from smaller index to node with greater index
-          iNodeCopy_I(iGrid) = iGrid - &
-               sum(iPowerOf2_D(1:nDim)*iShift_DI(1:nDim,iGrid), &
-               MASK = iDiscr_D(1:nDim)==0)
-       end do
-
-       ! find node indices, refinement levels and mark subgrids
-       ! that fall out of the computational domain
-       do iGrid = 1, 2**nDim
-          ! some subgrids fall into the same nodes
-          ! skip tree search for them;
-          ! NOTE: always search for finer nodes
-          if(iNodeCopy_I(iGrid) /= iGrid .and. &
-               iLevel_I(iNodeCopy_I(iGrid)) /= 1)then
-             iNode_I( iGrid) = iNode_I( iNodeCopy_I(iGrid))
-             IsOut_I( iGrid) = IsOut_I( iNodeCopy_I(iGrid))
-             iLevel_I(iGrid) = iLevel_I(iNodeCopy_I(iGrid))
-             CYCLE
-          end if
-
-          ! find node that contains this subgrid via tree search
-          CoordTree_D(1:nDim) = &
-               ( CoordGrid_DI(1:nDim,iGrid) - CoordMin_D(1:nDim) ) / &
-               DomainSize_D(1:nDim)
-
-          ! may need to fix CoordTree_D for spherical grids
-          if(IsSpherical .or. IsRLonLat)then
-             if(CoordTree_D(Theta_) > 1.0)then
-                CoordTree_D(Theta_) = 2.0 - CoordTree_D(Theta_)
-                CoordTree_D(Phi_) = modulo(CoordTree_D(Phi_)+0.5, 1.0)
-             elseif(CoordTree_D(Theta_) < 0.0)then
-                CoordTree_D(Theta_) = - CoordTree_D(Theta_)
-                CoordTree_D(Phi_) = modulo(CoordTree_D(Phi_)+0.5, 1.0)
-             end if
-          end if
-          ! may need to fix CoordTree_D for periodic grids
-          where(IsPeriodic_D(1:nDim)) &
-               CoordTree_D(1:nDim) = modulo(CoordTree_D(1:nDim), 1.0)
-
-          ! call internal BATL find subroutine
-          call find_tree_node(CoordIn_D=CoordTree_D, iNode=iNode)
-          iNode_I(iGrid) = iNode
-          ! Check if the node is found
-          if(iNode<=0) then
-             IsOut_I(iGrid) = .true.
-             CYCLE
-          end if
-          ! determine its resolution level
-          call get_tree_position(iNode=iNode,&
-               PositionMin_D=PositionMin_D,  &
-               PositionMax_D=PositionMax_D )
-          dCoordNei_D =  (PositionMax_D(1:nDim) - PositionMin_D(1:nDim))&
-               *DomainSize_D(1:nDim)/nIjk_D(1:nDim)
-          iLevel_I(iGrid) = &
-               1 - floor(dCoordNei_D(iDimAmr)*dCoordInv_D(iDimAmr) + 0.001)
-       end do
-    else
-       ! find a block that contains the point
-
-       ! discriminator show displacement outside of input block (-1, 0, 1)
-       iDiscrSearch_D = 0
-       iDiscrSearch_D(1:nDim) = floor(&
-            ( Coord_D(1:nDim) - CoordMin_DB(1:nDim,iBlockIn) ) / &
-            ( CellSize_DB(1:nDim,iBlockIn) * nIJK_D(1:nDim) ) )
-       ! level of refinement of block containing point
-       iLevelNode = DiLevelNei_IIIB(&
-            iDiscrSearch_D(1), iDiscrSearch_D(2), iDiscrSearch_D(3), iBlockIn)
-
-       ! discriminator: nei index (0, 1, 2, 3) based on input block
-       iDiscrSearch_D = 1
-       iDiscrSearch_D(1:nDim) = 1 + floor(&
-            ( Coord_D(1:nDim) - CoordMin_DB(1:nDim,iBlockIn) ) / &
-            ( 0.5 * CellSize_DB(1:nDim,iBlockIn) * nIJK_D(1:nDim) ) )
-
-       ! node index of blockcontaining point
-       iNode = iNodeNei_IIIB(&
-            iDiscrSearch_D(1), iDiscrSearch_D(2), iDiscrSearch_D(3), iBlockIn)
-
-       ! Check if the block is found
-       if(iNode<=0) call CON_stop('Failure in '//NameSub//': node not found')
-
-       ! cell size of block containing point
-       dCoord_D = 2.0**iLevelNode * &
-            (CoordMax_DB(1:nDim, iBlockIn) - CoordMin_DB(1:nDim, iBlockIn)) / &
-            nIJK_D(1:nDim)
-
-       ! find block's corners
-       if(iLevelNode == -1)then
-          CoordBlockMin_D(1:nDim) =  CoordMin_DB(1:nDim, iBlockIn) + &
-               dCoord_D*nIJK_D(1:nDim)*max(1, iDiscrSearch_D(1:nDim)-1)
-       else
-          CoordBlockMin_D(1:nDim) =  CoordMin_DB(1:nDim, iBlockIn) + &
-               dCoord_D*nIJK_D(1:nDim)*floor(0.5*(iDiscrSearch_D(1:nDim)-0.5))
-       end if
-
-       dCoordInv_D = 1/dCoord_D
-
-       ! Check if the block is suitable to interpolate with ghost cells
-       iDiscr_D = 0
-
-       ! Discriminator equals zero if the point is within the grid of
-       ! the physical cell centers, +- 1 otherwise
-       iDiscr_D(1:nDim) = floor(&
-            (Coord_D(1:nDim) - CoordBlockMin_D  - 0.5*dCoord_D)*dCoordInv_D / &
-            (nIJK_D(1:nDim) - 1))
-
-       ! point may be well inside the block
-       if(all(iDiscr_D(1:nDim)==0))then
-          iBlockOut = iTree_IA(Block_,iNode)
-          iPeOut    = iTree_IA(Proc_, iNode)
-          RETURN
-       end if
-
-       ! reset arrays with info about interpolation stencil
-       iNode_I  = iNode
-       iLevel_I = 0
-       IsOut_I  = .false.
-
-       ! Fill in grid point coordinates
-       ! first point can be found from dimless coordinates of the point
-       ! relative to block's corner:
-       Dimless_D = &
-            (Coord_D(1:nDim) - CoordBlockMin_D(1:nDim)) / &
-            dCoord_D(1:nDim)
-       CoordGrid_DI(:,1) = CoordBlockMin_D(1:nDim) +      &
-            dCoord_D(1:nDim) * (floor(0.50 + Dimless_D) - 0.50)
-       ! the rest of the supergrid can be found from the first one
-       ! and displacements towards them
-       do iGrid = 2, 2**nDim
-          CoordGrid_DI(:, iGrid) = CoordGrid_DI(:, 1) + &
-               dCoord_D(1:nDim) * iShift_DI(1:nDim, iGrid)
-       end do
-
-       ! find node indices, refinement levels and mark subgrids
-       ! that fall out of the computational domain
-       do iGrid = 1, 2**nDim
-
-          ! find node that contains this subgrid
-          iDiscrSearch_D = 1
-          iDiscrSearch_D(1:nDim) = 1 + floor(&
-               ( CoordGrid_DI(1:nDim, iGrid) - CoordMin_DB(1:nDim,iBlockIn) )/&
-               ( 0.5 * CellSize_DB(1:nDim,iBlockIn) * nIJK_D(1:nDim) ) )
-          iNode = iNodeNei_IIIB(&
-               iDiscrSearch_D(1), iDiscrSearch_D(2), iDiscrSearch_D(3), &
-               iBlockIn)
-          iNode_I(iGrid) = iNode
-
-          ! Check if the node is found
-          if(iNode<=0) then
-             IsOut_I(iGrid) = .true.
-             CYCLE
-          end if
-
-          ! find its level of refinement
-          iDiscrSearch_D = 0
-          iDiscrSearch_D(1:nDim) = floor(&
-               ( CoordGrid_DI(1:nDim,iGrid) - CoordMin_DB(1:nDim,iBlockIn) )/&
-               ( CellSize_DB(1:nDim,iBlockIn) * nIJK_D(1:nDim) ) )
-          ! note the minus: due to difference of meaning of resolution level
-          ! difference in the BATL and shared AMR interpolation routine
-          iLevel_I(iGrid) = -DiLevelNei_IIIB(&
-               iDiscrSearch_D(1), iDiscrSearch_D(2), iDiscrSearch_D(3), &
-               iBlockIn)
-       end do
-
-    end if
-
-    ! passed iLevel_I MUST have either 0's, or 1's ONLY
-    if(any(iLevel_I==-1)) iLevel_I = iLevel_I + 1
-
-    ! get reference block
-    call get_reference_block(nDim, Coord_D(1:nDim), &
-         CoordGrid_DI(1:nDim,1:2**nDim), iLevel_I, IsOut_I, iGridRef)
-
-    iPeOut    = iTree_IA(Proc_,  iNode_I(iGridRef))
-    iBlockOut = iTree_IA(Block_, iNode_I(iGridRef))
+    iBlockOut = iCell_II(0,1)
 
   end subroutine check_interpolate_amr_gc
   !============================================================================
@@ -2228,7 +1925,8 @@ contains
     ! Needs all ghost cells with ProlongOrder=1:
     ! call message_pass_cell(nVar, State_VGB, ProlongOrderIn=1)
 
-    use ModMpi
+    use ModMpi, ONLY: MPI_allreduce, MPI_REAL, MPI_SUM, MPI_IN_PLACE, &
+         MPI_INTEGER
 
     integer, intent (in) :: nVar
     real,    intent (in) :: XyzIn_D(MaxDim), State_VGB(nVar, &
@@ -2237,38 +1935,30 @@ contains
     real,    intent(out) :: State_V(nVar)
     logical, optional, intent(out) :: IsFound
 
-    ! Block and PE number at which to interpolate
-    integer :: iProcFound, iBlockFound
-
     integer :: iError, iCell
-    real    :: Xyz_D(MaxDim)
+    real    :: Coord_D(MaxDim)
 
     ! Interpolation stencil
-    integer :: nCell, iCell_DI(0:nDim,2**nDim), iCell_D(MaxDim)
+    integer :: iCell_DI(0:nDim,1:2**nDim), nCell, iCell_D(0:nDim)
     real    :: Weight_I(2**nDim)
 
     character(len=*), parameter:: NameSub = 'interpolate_state_vector'
     !--------------------------------------------------------------------------
-    State_V = 0.0; Xyz_D = XyzIn_D
-    call check_interpolate_amr_gc(Xyz_D, 1, iProcFound, iBlockFound)
-    if(iProcFound == Unset_)then
-       if(present(IsFound)) IsFound = .false.
-       RETURN
+    State_V = 0.0
+    call interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I)
+    do iCell = 1, nCell
+       iCell_D = iCell_DI(:,iCell)
+       State_V = State_V + Weight_I(iCell)*&
+            State_VGB(:, iCell_D(1), iCell_D(2), iCell_D(3), iCell_D(0))
+    end do
+    if(nProc > 1)then
+       call MPI_allreduce(MPI_IN_PLACE, State_V, nVar, MPI_Real, MPI_SUM, &
+            iComm, iError)
+       if(present(IsFound))&
+            call MPI_allreduce(MPI_IN_PLACE, nCell, 1, MPI_Integer, MPI_SUM, &
+            iComm, iError)
     end if
-    if(iProc == iProcFound)then
-       call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockFound, &
-            nCell, iCell_DI, Weight_I)
-       do iCell = 1, nCell
-          iCell_D(1:nDim) = iCell_DI(1:nDim,iCell)
-          State_V = State_V + Weight_I(iCell)*&
-               State_VGB(:, iCell_D(1), iCell_D(2), iCell_D(3), iBlockFound)
-       end do
-    end if
-    call MPI_bcast(State_V, nVar, MPI_Real, iProcFound, iComm, iError)
-    if(present(IsFound))then
-       call MPI_bcast(nCell, 1, MPI_Integer, iProcFound, iComm, iError)
-       IsFound = nCell > 0
-    end if
+    if(present(IsFound))IsFound = nCell > 0
   end subroutine interpolate_state_vector
   !============================================================================
   subroutine calc_face_normal(iBlock)
