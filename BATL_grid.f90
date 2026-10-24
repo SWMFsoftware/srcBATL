@@ -42,21 +42,6 @@ module BATL_grid
   public :: show_grid_cell      ! provide information about grid cell
   public :: show_grid_proc      ! only used in test?
 
-  interface interpolate_grid_amr_gc
-
-     ! Uses a single block with at least one layer
-     ! of ghost cells filled without prolongation.
-     ! The index of the block suitable for interpolation
-     ! is a required input parameter.
-     module procedure interpolate_grid_amr_gc_iblock
-
-     ! Find the processor iPe and block iBlock suitable for interpolation
-     ! and then call interpolate_grid_amr_gc_iblock on iProc==iPe.
-     ! Returns zero interpolation weights for all iProc/=iPe.
-     module procedure interpolate_grid_amr_gc
-
-  end interface
-
   ! Coordinate limits and size of domain inherited from BATL_geometry
   public:: CoordMin_D, CoordMax_D, DomainSize_D, CellSizeRoot
 
@@ -1716,53 +1701,10 @@ contains
 
   end subroutine interpolate_grid_amr
   !============================================================================
-  subroutine interpolate_grid_amr_gc(XyzIn_D, &
+  subroutine interpolate_grid_amr_gc(XyzIn_D, iBlock, &
        nCell, iCell_DI, Weight_I, IsSecondOrder)
 
-    ! Find the grid cells surrounding the point Xyz_D.
-    ! nCell returns the number of cells found on the processor.
-    ! iCell_DI returns the block+cell indexes for each cell.
-    ! Weight_I returns the interpolation weights calculated.
-    !
-    ! Interpolation is performed using cells (including ghost) of single block
-
-    real,    intent(in)   :: XyzIn_D(MaxDim)
-    integer, intent(out)  :: nCell
-    integer, intent(out)  :: iCell_DI(0:nDim,2**nDim)
-    real,    intent(out)  :: Weight_I(2**nDim)
-
-    logical, optional, intent(out):: IsSecondOrder
-    real   :: Xyz_D(MaxDim)
-    integer:: iBlockOut, iProcOut
-    ! check number of AMR dimensions:
-    ! if it is 0 or 1 => call a simpler interpolation function
-    !--------------------------------------------------------------------------
-    if(nDimAmr <= 1)then
-       call interpolate_grid(XyzIn_D, nCell, iCell_DI, Weight_I)
-       if(present(IsSecondOrder)) IsSecondOrder = .true.
-       RETURN
-    end if
-    Xyz_D = XyzIn_D
-
-    ! find a block suitable for interpolation
-    call check_interpolate_amr_gc(Xyz_D, 1, iProcOut, iBlockOut)
-
-    ! check if it is on the current processor
-    if (iProcOut /= iProc)then
-       nCell = 0
-       if(present(IsSecondOrder)) IsSecondOrder = .false.
-       RETURN
-    end if
-
-    call interpolate_grid_amr_gc_iblock(Xyz_D, iBlockOut, &
-         nCell, iCell_DI, Weight_I, IsSecondOrder)
-
-  end subroutine interpolate_grid_amr_gc
-  !============================================================================
-  subroutine interpolate_grid_amr_gc_iblock(XyzIn_D, iBlock, &
-       nCell, iCell_DI, Weight_I, IsSecondOrder)
-
-    use ModInterpolateAMR, ONLY: interpolate_amr_gc
+    use BATL_interpolate_amr, ONLY:interpolate_amr_gc
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
@@ -1802,71 +1744,9 @@ contains
     else
        call xyz_to_coord(XyzIn_D, Coord_D)
     end if
-
-    ! get corner coordinates and cell size of the block
-    CoordBlock_D = CoordMin_DB(:,iBlock)
-    dCoord_D = CellSize_DB(:,iBlock)
-
-    ! account for periodic or "flipped" coordinates:
-    ! may need to adjust Coord_D if point is outside the block
-    if(any( Coord_D(1:nDim) <  CoordMin_DB(1:nDim,iBlock) &
-       .or. Coord_D(1:nDim) >= CoordMax_DB(1:nDim,iBlock)))then
-       ! fix periodic coordinates
-       ! NOTE: periodic coords are fixed BEFORE spherical theta,
-       !       otherwise there's error near 0 longitude near axis
-       do iDim = 1, nDim
-          if(.not.IsPeriodic_D(iDim)) CYCLE
-          ! example in polar coords: point's polar angle is close to 2pi,
-          ! while block's boundary is 0 => subtract 2pi from point's angle
-          if(CoordMin_DB(iDim,iBlock) == CoordMin_D(iDim) &
-               .and. CoordMax_D(iDim) - Coord_D(iDim) <= DCoord_D(iDim))then
-             Coord_D(iDim) = Coord_D(iDim) - DomainSize_D(iDim)
-          elseif(CoordMax_DB(iDim,iBlock) == CoordMax_D(iDim) &
-               .and. Coord_D(iDim) - CoordMin_D(iDim) < DCoord_D(iDim))then
-             Coord_D(iDim) = Coord_D(iDim) + DomainSize_D(iDim)
-          end if
-       end do
-
-       ! fix spherical coordinates
-       if(IsSpherical .or. IsRLonLat)then
-          ! example in rlonlat coords: point's latitude is close to pi/2 and
-          ! block is across the pole => reflect point so that latitude > pi/2
-          if(CoordMin_DB(Theta_,iBlock) == CoordMin_D(Theta_) .and. &
-               abs(Coord_D(Phi_) - CoordMin_DB(Phi_,iBlock)) > &
-               0.25*DomainSize_D(Phi_))then
-             Coord_D(Theta_) = 2*CoordMin_D(Theta_) - Coord_D(Theta_)
-             Coord_D(Phi_  ) = CoordMin_D(Phi_) &
-                  + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
-                  +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
-          elseif(CoordMax_DB(Theta_, iBlock) == CoordMax_D(Theta_) .and. &
-               abs(Coord_D(Phi_)-CoordMax_DB(Phi_,iBlock)) > &
-               0.25*DomainSize_D(Phi_))then
-             Coord_D(Theta_) = 2*CoordMax_D(Theta_) - Coord_D(Theta_)
-             Coord_D(Phi_  ) = CoordMin_D(Phi_) &
-                  + modulo(Coord_D(Phi_) - CoordMin_D(Phi_) &
-                  +        0.5*DomainSize_D(Phi_), DomainSize_D(Phi_))
-          end if
-       end if
-    end if
-
-    ! information about neighbors' resolution level relative to current block
-    ! NOTE: in the shared procedure difference is understood as follows:
-    !       +1 -> neighbor is finer
-    !       -1 -> neighbor is coarser
-    !       this is opposite to BATL's treatment, hence minus sign
-    DiLevelNei_III = DiLevelNei_IIIB(:, :, :, iBlock)
-    where(abs(DiLevelNei_III)==1)DiLevelNei_III = - DiLevelNei_III
-
-    ! call the wrapper for the shared AMR interpolation procedure
-    call interpolate_amr_gc( &
-         nDim, Coord_D(1:nDim), CoordBlock_D(1:nDim),&
-         dCoord_D(1:nDim), nIJK_D(1:nDim), DiLevelNei_III, &
-         nCell, iCell_DI(1:nDim,:), Weight_I, IsSecondOrder)
-
-    ! return block number as well
-    iCell_DI(0,:) = iBlock
-
-  end subroutine interpolate_grid_amr_gc_iblock
+    call interpolate_amr_gc(Coord_D, &
+       nCell, iCell_DI, Weight_I, IsSecondOrder, iProcRef=iProc)
+  end subroutine interpolate_grid_amr_gc
   !============================================================================
   subroutine check_interpolate_amr_gc(Xyz_D, iBlockIn, iPeOut, iBlockOut)
 
@@ -1884,7 +1764,7 @@ contains
     ! Generalized Coordinates, for given Xyz_D
     real    :: Coord_D(MaxDim)
     integer :: nCell
-    integer :: iCell_II(0:nDim,2**nDim)
+    integer :: iCell_DI(0:nDim,2**nDim)
     real    :: Weight_I(2**nDim)
 
     character(len=*), parameter:: NameSub = 'check_interpolate_amr_gc'
@@ -1906,7 +1786,7 @@ contains
        end if
     end if
 
-    call interpolate_amr_gc(Coord_D, nCell, iCell_II, Weight_I, &
+    call interpolate_amr_gc(Coord_D, nCell, iCell_DI, Weight_I, &
          iProcOut = iPeOut)
 
     ! Check if the block is found
@@ -1914,7 +1794,7 @@ contains
        iPeOut = Unset_; iBlockOut = Unset_
        RETURN
     end if
-    iBlockOut = iCell_II(0,1)
+    iBlockOut = iCell_DI(0,1)
 
   end subroutine check_interpolate_amr_gc
   !============================================================================
