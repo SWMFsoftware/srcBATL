@@ -59,18 +59,18 @@ module BATL_interpolate_amr
 contains
   !============================================================================
   subroutine interpolate_amr(CoordIn_D, &
-       nCell, iCell_II, Weight_I, IsSecondOrder)
+       nCell, iCell_DI, Weight_I, IsSecondOrder)
 
     ! Find the grid cells surrounding the point Coord_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
     !                                 using AMR interpolation procedure
     ! IsSecondOrder returns whether the result is 2nd order interpolation
 
     real,    intent(in) :: CoordIn_D(MaxDim)
     integer, intent(out):: nCell
-    integer, intent(out):: iCell_II(0:nDim,2**nDim)
+    integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
     logical, optional, intent(out):: IsSecondOrder
 
@@ -114,8 +114,8 @@ contains
 
     ! copy results indices
     iProc_I(            1:nGridOut) = iIndexes_II(0,         1:nGridOut)
-    iCell_II(1:nDimAmr, 1:nGridOut) = iIndexes_II(1:nDimAmr, 1:nGridOut)
-    iCell_II(0,         1:nGridOut) = iIndexes_II(nDimAmr+1, 1:nGridOut)
+    iCell_DI(1:nDimAmr, 1:nGridOut) = iIndexes_II(1:nDimAmr, 1:nGridOut)
+    iCell_DI(0,         1:nGridOut) = iIndexes_II(nDimAmr+1, 1:nGridOut)
 
     ! check if there is a non-AMR direction,
     if(nDimAmr == nDim)then
@@ -125,13 +125,13 @@ contains
 
     ! Handle the non-AMR direction
     ! store indexes and restore shape along non-AMR direction
-    iCell_II(  nDim,         1:  nGridOut) = iCellNoAmr_I(1)
+    iCell_DI(  nDim,         1:  nGridOut) = iCellNoAmr_I(1)
 
     if(WeightNoAmr < cTol2)then
        ! this includes the case IsSecondOrderNoAmr = .false.:
        ! in this case WeightNoAmr is set to 0
        do iDim = 1, nDim
-          iCell_II(iOrder_I(iDim),1:nGridOut) = iCell_II(iDim,1:nGridOut)
+          iCell_DI(iOrder_I(iDim),1:nGridOut) = iCell_DI(iDim,1:nGridOut)
        end do
        call sort_out_other_procs
        ! return whether interpolation is of 2nd order
@@ -145,13 +145,13 @@ contains
        ! the other half of the stencil is in the same block:
        ! local node ids & cell indexes along AMR directions
        ! are the same for cells iCell and nGridOut+iCell
-       iCell_II(0:nDimAmr,nGridOut+1:2*nGridOut)=iCell_II(0:nDimAmr,1:nGridOut)
-       iCell_II(     nDim,nGridOut+1:2*nGridOut)=iCellNoAmr_I(2)
+       iCell_DI(0:nDimAmr,nGridOut+1:2*nGridOut)=iCell_DI(0:nDimAmr,1:nGridOut)
+       iCell_DI(     nDim,nGridOut+1:2*nGridOut)=iCellNoAmr_I(2)
        ! copy processor indices
        iProc_I(nGridOut+1:2*nGridOut) = iProc_I(1:nGridOut)
        ! restore shape
        do iDim = 1, nDim
-          iCell_II(iOrder_I(iDim),1:2*nGridOut) =iCell_II(iDim,1:2*nGridOut)
+          iCell_DI(iOrder_I(iDim),1:2*nGridOut) =iCell_DI(iDim,1:2*nGridOut)
        end do
        ! correct weights
        Weight_I(nGridOut+1:2*nGridOut)= Weight_I(1:nGridOut) *    WeightNoAmr
@@ -185,16 +185,16 @@ contains
        ! copy results indices
        iProc_I(            nGridOut+1:nGridOut+nGridOutAux) = &
             iIndexes_II(0,         1:nGridOutAux)
-       iCell_II(1:nDimAmr, nGridOut+1:nGridOut+nGridOutAux) = &
+       iCell_DI(1:nDimAmr, nGridOut+1:nGridOut+nGridOutAux) = &
             iIndexes_II(1:nDimAmr, 1:nGridOutAux)
-       iCell_II(0,         nGridOut+1:nGridOut+nGridOutAux) = &
+       iCell_DI(0,         nGridOut+1:nGridOut+nGridOutAux) = &
             iIndexes_II(nDimAmr+1, 1:nGridOutAux)
 
        ! store indexes and restore shape along non-AMR direction
-       iCell_II(  nDim, nGridOut+1:nGridOut+nGridOutAux) = iCellNoAmr_I(2)
+       iCell_DI(  nDim, nGridOut+1:nGridOut+nGridOutAux) = iCellNoAmr_I(2)
        do iDim = 1, nDim
-          iCell_II(iOrder_I(iDim),1:nGridOut+nGridOutAux) = &
-               iCell_II(iDim,1:nGridOut+nGridOutAux)
+          iCell_DI(iOrder_I(iDim),1:nGridOut+nGridOutAux) = &
+               iCell_DI(iDim,1:nGridOut+nGridOutAux)
        end do
 
        ! correct weights
@@ -217,7 +217,7 @@ contains
       do iCell = 1, nGridOut
          if(iProc_I(iCell) == iProc)then
             nCell = nCell + 1
-            iCell_II(:, nCell) = iCell_II(:, iCell)
+            iCell_DI(:, nCell) = iCell_DI(:, iCell)
             Weight_I(nCell) = Weight_I(iCell)
          end if
       end do
@@ -226,18 +226,18 @@ contains
   end subroutine interpolate_amr
   !============================================================================
   subroutine interpolate_amr_gc(CoordIn_D, &
-       nCell, iCell_II, Weight_I, IsSecondOrder, iProcRef, iProcOut)
+       nCell, iCell_DI, Weight_I, IsSecondOrder, iProcRef, iProcOut)
 
     ! Find the grid cells surrounding the point Coord_D.
     ! nCell returns the number of cells found on the processor.
-    ! iCell_II returns the block+cell indexes for each cell.
+    ! iCell_DI returns the block+cell indexes for each cell.
     ! Weight_I returns the interpolation weights calculated
     !                                 using AMR interpolation procedure
     ! IsSecondOrder returns whether the result is 2nd order interpolation
 
     real,    intent(in) :: CoordIn_D(MaxDim)
     integer, intent(out):: nCell
-    integer, intent(out):: iCell_II(0:nDim,2**nDim)
+    integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
     logical, optional, intent(out):: IsSecondOrder
     integer, optional, intent(in) :: iProcRef
@@ -303,20 +303,20 @@ contains
        end if
     end if
     if(present(iProcOut))iProcOut = iIndexes_II(0, 1)
-    iCell_II(1:nDimAmr, 1:nCell) = iIndexes_II(1:nDimAmr, 1:nCell)
-    iCell_II(0,         1:nCell) = iIndexes_II(nDimAmr+1, 1:nCell)
+    iCell_DI(1:nDimAmr, 1:nCell) = iIndexes_II(1:nDimAmr, 1:nCell)
+    iCell_DI(0,         1:nCell) = iIndexes_II(nDimAmr+1, 1:nCell)
     ! check if there is a non-AMR direction,
     if(nDimAmr == nDim)RETURN
 
     ! Handle the non-AMR direction
     ! store indexes and restore shape along non-AMR direction
-    iCell_II(nDim, 1:nCell) = iCellNoAmr_I(1)
+    iCell_DI(nDim, 1:nCell) = iCellNoAmr_I(1)
 
     if(WeightNoAmr < cTol2)then
        ! this includes the case IsSecondOrderNoAmr = .false.:
        ! in this case WeightNoAmr is set to 0
        do iDim = 1, nDim
-          iCell_II(iOrder_I(iDim),1:nCell) = iCell_II(iDim,1:nCell)
+          iCell_DI(iOrder_I(iDim),1:nCell) = iCell_DI(iDim,1:nCell)
        end do
        ! return whether interpolation is of 2nd order
        if(present(IsSecondOrder))&
@@ -324,9 +324,9 @@ contains
        RETURN
     elseif ( abs(1 - WeightNoAmr) < cTol2 ) then
        ! store indexes and restore shape along non-AMR direction
-       iCell_II(  nDim,         1:  nCell) = iCellNoAmr_I(2)
+       iCell_DI(  nDim,         1:  nCell) = iCellNoAmr_I(2)
        do iDim = 1, nDim
-          iCell_II(iOrder_I(iDim),1:nCell) = iCell_II(iDim,1:nCell)
+          iCell_DI(iOrder_I(iDim),1:nCell) = iCell_DI(iDim,1:nCell)
        end do
        ! return whether interpolation is of 2nd order
        if(present(IsSecondOrder))&
@@ -336,11 +336,11 @@ contains
     ! the other half of the stencil is in the same block:
     ! local node ids & cell indexes along AMR directions
     ! are the same for cells iCell and nGridOut+iCell
-    iCell_II(0:nDimAmr,nCell+1:2*nCell)=iCell_II(0:nDimAmr,1:nCell)
-    iCell_II(     nDim,nCell+1:2*nCell)=iCellNoAmr_I(2)
+    iCell_DI(0:nDimAmr,nCell+1:2*nCell)=iCell_DI(0:nDimAmr,1:nCell)
+    iCell_DI(     nDim,nCell+1:2*nCell)=iCellNoAmr_I(2)
     ! restore shape
     do iDim = 1, nDim
-       iCell_II(iOrder_I(iDim),1:2*nCell) = iCell_II(iDim,1:2*nCell)
+       iCell_DI(iOrder_I(iDim),1:2*nCell) = iCell_DI(iDim,1:2*nCell)
     end do
     ! correct weights
     Weight_I(nCell+1:2*nCell)= Weight_I(1:nCell) *    WeightNoAmr
