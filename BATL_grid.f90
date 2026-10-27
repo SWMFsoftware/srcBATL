@@ -1819,7 +1819,7 @@ contains
     real    :: Coord_D(MaxDim)
 
     ! Interpolation stencil
-    integer :: iCell_DI(0:nDim,1:2**nDim), nCell, iCell_D(0:nDim)
+    integer :: iCell_DI(0:nDim,1:2**nDim), nCell, iCell_D(0:MaxDim)
     real    :: Weight_I(2**nDim)
 
     character(len=*), parameter:: NameSub = 'interpolate_state_vector'
@@ -1827,7 +1827,8 @@ contains
     State_V = 0.0
     call interpolate_grid_amr(XyzIn_D, nCell, iCell_DI, Weight_I)
     do iCell = 1, nCell
-       iCell_D = iCell_DI(:,iCell)
+       iCell_D = 1
+       iCell_D(0:nDim) = iCell_DI(:,iCell)
        State_V = State_V + Weight_I(iCell)*&
             State_VGB(:, iCell_D(1), iCell_D(2), iCell_D(3), iCell_D(0))
     end do
