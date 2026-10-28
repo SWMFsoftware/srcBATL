@@ -1701,10 +1701,10 @@ contains
 
   end subroutine interpolate_grid_amr
   !============================================================================
-  subroutine interpolate_grid_amr_gc(XyzIn_D, iBlock, &
+  subroutine interpolate_grid_amr_gc(XyzIn_D, &
        nCell, iCell_DI, Weight_I, IsSecondOrder)
 
-    use BATL_interpolate_amr, ONLY:interpolate_amr_gc
+    use BATL_interpolate_amr, ONLY: interpolate_amr_gc
 
     ! Find the grid cells surrounding the point Xyz_D.
     ! nCell returns the number of cells found on the processor.
@@ -1712,13 +1712,7 @@ contains
     ! Weight_I returns the interpolation weights calculated
     ! Interpolation is performed using cells (including ghost) of single block
 
-    ! NOTE: it is assumed that iBlock is appropriate for interpolation
-    ! that utilizes only 1 layer of ghost cells, i.e. the call
-    !     call check_interpolate_amr_gc(XyzIn_D, iBlock, iPeOut, iBlockOut)
-    ! would result in iBlockOut==iBlock
-
     real,    intent(in) :: XyzIn_D(MaxDim)
-    integer, intent(in) :: iBlock
     integer, intent(out):: nCell
     integer, intent(out):: iCell_DI(0:nDim,2**nDim)
     real,    intent(out):: Weight_I(2**nDim)
@@ -1746,6 +1740,7 @@ contains
     end if
     call interpolate_amr_gc(Coord_D, &
        nCell, iCell_DI, Weight_I, IsSecondOrder, iProcRef=iProc)
+
   end subroutine interpolate_grid_amr_gc
   !============================================================================
   subroutine check_interpolate_amr_gc(Xyz_D, iBlockIn, iPeOut, iBlockOut)
