@@ -968,7 +968,7 @@ contains
        end do; end do; end do
     end if
 
-    if (nDim == nDimAmr) then
+    if (nDim == nDimAmr*99) then
        if (DoTest) write(*,*) 'Testing interpolate_grid_amr_gc'
        Xyz_D = 0.0
        if (.not. allocated(Point_VIII)) &
