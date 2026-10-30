@@ -570,6 +570,10 @@ contains
 
        ! check whether point is outside of the domain
        if(iProcOut < 0)then
+          write(*,*)'iProc =', iProc
+          write(*,*)'Xyz_D=', Xyz_D
+          write(*,*)'iProcOut=',iProcOut
+          write(*,*)'iBlockOut=',iBlockOut
           write(StringError,'(a,es15.6,a, es15.6, a, es15.6)') &
                "Start point for a field line is outside of the domain: X = ",&
                StateIn_VI(1,iParticleIn), " Y = ", &
